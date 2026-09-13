@@ -1,0 +1,1511 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel de Ferramentas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A0%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#EDF0F3;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --text:#1A2027;
+  --text-muted:#5B6572;
+  --text-faint:#8993A0;
+  --border:#DBE1E7;
+  --border-strong:#C3CBD3;
+  --accent:#2C3E63;
+  --accent-2:#3D5586;
+  --accent-contrast:#FFFFFF;
+  --danger:#C4331F;
+  --shadow: 0 1px 2px rgba(20,30,45,.06), 0 2px 8px rgba(20,30,45,.05);
+
+  --st-pendente:#6B7280;      --st-pendente-bg:#EEF0F2;
+  --st-ok:#1F8A54;            --st-ok-bg:#E4F5EC;
+  --st-limpeza:#0F7E96;       --st-limpeza-bg:#E1F3F6;
+  --st-nitretacao:#6E4FCB;    --st-nitretacao-bg:#EEE8FB;
+  --st-int:#B4790E;           --st-int-bg:#FAF0DC;
+  --st-ext:#C1600F;           --st-ext-bg:#FBE9DA;
+  --st-quebrada:#C4331F;      --st-quebrada-bg:#FAE2DE;
+  --st-outro:#6B6350;         --st-outro-bg:#EFECE2;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12161C;
+    --surface:#1A2029;
+    --surface-2:#20272F;
+    --text:#E8EBEF;
+    --text-muted:#9DA7B3;
+    --text-faint:#6B7480;
+    --border:#2B3340;
+    --border-strong:#3A4351;
+    --accent:#7B93C9;
+    --accent-2:#94ABDD;
+    --accent-contrast:#0F1420;
+    --danger:#E5695A;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.35);
+
+    --st-pendente:#9AA3AF;     --st-pendente-bg:#242A32;
+    --st-ok:#4FC787;           --st-ok-bg:#16281F;
+    --st-limpeza:#4FC1D6;      --st-limpeza-bg:#122A2E;
+    --st-nitretacao:#B29CF2;   --st-nitretacao-bg:#241E38;
+    --st-int:#E3B54C;          --st-int-bg:#2E2612;
+    --st-ext:#F0985A;          --st-ext-bg:#331F0F;
+    --st-quebrada:#E5695A;     --st-quebrada-bg:#331813;
+    --st-outro:#C2B89A;        --st-outro-bg:#2A2720;
+  }
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+h1,h2,h3,.display{
+  font-family:"Big Shoulders Display",system-ui,sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.02em;
+  text-wrap:balance;
+  font-weight:800;
+  margin:0;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+button{font-family:inherit;}
+img{max-width:100%;}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
+
+#app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+
+/* ---------- Auth screen ---------- */
+.auth-wrap{
+  min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+  padding:28px 20px;gap:22px;
+}
+.auth-brand{display:flex;flex-direction:column;gap:2px;margin-bottom:4px;}
+.auth-brand .eyebrow{
+  font-family:"IBM Plex Mono";font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--text-faint);
+}
+.auth-brand h1{font-size:clamp(30px,8vw,40px);color:var(--accent);line-height:.95;}
+.auth-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;
+}
+.tabbar{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:3px;}
+.tabbar button{
+  flex:1;border:none;background:transparent;padding:10px 8px;border-radius:6px;
+  font-weight:600;font-size:14px;color:var(--text-muted);cursor:pointer;
+}
+.tabbar button.active{background:var(--surface);color:var(--accent);box-shadow:var(--shadow);}
+
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:13px;font-weight:600;color:var(--text-muted);}
+.field input[type=text],.field input[type=password],.field input[type=number],.field input[type=date],.field textarea,.field select{
+  border:1.5px solid var(--border-strong);border-radius:8px;padding:12px 12px;font-size:16px;
+  background:var(--surface);color:var(--text);width:100%;
+}
+.field textarea{resize:vertical;min-height:64px;font-family:inherit;}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent-2);}
+.hint{font-size:12.5px;color:var(--text-faint);}
+.error-msg{
+  background:var(--st-quebrada-bg);color:var(--st-quebrada);border:1px solid var(--st-quebrada);
+  border-radius:8px;padding:10px 12px;font-size:13.5px;font-weight:500;
+}
+.warn-msg{
+  background:var(--st-int-bg);color:var(--st-int);border:1px solid var(--st-int);
+  border-radius:8px;padding:10px 12px;font-size:13px;font-weight:500;display:flex;flex-direction:column;gap:8px;
+}
+.segmented{display:flex;gap:8px;}
+.segmented button{
+  flex:1;border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text);
+  padding:12px 8px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;
+}
+.segmented button.active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
+
+.btn{
+  border:none;border-radius:8px;padding:13px 18px;font-weight:700;font-size:15px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary{background:var(--accent);color:var(--accent-contrast);}
+.btn-primary:active{background:var(--accent-2);}
+.btn-ghost{background:transparent;color:var(--accent);border:1.5px solid var(--border-strong);}
+.btn-block{width:100%;}
+.btn-danger-text{background:transparent;color:var(--danger);border:none;font-weight:600;font-size:13px;padding:6px 4px;cursor:pointer;}
+.btn[disabled]{opacity:.55;cursor:default;}
+
+/* ---------- App chrome ---------- */
+.topbar{
+  position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.topbar .who{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+.topbar .who .name{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.role-pill{
+  font-family:"IBM Plex Mono";font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  padding:2px 7px;border-radius:20px;font-weight:600;width:fit-content;margin-top:2px;
+}
+.role-pill.pcp{background:var(--st-limpeza-bg);color:var(--st-limpeza);}
+.role-pill.correcao{background:var(--st-nitretacao-bg);color:var(--st-nitretacao);}
+.icon-btn{
+  border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-muted);
+  border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+}
+
+.filterbar{
+  position:sticky;top:57px;z-index:19;background:var(--bg);border-bottom:1px solid var(--border);
+  padding:10px 16px;display:flex;flex-direction:column;gap:8px;
+}
+.filterbar .row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;align-items:center;}
+.chip{
+  border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-muted);
+  padding:7px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex:none;
+}
+.chip.active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
+.filterbar input[type=date]{
+  border:1.5px solid var(--border-strong);border-radius:8px;padding:7px 10px;font-size:13.5px;
+  background:var(--surface);color:var(--text);font-family:inherit;
+}
+
+.content{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:16px;}
+
+/* ---------- Stat tiles ---------- */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.stat-tile{
+  background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 8px;
+  display:flex;flex-direction:column;gap:2px;align-items:flex-start;
+}
+.stat-tile .n{font-family:"IBM Plex Mono";font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;}
+.stat-tile .lbl{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.stat-tile.warn .n{color:var(--st-int);}
+.stat-tile.crit .n{color:var(--st-quebrada);}
+.stat-tile.ok .n{color:var(--st-ok);}
+
+.section-title{
+  font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-faint);
+  display:flex;align-items:center;justify-content:space-between;margin-top:2px;gap:8px;
+}
+.section-title .btn{padding:6px 12px;font-size:11.5px;}
+
+/* ---------- Tool cards (PCP) ---------- */
+.tool-card{
+  background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--st-pendente);
+  border-radius:9px;box-shadow:var(--shadow);overflow:hidden;
+}
+.tool-card .head{padding:12px 13px 10px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;cursor:pointer;}
+.tool-card .id-block{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.tool-card .codigo{font-family:"IBM Plex Mono";font-weight:600;font-size:16.5px;letter-spacing:.01em;}
+.tool-card .meta{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+.tag{background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-weight:600;}
+.status-badge{
+  font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:20px;white-space:nowrap;height:fit-content;
+  text-transform:uppercase;letter-spacing:.02em;
+}
+.status-badge.sm{font-size:9.5px;padding:3px 7px;}
+.tool-card .obs{padding:0 13px 12px;font-size:13px;color:var(--text-muted);line-height:1.4;}
+.tool-card .obs b{color:var(--text);font-weight:600;}
+.tool-card .foot{
+  padding:8px 13px;border-top:1px solid var(--border);display:flex;justify-content:space-between;
+  align-items:center;font-size:11.5px;color:var(--text-faint);background:var(--surface-2);
+}
+.tool-card .foot .prev{font-weight:700;}
+.tool-card .body{border-top:1px solid var(--border);padding:12px 13px;display:flex;flex-direction:column;gap:10px;}
+.hist-item{display:flex;gap:8px;font-size:12.5px;padding:7px 0;border-bottom:1px dashed var(--border);}
+.hist-item:last-child{border-bottom:none;}
+.hist-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;}
+.hist-item .who{color:var(--text-faint);}
+
+.empty-state{
+  text-align:center;padding:40px 20px;color:var(--text-faint);display:flex;flex-direction:column;gap:6px;
+  align-items:center;
+}
+.empty-state svg{opacity:.5;margin-bottom:4px;}
+
+.batchbar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:640px;
+  background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;
+  display:flex;gap:8px;align-items:center;z-index:26;box-shadow:0 -2px 10px rgba(20,30,45,.12);
+}
+@media (max-width:640px){ .batchbar{left:0;transform:none;} }
+.batchbar .count{font-weight:700;font-size:13px;flex:1;}
+.batchbar .btn{padding:9px 12px;font-size:12.5px;}
+
+.fab{
+  position:fixed;bottom:22px;left:50%;transform:translateX(calc(-50% + 232px));
+  background:var(--accent);color:var(--accent-contrast);border:none;border-radius:30px;
+  padding:15px 22px;font-weight:700;font-size:15px;box-shadow:0 4px 16px rgba(20,30,45,.28);
+  cursor:pointer;display:flex;align-items:center;gap:8px;z-index:25;max-width:calc(100vw - 32px);
+}
+@media (max-width:640px){
+  .fab{left:auto;right:16px;transform:none;}
+}
+
+/* ---------- Correção: consolidated list ---------- */
+.nec-list{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
+.nec-row-wrap{border-bottom:1px solid var(--border);}
+.nec-row-wrap:last-child{border-bottom:none;}
+.nec-row{display:flex;align-items:center;gap:10px;padding:12px 12px;cursor:pointer;}
+.nec-row.pending{background:var(--surface-2);}
+.nec-chk{width:23px;height:23px;flex:none;accent-color:var(--st-ok);}
+.nec-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.nec-main .codigo{font-family:"IBM Plex Mono";font-weight:700;font-size:15px;}
+.nec-obs{font-size:11px;color:var(--st-int);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nec-kg{font-family:"IBM Plex Mono";font-size:13.5px;color:var(--text-muted);min-width:70px;text-align:right;font-variant-numeric:tabular-nums;flex:none;}
+.nec-expand{padding:2px 12px 16px;display:flex;flex-direction:column;gap:8px;}
+.nec-expand textarea{
+  border:1.5px solid var(--border-strong);border-radius:8px;padding:9px 10px;font-size:13.5px;min-height:52px;
+  font-family:inherit;background:var(--surface);color:var(--text);resize:vertical;
+}
+
+/* ---------- Modal ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,20,28,.5);z-index:50;display:flex;align-items:flex-end;
+  justify-content:center;
+}
+@media (min-width:640px){.modal-overlay{align-items:center;}}
+.modal{
+  background:var(--surface);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;
+  border-radius:16px 16px 0 0;padding:18px 18px 24px;display:flex;flex-direction:column;gap:14px;
+}
+@media (min-width:640px){.modal{border-radius:14px;}}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.modal-head h2{font-size:22px;color:var(--text);}
+.modal-close{background:none;border:none;font-size:22px;color:var(--text-faint);cursor:pointer;line-height:1;padding:2px 6px;}
+
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.status-opt{
+  border:2px solid var(--border-strong);border-radius:9px;padding:12px 8px;text-align:center;
+  font-weight:700;font-size:13px;cursor:pointer;background:var(--surface);color:var(--text);
+}
+.status-opt.selected{border-color:currentColor;box-shadow:0 0 0 1px currentColor inset;}
+.status-opt.sm{padding:8px 6px;font-size:11.5px;border-width:1.5px;border-radius:8px;}
+.prev-grid{display:flex;gap:8px;flex-wrap:wrap;}
+.prev-opt{
+  border:1.5px solid var(--border-strong);border-radius:20px;padding:8px 14px;font-size:13px;font-weight:600;
+  background:var(--surface);color:var(--text-muted);cursor:pointer;
+}
+.prev-opt.selected{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
+
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);
+  padding:11px 18px;border-radius:8px;font-size:13.5px;font-weight:600;z-index:80;box-shadow:var(--shadow);
+  max-width:calc(100vw - 40px);text-align:center;
+}
+
+.spinner-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--text-faint);
+  font-family:"IBM Plex Mono";font-size:13px;letter-spacing:.05em;}
+.setup-wrap{max-width:520px;margin:40px auto;padding:0 20px;display:flex;flex-direction:column;gap:14px;}
+.setup-wrap .box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:var(--shadow);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc,
+  collection, onSnapshot, query, limit, getDocs, increment, arrayUnion
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+/* ============================================================
+   CONFIGURAÇÃO DO FIREBASE — COLE AQUI OS DADOS DO SEU PROJETO
+   Onde encontrar: console.firebase.google.com > seu projeto >
+   ícone de engrenagem > Configurações do projeto > role até
+   "Seus apps" > app da Web > "Configuração do SDK".
+   ============================================================ */
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAol3VoiDrcoJe6BdSzDFFU13OZkcwo8SI",
+  authDomain: "pcp-correcao.firebaseapp.com",
+  projectId: "pcp-correcao",
+  storageBucket: "pcp-correcao.firebasestorage.app",
+  messagingSenderId: "232457047221",
+  appId: "1:232457047221:web:2d6840dd9953f38f81c2fc"
+};
+
+window.__FIREBASE_DB_PROMISE = new Promise(function(resolve){
+  if(!FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey === "COLE_AQUI"){
+    resolve(null);
+    return;
+  }
+  try{
+    var app = initializeApp(FIREBASE_CONFIG);
+    var fsdb = getFirestore(app);
+    var auth = getAuth(app);
+
+    function wrapSnap(snap){ return { exists: snap.exists(), data: function(){ return snap.data(); }, id: snap.id }; }
+    function wrapQuerySnap(qs){ return { docs: qs.docs.map(function(d){ return { id:d.id, data:function(){ return d.data(); } }; }) }; }
+    function docRef(path){
+      var ref = doc(fsdb, path);
+      return {
+        id: ref.id, path: path,
+        get: function(){ return getDoc(ref).then(wrapSnap); },
+        set: function(data, opts){ return setDoc(ref, data, opts||{}); },
+        update: function(data){ return updateDoc(ref, data); },
+        delete: function(){ return deleteDoc(ref); },
+        onSnapshot: function(next, err){ return onSnapshot(ref, function(s){ next(wrapSnap(s)); }, err); },
+        collection: function(sub){ return collectionRef(path+"/"+sub); }
+      };
+    }
+    function collectionRef(path){
+      var ref = collection(fsdb, path);
+      return {
+        path: path,
+        doc: function(id){ return docRef(path+"/"+(id||doc(ref).id)); },
+        add: function(data){ return addDoc(ref, data).then(function(r){ return docRef(path+"/"+r.id); }); },
+        limit: function(n){
+          var q = query(ref, limit(n));
+          return {
+            get: function(){ return getDocs(q).then(wrapQuerySnap); },
+            onSnapshot: function(next, err){ return onSnapshot(q, function(s){ next(wrapQuerySnap(s)); }, err); }
+          };
+        }
+      };
+    }
+
+    var dbApi = { doc: docRef, collection: collectionRef, increment: increment, arrayUnion: arrayUnion };
+    var authApi = {
+      signUp: function(email, password){ return createUserWithEmailAndPassword(auth, email, password).then(function(cred){ return cred.user.uid; }); },
+      signIn: function(email, password){ return signInWithEmailAndPassword(auth, email, password).then(function(cred){ return cred.user.uid; }); },
+      signOut: function(){ return signOut(auth); }
+    };
+
+    var resolved = false;
+    onAuthStateChanged(auth, function(fbUser){
+      if(resolved) return;
+      resolved = true;
+      resolve({ db: dbApi, authApi: authApi, initialUid: fbUser ? fbUser.uid : null });
+    });
+  }catch(e){
+    resolve(null);
+  }
+});
+</script>
+
+<script type="module">
+(function(){
+
+var STATUS_META = {
+  "Pendente":        {v:"pendente",    label:"Pendente"},
+  "OK":              {v:"ok",          label:"OK"},
+  "Soda / Limpeza":  {v:"limpeza",     label:"Soda / Limpeza"},
+  "Nitretação":      {v:"nitretacao",  label:"Nitretação"},
+  "Correção interna":{v:"int",         label:"Correção interna"},
+  "Correção externa":{v:"ext",         label:"Correção externa"},
+  "Quebrada":        {v:"quebrada",    label:"Quebrada"},
+  "Outro":           {v:"outro",       label:"Outro"}
+};
+var MOTIVO_LIST = ["Soda / Limpeza","Nitretação","Correção interna","Correção externa","Quebrada","Outro"];
+
+function todayStr(d){ d=d||new Date(); var m=("0"+(d.getMonth()+1)).slice(-2), day=("0"+d.getDate()).slice(-2); return d.getFullYear()+"-"+m+"-"+day; }
+function addDaysStr(n){ var d=new Date(); d.setDate(d.getDate()+n); return todayStr(d); }
+function fmtDateBR(iso){ if(!iso) return "—"; var p=iso.split("-"); return p[2]+"/"+p[1]+"/"+p[0].slice(2); }
+function fmtDateTimeBR(iso){ if(!iso) return "—"; var d=new Date(iso); if(isNaN(d)) return "—";
+  var dd=("0"+d.getDate()).slice(-2), mm=("0"+(d.getMonth()+1)).slice(-2), hh=("0"+d.getHours()).slice(-2), mi=("0"+d.getMinutes()).slice(-2);
+  return dd+"/"+mm+" "+hh+":"+mi; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+function fmtKg(n){ n=n||0; return n.toLocaleString("pt-BR",{maximumFractionDigits:1}); }
+function relLabel(iso){
+  if(!iso) return "";
+  var diff = Math.round((new Date(iso+"T00:00:00") - new Date(todayStr()+"T00:00:00"))/86400000);
+  if(diff===0) return "hoje";
+  if(diff===1) return "amanhã";
+  if(diff>1) return "em "+diff+" dias";
+  return fmtDateBR(iso);
+}
+function sanitizeUsername(u){
+  u = (u||"").toString().normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
+  u = u.replace(/[^a-z0-9._-]+/g,"-").replace(/-+/g,"-").replace(/^[-.]+|[-.]+$/g,"");
+  return u.slice(0,60);
+}
+function usernameToEmail(u){ return u+"@ferramentas.local"; }
+function parseKg(raw){
+  var s = (raw==null?"":raw).toString().replace(/[^\d.,]/g,"");
+  if(s.indexOf(",")>=0 && s.indexOf(".")>=0){ s = s.replace(/\./g,"").replace(",", "."); }
+  else if(s.indexOf(",")>=0){ s = s.replace(",", "."); }
+  var n = parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function normalizeHeader(s){ return (s==null?"":s).toString().normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim(); }
+function autoDetectHeaderRow(grid){
+  for(var i=0;i<Math.min(grid.length,12);i++){
+    var joined = grid[i].map(normalizeHeader).join("|");
+    if(joined.indexOf("FERRAMENTA")>=0) return i;
+  }
+  return 0;
+}
+function autoColMap(grid, headerRowIndex){
+  var header = grid[headerRowIndex]||[];
+  var map = {};
+  header.forEach(function(cell,idx){
+    var h = normalizeHeader(cell);
+    if(map.codigo===undefined && /FERRAMENTA/.test(h)) map.codigo=idx;
+    else if(map.cliente===undefined && /CLIENTE/.test(h)) map.cliente=idx;
+    else if(map.quantidadeKg===undefined && /QUANT/.test(h)) map.quantidadeKg=idx;
+    else if(map.corte===undefined && /CORTE/.test(h)) map.corte=idx;
+    else if(map.liga===undefined && /^LIGA/.test(h)) map.liga=idx;
+    else if(map.observacaoPCP===undefined && /OBSERV/.test(h)) map.observacaoPCP=idx;
+  });
+  return map;
+}
+function classifyRows(grid, headerRowIndex){
+  var rows = [];
+  var afterReserva = false;
+  for(var i=headerRowIndex+1;i<grid.length;i++){
+    var cells = grid[i]||[];
+    var joined = cells.map(function(c){return (c==null?"":c.toString());}).join(" ").trim();
+    var norm = normalizeHeader(joined);
+    if(norm===""){ continue; }
+    if(norm.indexOf("PROGRAMACAO RESERVA")>=0 || norm==="RESERVA"){ rows.push({index:i,cells:cells,kind:"divider",label:"Programação Reserva"}); afterReserva=true; continue; }
+    if(/^TOTAL\b/.test(norm)){ rows.push({index:i,cells:cells,kind:"divider",label:"Total"}); continue; }
+    if(norm.indexOf("FERRAMENTA")>=0 && norm.indexOf("CLIENTE")>=0){ rows.push({index:i,cells:cells,kind:"divider",label:"Cabeçalho repetido"}); continue; }
+    rows.push({index:i, cells:cells, kind:"data", tipo: afterReserva? "Reserva":"Programação"});
+  }
+  return rows;
+}
+
+/* ---- Consolidation key (code + prensa + data). Used both client-side
+   (PCP dashboard, which has full "ferramentas" access) and as the
+   Firestore doc id in "necessidades" / "status". ---- */
+function necDocId(codigo, prensa, data){
+  var c = (codigo||"").toString().normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z0-9._-]+/g,"-").replace(/-+/g,"-").replace(/^-+|-+$/g,"");
+  return (c||"X") + "__" + (prensa||"X") + "__" + (data||"X");
+}
+function computeNecessidades(list){
+  var groups = {};
+  list.forEach(function(t){
+    var key = necDocId(t.codigo, t.prensa, t.dataProgramacao);
+    if(!groups[key]) groups[key] = { key:key, codigo:t.codigo, prensa:t.prensa, data:t.dataProgramacao, kgTotal:0, kgProgramacao:0, kgReserva:0, observacoes:[], rawIds:[] };
+    var g = groups[key];
+    var kg = t.quantidadeKg||0;
+    g.kgTotal += kg;
+    if(t.tipo==="Reserva") g.kgReserva += kg; else g.kgProgramacao += kg;
+    if(t.observacaoPCP && g.observacoes.indexOf(t.observacaoPCP)===-1) g.observacoes.push(t.observacaoPCP);
+    g.rawIds.push(t.id);
+  });
+  return Object.keys(groups).map(function(k){return groups[k];});
+}
+function sortNec(list){ return list.slice().sort(function(a,b){ return (a.codigo||"").localeCompare(b.codigo||""); }); }
+
+var state = {
+  db: null,
+  dbReady: false,
+  user: null,
+  authMode: "login",
+  authError: "",
+  authBusy: false,
+  regRole: "correcao",
+  ferramentas: [],
+  dataLoaded: false,
+  statusByKey: {},
+  necessidadesByKey: {},
+  filters: { data: todayStr(), prensa: "Todas", turno: "Todos", onlyPend: false, includeReserva: false },
+  expanded: {},
+  modal: null,
+  modal_id: null,
+  newTool: { prensa:"P7", turno:"Dia", tipo:"Programação" },
+  toast: null,
+  unsub: null,
+  unsubNecessidades: null,
+  unsubStatus: null,
+  import: null,
+  correcaoPrensa: "P7",
+  necPending: {},
+  necExpanded: {}
+};
+
+var app = document.getElementById("app");
+
+function render(){
+  if(!state.user){ app.innerHTML = renderAuth(); bindAuth(); return; }
+  if(!state.dbReady){ app.innerHTML = '<div class="spinner-wrap">CARREGANDO…</div>'; return; }
+  var filterBarHtml = state.user.perfil==="pcp" ? renderFilterBarPCP() : renderFilterBarCorrecao();
+  var html = renderTopBar() + filterBarHtml + '<div class="content">' +
+    (state.user.perfil==="pcp" ? renderPCP() : renderCorrecao()) +
+    '</div>';
+  if(state.user.perfil==="pcp") html += '<button class="fab" data-action="open-new">+ &nbsp;Nova ferramenta</button>';
+  if(state.modal) html += renderModal();
+  if(state.toast) html += '<div class="toast">'+esc(state.toast)+'</div>';
+  app.innerHTML = html;
+  bindApp();
+  if(state.toast){ setTimeout(function(){ state.toast=null; var t=app.querySelector(".toast"); if(t) t.remove(); },2200); }
+}
+
+/* ================= AUTH ================= */
+function renderAuth(){
+  var isLogin = state.authMode==="login";
+  return '' +
+  '<div class="auth-wrap">' +
+    '<div class="auth-brand">' +
+      '<span class="eyebrow">PCP &nbsp;⇄&nbsp; Correção de Ferramentas</span>' +
+      '<h1>Painel de<br>Ferramentas</h1>' +
+    '</div>' +
+    '<div class="auth-card">' +
+      '<div class="tabbar">' +
+        '<button data-auth-tab="login" class="'+(isLogin?"active":"")+'">Entrar</button>' +
+        '<button data-auth-tab="register" class="'+(!isLogin?"active":"")+'">Criar conta</button>' +
+      '</div>' +
+      (state.authError ? '<div class="error-msg">'+esc(state.authError)+'</div>' : '') +
+      (isLogin ? renderLoginForm() : renderRegisterForm()) +
+    '</div>' +
+  '</div>';
+}
+function renderLoginForm(){
+  return '' +
+  '<form id="login-form" style="display:flex;flex-direction:column;gap:14px;">' +
+    '<div class="field"><label>Usuário</label><input id="li-user" type="text" autocomplete="username" required></div>' +
+    '<div class="field"><label>Senha</label><input id="li-pass" type="password" autocomplete="current-password" required></div>' +
+    '<button class="btn btn-primary btn-block" type="submit" '+(state.authBusy?"disabled":"")+'>'+(state.authBusy?"Entrando…":"Entrar")+'</button>' +
+  '</form>';
+}
+function renderRegisterForm(){
+  return '' +
+  '<form id="register-form" style="display:flex;flex-direction:column;gap:14px;">' +
+    '<div class="field"><label>Nome completo</label><input id="re-nome" type="text" required placeholder="Ex: João Silva"></div>' +
+    '<div class="field"><label>Usuário (login)</label><input id="re-user" type="text" required autocomplete="username" placeholder="ex: joao.silva"><span class="hint">Usado para entrar no app. Sem espaços ou acentos.</span></div>' +
+    '<div class="field"><label>Senha</label><input id="re-pass" type="password" required autocomplete="new-password"><span class="hint">Mínimo de 6 caracteres.</span></div>' +
+    '<div class="field"><label>Setor</label>' +
+      '<div class="segmented">' +
+        '<button type="button" data-role-opt="pcp" class="'+(state.regRole==="pcp"?"active":"")+'">PCP</button>' +
+        '<button type="button" data-role-opt="correcao" class="'+(state.regRole==="correcao"?"active":"")+'">Correção</button>' +
+      '</div>' +
+    '</div>' +
+    '<button class="btn btn-primary btn-block" type="submit" '+(state.authBusy?"disabled":"")+'>'+(state.authBusy?"Criando…":"Criar conta")+'</button>' +
+  '</form>';
+}
+function bindAuth(){
+  app.querySelectorAll("[data-auth-tab]").forEach(function(b){
+    b.addEventListener("click",function(){ state.authMode=b.getAttribute("data-auth-tab"); state.authError=""; render(); });
+  });
+  app.querySelectorAll("[data-role-opt]").forEach(function(b){
+    b.addEventListener("click",function(){ state.regRole=b.getAttribute("data-role-opt"); render(); });
+  });
+  var lf = document.getElementById("login-form");
+  if(lf) lf.addEventListener("submit", function(e){ e.preventDefault(); doLogin(); });
+  var rf = document.getElementById("register-form");
+  if(rf) rf.addEventListener("submit", function(e){ e.preventDefault(); doRegister(); });
+}
+
+function friendlyAuthError(err){
+  var code = err && err.code;
+  if(code==="auth/invalid-credential" || code==="auth/wrong-password" || code==="auth/user-not-found") return "Usuário ou senha incorretos.";
+  if(code==="auth/email-already-in-use") return "Este usuário já existe. Tente entrar.";
+  if(code==="auth/weak-password") return "A senha deve ter ao menos 6 caracteres.";
+  if(code==="auth/network-request-failed") return "Sem conexão com o servidor. Tente novamente.";
+  return (err && err.message) || "Tente novamente.";
+}
+
+function doLogin(){
+  var user = sanitizeUsername(document.getElementById("li-user").value);
+  var pass = document.getElementById("li-pass").value;
+  if(!user || !pass){ state.authError="Preencha usuário e senha."; render(); return; }
+  if(!state.db || !window.__AUTH_API){ state.authError="Serviço de dados indisponível no momento. Veja o painel de configuração abaixo."; render(); return; }
+  state.authBusy=true; state.authError=""; render();
+  window.__AUTH_API.signIn(usernameToEmail(user), pass).then(function(uid){
+    return state.db.doc("users/"+uid).get().then(function(snap){
+      state.authBusy=false;
+      if(!snap.exists){ state.authError="Perfil não encontrado para este usuário."; render(); return; }
+      var data = snap.data();
+      state.user = { uid:uid, username:user, nome:data.nome, perfil:data.role };
+      render(); startSubs();
+    });
+  }).catch(function(err){ state.authBusy=false; state.authError=friendlyAuthError(err); render(); });
+}
+
+function doRegister(){
+  var nome = document.getElementById("re-nome").value.trim();
+  var user = sanitizeUsername(document.getElementById("re-user").value);
+  var pass = document.getElementById("re-pass").value;
+  if(!nome || !user || !pass){ state.authError="Preencha todos os campos."; render(); return; }
+  if(pass.length<6){ state.authError="A senha deve ter ao menos 6 caracteres."; render(); return; }
+  if(!state.db || !window.__AUTH_API){ state.authError="Serviço de dados indisponível no momento. Veja o painel de configuração abaixo."; render(); return; }
+  state.authBusy=true; state.authError=""; render();
+  window.__AUTH_API.signUp(usernameToEmail(user), pass).then(function(uid){
+    return state.db.doc("users/"+uid).set({ nome:nome, role:state.regRole, criadoEm:new Date().toISOString() }).then(function(){
+      state.authBusy=false;
+      state.user = { uid:uid, username:user, nome:nome, perfil:state.regRole };
+      render(); startSubs();
+    });
+  }).catch(function(err){ state.authBusy=false; state.authError=friendlyAuthError(err); render(); });
+}
+
+function logout(){
+  if(window.__AUTH_API) window.__AUTH_API.signOut();
+  state.user=null; state.ferramentas=[]; state.dataLoaded=false; state.statusByKey={}; state.necessidadesByKey={}; state.necPending={};
+  if(state.unsub){ state.unsub(); state.unsub=null; }
+  if(state.unsubNecessidades){ state.unsubNecessidades(); state.unsubNecessidades=null; }
+  if(state.unsubStatus){ state.unsubStatus(); state.unsubStatus=null; }
+  render();
+}
+
+/* ================= TOP BAR / FILTERS ================= */
+function renderTopBar(){
+  return '' +
+  '<div class="topbar">' +
+    '<div class="who">' +
+      '<span class="name">'+esc(state.user.nome)+'</span>' +
+      '<span class="role-pill '+(state.user.perfil==="pcp"?"pcp":"correcao")+'">'+(state.user.perfil==="pcp"?"PCP":"Correção")+'</span>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;">' +
+      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-import">Importar</button>' : '') +
+      '<button class="icon-btn" data-action="logout">Sair</button>' +
+    '</div>' +
+  '</div>';
+}
+function renderFilterBarPCP(){
+  var f = state.filters;
+  function chip(group,val,label){ return '<button class="chip '+(f[group]===val?"active":"")+'" data-filter="'+group+'" data-value="'+val+'">'+label+'</button>'; }
+  return '' +
+  '<div class="filterbar">' +
+    '<div class="row">' + chip("prensa","Todas","Todas") + chip("prensa","P4","P4") + chip("prensa","P7","P7") + '</div>' +
+    '<div class="row">' + chip("turno","Todos","Todos") + chip("turno","Dia","☀ Dia") + chip("turno","Noite","☾ Noite") +
+      '<button class="chip '+(f.onlyPend?"active":"")+'" data-filter="onlyPend" data-value="toggle">Pendentes</button>' +
+      '<button class="chip '+(f.includeReserva?"active":"")+'" data-filter="includeReserva" data-value="toggle">Reserva</button>' +
+    '</div>' +
+    '<div class="row">' +
+      '<label class="hint" style="white-space:nowrap;">Data programada</label>' +
+      '<input type="date" id="filter-date" value="'+(f.data==="__all__"?"":f.data)+'">' +
+      '<button class="chip '+(f.data===todayStr()?"active":"")+'" data-filter="data" data-value="'+todayStr()+'">Hoje</button>' +
+      '<button class="chip '+(f.data==="__all__"?"active":"")+'" data-filter="dataAll" data-value="all">Todas as datas</button>' +
+    '</div>' +
+  '</div>';
+}
+function renderFilterBarCorrecao(){
+  var f = state.filters;
+  return '' +
+  '<div class="filterbar">' +
+    '<div class="row"><div class="segmented" style="flex:1;">' +
+      '<button data-action="set-correcao-prensa" data-value="P7" class="'+(state.correcaoPrensa==="P7"?"active":"")+'">P7</button>' +
+      '<button data-action="set-correcao-prensa" data-value="P4" class="'+(state.correcaoPrensa==="P4"?"active":"")+'">P4</button>' +
+    '</div></div>' +
+    '<div class="row">' +
+      '<button class="chip '+(f.onlyPend?"active":"")+'" data-filter="onlyPend" data-value="toggle">Só pendentes</button>' +
+      '<input type="date" id="filter-date" value="'+(f.data==="__all__"?"":f.data)+'">' +
+      '<button class="chip '+(f.data===todayStr()?"active":"")+'" data-filter="data" data-value="'+todayStr()+'">Hoje</button>' +
+    '</div>' +
+  '</div>';
+}
+
+/* ================= DATA HELPERS ================= */
+function applyFilters(list){
+  var f = state.filters;
+  return list.filter(function(t){
+    if(f.prensa!=="Todas" && t.prensa!==f.prensa) return false;
+    if(f.turno!=="Todos" && t.turno!==f.turno) return false;
+    if(f.data!=="__all__" && t.dataProgramacao!==f.data) return false;
+    if(f.onlyPend){
+      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao)];
+      if(sd && sd.status==="OK") return false;
+    }
+    if(!f.includeReserva && t.tipo==="Reserva") return false;
+    return true;
+  });
+}
+function sortTools(list){
+  return list.slice().sort(function(a,b){
+    if(a.prensa!==b.prensa) return a.prensa<b.prensa?-1:1;
+    if(a.turno!==b.turno) return a.turno==="Dia"?-1:1;
+    return (a.codigo||"").localeCompare(b.codigo||"");
+  });
+}
+function effectiveNecStatus(key){
+  if(state.necPending[key]) return state.necPending[key];
+  var sd = state.statusByKey[key];
+  return sd ? { status: sd.status, previsaoLiberacao: sd.previsaoLiberacao||null, observacaoCorrecao: sd.observacaoCorrecao||"" }
+            : { status:"Pendente", previsaoLiberacao:null, observacaoCorrecao:"" };
+}
+
+/* ================= PCP VIEW ================= */
+function renderPCP(){
+  var visible = applyFilters(state.ferramentas);
+  var baseAll = state.filters.data==="__all__" ? state.ferramentas : state.ferramentas.filter(function(t){return t.dataProgramacao===state.filters.data;});
+  var necs = computeNecessidades(baseAll);
+  var counts = { total: necs.length, ok:0, pend:0, andamento:0, quebrada:0 };
+  necs.forEach(function(g){
+    var sd = state.statusByKey[g.key];
+    var status = sd ? sd.status : "Pendente";
+    var v = (STATUS_META[status]||STATUS_META["Pendente"]).v;
+    if(v==="ok") counts.ok++;
+    else if(v==="pendente") counts.pend++;
+    else if(v==="quebrada") counts.quebrada++;
+    else counts.andamento++;
+  });
+  var html = '';
+  html += '<div class="stats-grid">' +
+    statTile(counts.total,"Ferramentas","") +
+    statTile(counts.ok,"OK","ok") +
+    statTile(counts.pend,"Pendentes","warn") +
+    statTile(counts.andamento,"Em processo","") +
+    statTile(counts.quebrada,"Quebradas","crit") +
+    statTile(counts.total-counts.ok,"Não liberadas","") +
+  '</div>';
+  html += '<div class="section-title"><span>Registros ('+visible.length+')</span></div>';
+  if(!state.dataLoaded){
+    html += emptyState("Carregando programação…");
+  } else if(visible.length===0){
+    html += emptyState("Nenhuma ferramenta encontrada com esses filtros.");
+  } else {
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">' +
+      sortTools(visible).map(function(t){ return renderCard(t); }).join("") +
+    '</div>';
+  }
+  return html;
+}
+function statTile(n,lbl,cls){
+  return '<div class="stat-tile '+(cls||"")+'"><span class="n">'+n+'</span><span class="lbl">'+lbl+'</span></div>';
+}
+function emptyState(msg){
+  return '<div class="empty-state"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>'+esc(msg)+'</span></div>';
+}
+
+/* ================= CARD (PCP — detailed raw record, shows consolidated status) ================= */
+function renderCard(t){
+  var key = necDocId(t.codigo, t.prensa, t.dataProgramacao);
+  var sd = state.statusByKey[key];
+  var status = sd ? sd.status : "Pendente";
+  var meta = STATUS_META[status] || STATUS_META["Pendente"];
+  var open = !!state.expanded[t.id];
+  var stripeVar = "var(--st-"+meta.v+")";
+  var card = '<div class="tool-card" style="border-left-color:'+stripeVar+';" data-card="'+t.id+'">';
+  card += '<div class="head" data-action="toggle-card" data-id="'+t.id+'">' +
+    '<div class="id-block">' +
+      '<span class="codigo">'+esc(t.codigo)+'</span>' +
+      (t.cliente ? '<span style="font-size:12.5px;color:var(--text-muted);font-weight:600;">'+esc(t.cliente)+'</span>' : '') +
+      '<div class="meta">' +
+        '<span class="tag">'+esc(t.prensa)+'</span>' +
+        '<span class="tag">'+(t.turno==="Dia"?"☀ Dia":"☾ Noite")+'</span>' +
+        '<span class="tag">'+fmtKg(t.quantidadeKg)+' kg</span>' +
+        (t.corte ? '<span class="tag">'+esc(t.corte)+'</span>' : '') +
+        (t.liga ? '<span class="tag">Liga '+esc(t.liga)+'</span>' : '') +
+        (t.tipo==="Reserva" ? '<span class="tag" style="color:var(--st-int);border-color:var(--st-int);">Reserva</span>' : '') +
+      '</div>' +
+    '</div>' +
+    '<span class="status-badge" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
+  '</div>';
+  if(t.observacaoPCP){
+    card += '<div class="obs"><b>PCP:</b> '+esc(t.observacaoPCP)+'</div>';
+  }
+  if(sd && sd.observacaoCorrecao){
+    card += '<div class="obs"><b>Correção:</b> '+esc(sd.observacaoCorrecao)+'</div>';
+  }
+  card += '<div class="foot"><span>Programado '+fmtDateBR(t.dataProgramacao)+' · '+esc(t.solicitadoPor.nome)+'</span>' +
+    (sd && sd.previsaoLiberacao ? '<span class="prev" style="color:var(--st-int);">Previsão: '+relLabel(sd.previsaoLiberacao)+'</span>' : '') +
+  '</div>';
+  if(open){
+    var grupo = state.ferramentas.filter(function(x){return necDocId(x.codigo,x.prensa,x.dataProgramacao)===key;});
+    card += '<div class="body">';
+    card += historyBlock(sd && sd.historico || []);
+    if(grupo.length>1){
+      card += '<div class="hint">Este status é compartilhado por todos os '+grupo.length+' registros de '+esc(t.codigo)+' na '+esc(t.prensa)+' em '+fmtDateBR(t.dataProgramacao)+' (total consolidado da Correção: '+fmtKg(computeNecessidades(grupo)[0].kgTotal)+' kg).</div>';
+    }
+    if(status==="Pendente" && t.solicitadoPor.uid===state.user.uid){
+      card += '<button class="btn-danger-text" data-action="delete-tool" data-id="'+t.id+'">Excluir solicitação</button>';
+    }
+    card += '</div>';
+  }
+  card += '</div>';
+  return card;
+}
+function historyBlock(items){
+  items = (items||[]).slice().reverse();
+  if(items.length===0){
+    return '<div class="hint">Sem atualizações da Correção ainda.</div>';
+  }
+  return '<div>' + items.map(function(h){
+    var m = STATUS_META[h.status]||{v:"pendente"};
+    return '<div class="hist-item">' +
+      '<span class="hist-dot" style="background:var(--st-'+m.v+');"></span>' +
+      '<div><div><b>'+esc(h.status)+'</b> — '+fmtDateTimeBR(h.dataHora)+'</div>' +
+      (h.previsaoLiberacao ? '<div class="who">Previsão: '+fmtDateBR(h.previsaoLiberacao)+'</div>' : '') +
+      (h.observacaoCorrecao ? '<div class="who">"'+esc(h.observacaoCorrecao)+'"</div>' : '') +
+      '<div class="who">por '+esc(h.usuario.nome)+'</div></div>' +
+    '</div>';
+  }).join("") + '</div>';
+}
+
+/* ================= CORREÇÃO VIEW (consolidated, compact) ================= */
+function getCorrecaoGroups(){
+  var f = state.filters;
+  var all = Object.keys(state.necessidadesByKey).map(function(k){
+    var d = state.necessidadesByKey[k];
+    return {
+      key:k, codigo:d.codigo, prensa:d.prensa, data:d.data,
+      kgTotal:d.kgTotal||0, kgProgramacao:d.kgProgramacao||0, kgReserva:d.kgReserva||0,
+      observacoes:d.observacoes||[], count:d.count||0
+    };
+  });
+  var scoped = all.filter(function(g){
+    if(g.prensa !== state.correcaoPrensa) return false;
+    if(f.data!=="__all__" && g.data !== f.data) return false;
+    return true;
+  });
+  return sortNec(scoped);
+}
+function renderCorrecao(){
+  var groups = getCorrecaoGroups();
+  var f = state.filters;
+  var visibleGroups = groups.filter(function(g){
+    if(f.onlyPend){ var eff=effectiveNecStatus(g.key); if(eff.status==="OK") return false; }
+    return true;
+  });
+  var pendingCount = Object.keys(state.necPending).length;
+  var html = '';
+  html += '<div class="section-title"><span>'+state.correcaoPrensa+' · '+visibleGroups.length+' ferramenta(s)</span>' +
+    '<button class="btn btn-ghost" data-action="mark-all-ok">Marcar todas OK</button>' +
+  '</div>';
+  if(!state.dataLoaded){
+    html += emptyState("Carregando programação…");
+  } else if(visibleGroups.length===0){
+    html += emptyState("Nenhuma ferramenta encontrada.");
+  } else {
+    html += '<div class="nec-list">' + visibleGroups.map(renderNecRow).join("") + '</div>';
+  }
+  if(pendingCount>0){
+    html += '<div class="batchbar">' +
+      '<span class="count">'+pendingCount+' alteração(ões) não salva(s)</span>' +
+      '<button class="btn btn-ghost" data-action="discard-pending">Descartar</button>' +
+      '<button class="btn btn-primary" data-action="save-pending">Salvar</button>' +
+    '</div>';
+  }
+  return html;
+}
+function renderNecRow(g){
+  var key = g.key;
+  var eff = effectiveNecStatus(key);
+  var meta = STATUS_META[eff.status] || STATUS_META["Pendente"];
+  var pending = !!state.necPending[key];
+  var expanded = !!state.necExpanded[key];
+  var isOk = eff.status==="OK";
+  var html = '<div class="nec-row-wrap">';
+  html += '<div class="nec-row '+(pending?"pending":"")+'" data-action="toggle-nec-expand" data-key="'+key+'">';
+  html += '<input type="checkbox" class="nec-chk" data-action="toggle-nec-ok" data-key="'+key+'" onclick="event.stopPropagation()" '+(isOk?"checked":"")+'>';
+  html += '<div class="nec-main"><span class="codigo mono">'+esc(g.codigo)+'</span>' +
+    (g.observacoes.length ? '<span class="nec-obs">⚠ PCP: '+esc(g.observacoes.join(" · "))+'</span>' : '') +
+  '</div>';
+  html += '<span class="nec-kg">'+fmtKg(g.kgTotal)+' kg</span>';
+  if(eff.status!=="OK"){
+    html += '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>';
+  }
+  html += '</div>';
+  if(expanded){
+    html += '<div class="nec-expand">';
+    html += '<div class="status-grid">' + MOTIVO_LIST.map(function(s){
+        var m = STATUS_META[s];
+        var sel = eff.status===s;
+        return '<button type="button" class="status-opt sm '+(sel?"selected":"")+'" style="color:var(--st-'+m.v+');'+(sel?'background:var(--st-'+m.v+'-bg);':'')+'" data-action="set-nec-status" data-key="'+key+'" data-value="'+esc(s)+'">'+esc(s)+'</button>';
+      }).join("") + '</div>';
+    html += '<div class="prev-grid">' +
+      necPrevChip("+1",addDaysStr(1),eff.previsaoLiberacao,key) +
+      necPrevChip("+2",addDaysStr(2),eff.previsaoLiberacao,key) +
+      necPrevChip("+3",addDaysStr(3),eff.previsaoLiberacao,key) +
+      '<button type="button" class="prev-opt '+(eff.previsaoLiberacao?"":"selected")+'" data-action="set-nec-prev" data-key="'+key+'" data-value="">Sem previsão</button>' +
+    '</div>';
+    html += '<textarea data-action="nec-obs-input" data-key="'+key+'" placeholder="Observação da Correção (opcional)">'+esc(eff.observacaoCorrecao||"")+'</textarea>';
+    if(g.count>1){
+      html += '<div class="hint">Consolida '+g.count+' registros ('+fmtKg(g.kgProgramacao)+' kg programação'+(g.kgReserva?' + '+fmtKg(g.kgReserva)+' kg reserva':'')+').</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+function necPrevChip(label,value,current,key){
+  return '<button type="button" class="prev-opt '+(current===value?"selected":"")+'" data-action="set-nec-prev" data-key="'+key+'" data-value="'+value+'">'+label+' ('+relLabel(value)+')</button>';
+}
+
+/* ================= MODALS ================= */
+function renderModal(){
+  if(state.modal==="new") return renderNewToolModal();
+  if(state.modal==="import") return renderImportModal();
+  return "";
+}
+function renderNewToolModal(){
+  var nt = state.newTool;
+  return '' +
+  '<div class="modal-overlay" data-action="close-modal">' +
+    '<div class="modal" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Nova ferramenta</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      '<form id="new-tool-form" style="display:flex;flex-direction:column;gap:14px;">' +
+        '<div class="field"><label>Código da ferramenta</label><input id="nt-codigo" type="text" required placeholder="Ex: F-1042" autofocus></div>' +
+        '<div class="field"><label>Cliente <span class="hint">(opcional)</span></label><input id="nt-cliente" type="text" placeholder="Ex: EUROVAN"></div>' +
+        '<div class="field"><label>Quantidade programada (kg)</label><input id="nt-kg" type="number" min="0" step="1" required></div>' +
+        '<div class="field"><label>Prensa</label><div class="segmented">' +
+          '<button type="button" data-nt="prensa" data-value="P4" class="'+(nt.prensa==="P4"?"active":"")+'">P4</button>' +
+          '<button type="button" data-nt="prensa" data-value="P7" class="'+(nt.prensa==="P7"?"active":"")+'">P7</button>' +
+        '</div></div>' +
+        '<div class="field"><label>Turno</label><div class="segmented">' +
+          '<button type="button" data-nt="turno" data-value="Dia" class="'+(nt.turno==="Dia"?"active":"")+'">☀ Dia</button>' +
+          '<button type="button" data-nt="turno" data-value="Noite" class="'+(nt.turno==="Noite"?"active":"")+'">☾ Noite</button>' +
+        '</div></div>' +
+        '<div class="field"><label>Tipo</label><div class="segmented">' +
+          '<button type="button" data-nt="tipo" data-value="Programação" class="'+(nt.tipo!=="Reserva"?"active":"")+'">Programação</button>' +
+          '<button type="button" data-nt="tipo" data-value="Reserva" class="'+(nt.tipo==="Reserva"?"active":"")+'">Reserva</button>' +
+        '</div></div>' +
+        '<div class="field"><label>Data da programação</label><input id="nt-data" type="date" value="'+(nt.data||todayStr())+'" required></div>' +
+        '<div class="field" style="display:flex;gap:10px;">' +
+          '<div style="flex:1;"><label>Corte <span class="hint">(opcional)</span></label><input id="nt-corte" type="text" placeholder="Ex: 8500 mm"></div>' +
+          '<div style="flex:1;"><label>Liga <span class="hint">(opcional)</span></label><input id="nt-liga" type="text" placeholder="Ex: 6101"></div>' +
+        '</div>' +
+        '<div class="field"><label>Observação do PCP <span class="hint">(opcional)</span></label><textarea id="nt-obs" placeholder="Alguma informação para a Correção..."></textarea></div>' +
+        (state.authError ? '<div class="error-msg">'+esc(state.authError)+'</div>' : '') +
+        '<button class="btn btn-primary btn-block" type="submit">Enviar para Correção</button>' +
+      '</form>' +
+    '</div>' +
+  '</div>';
+}
+
+function colSelect(field,label,headerRow,colMap){
+  var opts = '<option value="">— nenhuma —</option>' + headerRow.map(function(h,i){
+    var lbl = (h && h.toString().trim()) ? h.toString().trim() : ("Coluna "+(i+1));
+    return '<option value="'+i+'" '+(colMap[field]===i?"selected":"")+'>'+esc(lbl)+'</option>';
+  }).join("");
+  return '<div style="display:flex;align-items:center;gap:8px;">' +
+    '<span style="min-width:130px;font-size:12.5px;color:var(--text-muted);font-weight:600;">'+esc(label)+'</span>' +
+    '<select data-impcol="'+field+'" style="flex:1;border:1.5px solid var(--border-strong);border-radius:6px;padding:6px 8px;font-size:13px;background:var(--surface);color:var(--text);">'+opts+'</select>' +
+  '</div>';
+}
+
+function renderImportModal(){
+  var imp = state.import;
+  if(!imp) return "";
+  var body = "";
+  if(!imp.grid){
+    body = '' +
+      '<div class="field"><label>Selecione o arquivo (.xlsx, .xls ou .csv)</label><input id="imp-file" type="file" accept=".xlsx,.xls,.csv"></div>' +
+      '<div class="hint">Depois de escolher o arquivo, você poderá conferir e ajustar as colunas antes de importar.</div>' +
+      (imp.loading ? '<div class="hint">Lendo arquivo…</div>' : '') +
+      (imp.error ? '<div class="error-msg">'+esc(imp.error)+'</div>' : '');
+  } else {
+    var grid = imp.grid;
+    var rows = classifyRows(grid, imp.headerRowIndex);
+    var dataRows = rows.filter(function(r){return r.kind==="data";});
+    var selCount = dataRows.filter(function(r){ return imp.rowChecked[r.index]!==false; }).length;
+    var headerRow = grid[imp.headerRowIndex]||[];
+
+    body += (imp.sheetNames && imp.sheetNames.length>1 ? '<div class="field"><label>Aba da planilha</label><select id="imp-sheet">' +
+      imp.sheetNames.map(function(n){ return '<option value="'+esc(n)+'" '+(n===imp.sheetName?"selected":"")+'>'+esc(n)+'</option>'; }).join("") +
+      '</select></div>' : '');
+
+    body += '<div class="field"><label>Esse grupo é de</label>' +
+      '<div class="segmented">' +
+        '<button type="button" data-imp="prensa" data-value="P4" class="'+(imp.prensa==="P4"?"active":"")+'">P4</button>' +
+        '<button type="button" data-imp="prensa" data-value="P7" class="'+(imp.prensa==="P7"?"active":"")+'">P7</button>' +
+      '</div>' +
+      '<div class="segmented" style="margin-top:8px;">' +
+        '<button type="button" data-imp="turno" data-value="Dia" class="'+(imp.turno==="Dia"?"active":"")+'">☀ Dia</button>' +
+        '<button type="button" data-imp="turno" data-value="Noite" class="'+(imp.turno==="Noite"?"active":"")+'">☾ Noite</button>' +
+      '</div>' +
+    '</div>';
+    body += '<div class="field"><label>Data da programação</label><input id="imp-data" type="date" value="'+imp.data+'"></div>';
+
+    body += '<div class="field"><label>Linha do cabeçalho</label><select id="imp-header">' +
+      grid.slice(0, Math.min(grid.length,15)).map(function(row,i){
+        var preview = row.slice(0,4).join(" · ").slice(0,44) || "(vazia)";
+        return '<option value="'+i+'" '+(i===imp.headerRowIndex?"selected":"")+'>Linha '+(i+1)+': '+esc(preview)+'</option>';
+      }).join("") + '</select></div>';
+
+    body += '<div class="field"><label>Colunas da planilha</label><div style="display:flex;flex-direction:column;gap:8px;">' +
+      colSelect("codigo","Código *",headerRow,imp.colMap) +
+      colSelect("cliente","Cliente",headerRow,imp.colMap) +
+      colSelect("quantidadeKg","Quantidade (kg) *",headerRow,imp.colMap) +
+      colSelect("corte","Corte",headerRow,imp.colMap) +
+      colSelect("liga","Liga",headerRow,imp.colMap) +
+      colSelect("observacaoPCP","Observação",headerRow,imp.colMap) +
+    '</div></div>';
+
+    body += '<div class="field"><label>Linhas a importar ('+selCount+' de '+dataRows.length+')</label>' +
+      '<div style="border:1px solid var(--border);border-radius:8px;max-height:260px;overflow:auto;">' +
+      rows.map(function(r){
+        if(r.kind==="divider"){
+          return '<div style="padding:6px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-faint);background:var(--surface-2);">— '+esc(r.label)+' —</div>';
+        }
+        var checked = imp.rowChecked[r.index]!==false;
+        var tipo = imp.rowTipoOverride[r.index] || r.tipo;
+        function c(field){ var idx=imp.colMap[field]; return idx===undefined?"":(r.cells[idx]||""); }
+        return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;'+(checked?"":"opacity:.4;")+'">' +
+          '<input type="checkbox" data-action="imp-row-toggle" data-idx="'+r.index+'" '+(checked?"checked":"")+'>' +
+          '<span class="mono" style="font-weight:600;min-width:70px;">'+esc(c("codigo")||"—")+'</span>' +
+          '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);">'+esc(c("cliente"))+'</span>' +
+          '<span class="mono" style="min-width:40px;text-align:right;">'+esc(c("quantidadeKg"))+'</span>' +
+          '<button type="button" data-action="imp-row-tipo" data-idx="'+r.index+'" class="prev-opt '+(tipo==="Reserva"?"selected":"")+'" style="padding:3px 8px;font-size:10.5px;">'+(tipo==="Reserva"?"Reserva":"Progr.")+'</button>' +
+        '</label>';
+      }).join("") +
+      '</div>' +
+    '</div>';
+
+    var docs = buildImportDocs();
+    var progCount = docs.filter(function(d){return d.tipo!=="Reserva";}).length;
+    var resCount = docs.filter(function(d){return d.tipo==="Reserva";}).length;
+    var necCount = computeNecessidades(docs).length;
+    body += '<div class="hint" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">' +
+      '<b style="color:var(--text);">Prévia:</b> '+docs.length+' registro(s) · '+progCount+' programação / '+resCount+' reserva · '+necCount+' ferramenta(s) única(s) na '+esc(imp.prensa)+'.' +
+    '</div>';
+
+    var conflictCount = state.ferramentas.filter(function(t){return t.prensa===imp.prensa && t.turno===imp.turno && t.dataProgramacao===imp.data;}).length;
+    if(conflictCount>0){
+      body += '<div class="warn-msg">' +
+        '<span>⚠ Já existe programação importada para '+esc(imp.prensa)+' · '+esc(imp.turno)+' em '+fmtDateBR(imp.data)+' ('+conflictCount+' registro(s)). O que fazer?</span>' +
+        '<div class="segmented">' +
+          '<button type="button" data-imp="importMode" data-value="complementar" class="'+((imp.importMode||"complementar")==="complementar"?"active":"")+'">Complementar</button>' +
+          '<button type="button" data-imp="importMode" data-value="substituir" class="'+(imp.importMode==="substituir"?"active":"")+'">Substituir</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    body += (imp.error ? '<div class="error-msg">'+esc(imp.error)+'</div>' : '') +
+      '<button class="btn btn-primary btn-block" data-action="confirm-import" '+((selCount===0||imp.busy)?"disabled":"")+'>'+
+        (imp.busy?"Importando…":(conflictCount>0 && imp.importMode==="substituir" ? "Substituir e importar "+selCount+" ferramentas" : "Importar "+selCount+" ferramentas")) +
+      '</button>';
+  }
+
+  return '' +
+  '<div class="modal-overlay" data-action="close-modal">' +
+    '<div class="modal" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Importar planilha</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      body +
+    '</div>' +
+  '</div>';
+}
+
+/* ================= EVENT BINDING ================= */
+function bindApp(){
+  var logoutBtn = app.querySelector('[data-action="logout"]');
+  if(logoutBtn) logoutBtn.addEventListener("click", logout);
+
+  app.querySelectorAll("[data-filter]").forEach(function(el){
+    el.addEventListener("click", function(){
+      var g = el.getAttribute("data-filter"), v = el.getAttribute("data-value");
+      if(g==="onlyPend"){ state.filters.onlyPend = !state.filters.onlyPend; }
+      else if(g==="dataAll"){ state.filters.data = "__all__"; }
+      else { state.filters[g] = v; }
+      render();
+    });
+  });
+  var dateInput = document.getElementById("filter-date");
+  if(dateInput) dateInput.addEventListener("change", function(){ state.filters.data = dateInput.value || todayStr(); render(); });
+
+  app.querySelectorAll('[data-action="set-correcao-prensa"]').forEach(function(el){
+    el.addEventListener("click", function(){ state.correcaoPrensa = el.getAttribute("data-value"); render(); });
+  });
+
+  app.querySelectorAll('[data-action="toggle-card"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var id = el.getAttribute("data-id");
+      state.expanded[id] = !state.expanded[id];
+      render();
+    });
+  });
+
+  var fab = app.querySelector('[data-action="open-new"]');
+  if(fab) fab.addEventListener("click", function(){ state.modal="new"; state.newTool={prensa:"P7",turno:"Dia",tipo:"Programação",data:todayStr()}; state.authError=""; render(); });
+
+  app.querySelectorAll('[data-action="delete-tool"]').forEach(function(el){
+    el.addEventListener("click", function(e){
+      e.stopPropagation();
+      var id = el.getAttribute("data-id");
+      if(confirm("Excluir esta solicitação?")) deleteTool(id);
+    });
+  });
+
+  app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; render(); });
+  });
+
+  var openImportBtn = app.querySelector('[data-action="open-import"]');
+  if(openImportBtn) openImportBtn.addEventListener("click", function(){
+    state.modal="import"; state.import={grid:null,error:"",loading:false,sheetNames:[],rowChecked:{},rowTipoOverride:{},prensa:"P7",turno:"Dia",data:todayStr(),importMode:"complementar"};
+    render();
+  });
+  var impFile = document.getElementById("imp-file");
+  if(impFile) impFile.addEventListener("change", function(){ if(impFile.files && impFile.files[0]) handleImportFile(impFile.files[0]); });
+  var impSheet = document.getElementById("imp-sheet");
+  if(impSheet) impSheet.addEventListener("change", function(){ loadImportSheet(impSheet.value); });
+  var impHeader = document.getElementById("imp-header");
+  if(impHeader) impHeader.addEventListener("change", function(){
+    var v = parseInt(impHeader.value,10);
+    state.import.headerRowIndex = v;
+    state.import.colMap = autoColMap(state.import.grid, v);
+    state.import.rowChecked = {}; state.import.rowTipoOverride = {};
+    render();
+  });
+  app.querySelectorAll("[data-impcol]").forEach(function(sel){
+    sel.addEventListener("change", function(){
+      var f = sel.getAttribute("data-impcol");
+      state.import.colMap[f] = sel.value===""? undefined : parseInt(sel.value,10);
+      render();
+    });
+  });
+  app.querySelectorAll("[data-imp]").forEach(function(el){
+    el.addEventListener("click", function(){ state.import[el.getAttribute("data-imp")] = el.getAttribute("data-value"); render(); });
+  });
+  var impData = document.getElementById("imp-data");
+  if(impData) impData.addEventListener("change", function(){ state.import.data = impData.value; render(); });
+  app.querySelectorAll('[data-action="imp-row-toggle"]').forEach(function(el){
+    el.addEventListener("change", function(){ state.import.rowChecked[parseInt(el.getAttribute("data-idx"),10)] = el.checked; render(); });
+  });
+  app.querySelectorAll('[data-action="imp-row-tipo"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var idx = parseInt(el.getAttribute("data-idx"),10);
+      var rows = classifyRows(state.import.grid, state.import.headerRowIndex);
+      var row = rows.find(function(r){return r.index===idx;});
+      var current = state.import.rowTipoOverride[idx] || (row?row.tipo:"Programação");
+      state.import.rowTipoOverride[idx] = current==="Reserva" ? "Programação" : "Reserva";
+      render();
+    });
+  });
+  var confirmImportBtn = app.querySelector('[data-action="confirm-import"]');
+  if(confirmImportBtn) confirmImportBtn.addEventListener("click", doConfirmImport);
+
+  app.querySelectorAll("[data-nt]").forEach(function(el){
+    el.addEventListener("click", function(){ state.newTool[el.getAttribute("data-nt")] = el.getAttribute("data-value"); render(); });
+  });
+  var ntForm = document.getElementById("new-tool-form");
+  if(ntForm){
+    ntForm.addEventListener("submit", function(e){ e.preventDefault(); submitNewTool(); });
+    var kgEl=document.getElementById("nt-kg"), codEl=document.getElementById("nt-codigo"), obsEl=document.getElementById("nt-obs");
+    var clienteEl=document.getElementById("nt-cliente"), corteEl=document.getElementById("nt-corte"), ligaEl=document.getElementById("nt-liga");
+    if(codEl) codEl.value = state.newTool.codigo||"";
+    if(kgEl) kgEl.value = state.newTool.kg||"";
+    if(obsEl) obsEl.value = state.newTool.obs||"";
+    if(clienteEl) clienteEl.value = state.newTool.cliente||"";
+    if(corteEl) corteEl.value = state.newTool.corte||"";
+    if(ligaEl) ligaEl.value = state.newTool.liga||"";
+  }
+
+  app.querySelectorAll('[data-action="toggle-nec-expand"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var key = el.getAttribute("data-key");
+      state.necExpanded[key] = !state.necExpanded[key];
+      render();
+    });
+  });
+  app.querySelectorAll('[data-action="toggle-nec-ok"]').forEach(function(el){
+    el.addEventListener("change", function(){ toggleNecOk(el.getAttribute("data-key")); });
+  });
+  app.querySelectorAll('[data-action="set-nec-status"]').forEach(function(el){
+    el.addEventListener("click", function(){ setNecField(el.getAttribute("data-key"), "status", el.getAttribute("data-value")); });
+  });
+  app.querySelectorAll('[data-action="set-nec-prev"]').forEach(function(el){
+    el.addEventListener("click", function(){ setNecField(el.getAttribute("data-key"), "previsaoLiberacao", el.getAttribute("data-value")||null); });
+  });
+  app.querySelectorAll('[data-action="nec-obs-input"]').forEach(function(el){
+    el.addEventListener("change", function(){ setNecField(el.getAttribute("data-key"), "observacaoCorrecao", el.value.trim()); });
+  });
+  var markAllBtn = app.querySelector('[data-action="mark-all-ok"]');
+  if(markAllBtn) markAllBtn.addEventListener("click", markAllOk);
+  var savePendingBtn = app.querySelector('[data-action="save-pending"]');
+  if(savePendingBtn) savePendingBtn.addEventListener("click", savePendingChanges);
+  var discardPendingBtn = app.querySelector('[data-action="discard-pending"]');
+  if(discardPendingBtn) discardPendingBtn.addEventListener("click", function(){ state.necPending={}; render(); });
+}
+
+/* ================= CORREÇÃO: staged edits ================= */
+function findGroup(key){ return getCorrecaoGroups().find(function(g){return g.key===key;}); }
+function toggleNecOk(key){
+  var eff = effectiveNecStatus(key);
+  var g = findGroup(key);
+  var base = { codigo: g&&g.codigo, prensa: g&&g.prensa, data: g&&g.data };
+  if(eff.status==="OK"){
+    state.necPending[key] = Object.assign({}, base, { status:"Pendente", previsaoLiberacao:null, observacaoCorrecao: eff.observacaoCorrecao||"" });
+  } else {
+    state.necPending[key] = Object.assign({}, base, { status:"OK", previsaoLiberacao:null, observacaoCorrecao: eff.observacaoCorrecao||"" });
+  }
+  render();
+}
+function setNecField(key, field, value){
+  var eff = effectiveNecStatus(key);
+  var g = findGroup(key);
+  var draft = state.necPending[key] || { status:eff.status, previsaoLiberacao:eff.previsaoLiberacao, observacaoCorrecao:eff.observacaoCorrecao, codigo:g&&g.codigo, prensa:g&&g.prensa, data:g&&g.data };
+  draft[field] = value;
+  state.necPending[key] = draft;
+  render();
+}
+function markAllOk(){
+  var groups = getCorrecaoGroups();
+  if(!groups.length) return;
+  if(!confirm("Marcar todas as "+groups.length+" ferramentas de "+state.correcaoPrensa+" como OK?")) return;
+  groups.forEach(function(g){
+    var eff = effectiveNecStatus(g.key);
+    state.necPending[g.key] = { status:"OK", previsaoLiberacao:null, observacaoCorrecao: eff.observacaoCorrecao||"", codigo:g.codigo, prensa:g.prensa, data:g.data };
+  });
+  render();
+}
+function savePendingChanges(){
+  var keys = Object.keys(state.necPending);
+  if(!keys.length || !state.db) return;
+  var now = new Date().toISOString();
+  var promises = keys.map(function(key){
+    var draft = state.necPending[key];
+    var existing = state.statusByKey[key];
+    var histEntry = {
+      status: draft.status,
+      previsaoLiberacao: draft.previsaoLiberacao||null,
+      observacaoCorrecao: draft.observacaoCorrecao||"",
+      usuario: { uid: state.user.uid, nome: state.user.nome },
+      dataHora: now
+    };
+    var ref = state.db.doc("status/"+key);
+    var base = {
+      status: draft.status,
+      previsaoLiberacao: draft.previsaoLiberacao||null,
+      observacaoCorrecao: draft.observacaoCorrecao||"",
+      atualizadoPor: { uid: state.user.uid, nome: state.user.nome },
+      atualizadoEm: now
+    };
+    if(existing){
+      base.historico = state.db.arrayUnion(histEntry);
+      return ref.update(base);
+    } else {
+      base.codigo = draft.codigo; base.prensa = draft.prensa; base.data = draft.data;
+      base.historico = [histEntry];
+      return ref.set(base);
+    }
+  });
+  Promise.all(promises).then(function(){
+    state.necPending = {};
+    state.toast = keys.length+" atualização(ões) salva(s).";
+    render();
+  }).catch(function(err){ state.toast="Erro ao salvar: "+(err&&err.message||""); render(); });
+}
+
+/* ================= WRITES (PCP) ================= */
+function upsertNecessidadeDelta(t, sign){
+  if(!state.db) return Promise.resolve();
+  var key = necDocId(t.codigo, t.prensa, t.dataProgramacao);
+  var kg = (t.quantidadeKg||0) * sign;
+  var body = {
+    codigo: t.codigo, prensa: t.prensa, data: t.dataProgramacao,
+    kgTotal: state.db.increment(kg),
+    count: state.db.increment(sign)
+  };
+  if(t.tipo==="Reserva") body.kgReserva = state.db.increment(kg); else body.kgProgramacao = state.db.increment(kg);
+  if(sign>0 && t.observacaoPCP) body.observacoes = state.db.arrayUnion(t.observacaoPCP);
+  return state.db.doc("necessidades/"+key).set(body, {merge:true});
+}
+
+function submitNewTool(){
+  var codigo = document.getElementById("nt-codigo").value.trim().toUpperCase();
+  var kg = parseFloat(document.getElementById("nt-kg").value);
+  var data = document.getElementById("nt-data").value || todayStr();
+  var obs = document.getElementById("nt-obs").value.trim();
+  var cliente = document.getElementById("nt-cliente").value.trim();
+  var corte = document.getElementById("nt-corte").value.trim();
+  var liga = document.getElementById("nt-liga").value.trim();
+  state.newTool.codigo = codigo; state.newTool.kg = document.getElementById("nt-kg").value; state.newTool.obs = obs; state.newTool.data = data;
+  state.newTool.cliente = cliente; state.newTool.corte = corte; state.newTool.liga = liga;
+  if(!codigo || isNaN(kg) || kg<0){ state.authError="Informe código e quantidade válidos."; render(); return; }
+  if(!state.db){ return; }
+  var doc = {
+    codigo: codigo,
+    cliente: cliente,
+    quantidadeKg: kg,
+    corte: corte,
+    liga: liga,
+    tipo: state.newTool.tipo || "Programação",
+    prensa: state.newTool.prensa,
+    turno: state.newTool.turno,
+    dataProgramacao: data,
+    observacaoPCP: obs,
+    solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
+    criadoEm: new Date().toISOString()
+  };
+  state.db.collection("ferramentas").add(doc).then(function(){
+    return upsertNecessidadeDelta(doc, 1);
+  }).then(function(){
+    state.modal=null; state.toast="Ferramenta enviada para a Correção."; render();
+  }).catch(function(err){ state.authError="Erro ao salvar: "+(err&&err.message||""); render(); });
+}
+
+function deleteTool(id){
+  if(!state.db) return;
+  var t = state.ferramentas.find(function(x){return x.id===id;});
+  state.db.doc("ferramentas/"+id).delete().then(function(){
+    if(t) return upsertNecessidadeDelta(t, -1);
+  }).then(function(){ state.toast="Solicitação excluída."; render(); });
+}
+
+/* ================= IMPORT FROM SPREADSHEET ================= */
+function ensureXLSX(cb){
+  if(window.XLSX){ cb(); return; }
+  var s = document.createElement("script");
+  s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  s.onload = cb;
+  s.onerror = function(){ state.import.loading=false; state.import.error="Não foi possível carregar o leitor de planilhas (verifique a conexão)."; render(); };
+  document.head.appendChild(s);
+}
+function sheetToGrid(sheet){
+  return XLSX.utils.sheet_to_json(sheet, {header:1, defval:"", raw:false});
+}
+function handleImportFile(file){
+  state.import.loading = true; state.import.error=""; render();
+  ensureXLSX(function(){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:"array"});
+        initImportFromWorkbook(wb);
+      }catch(err){
+        state.import.loading=false; state.import.error="Erro ao ler arquivo: "+(err&&err.message||""); render();
+      }
+    };
+    reader.onerror = function(){ state.import.loading=false; state.import.error="Erro ao ler arquivo."; render(); };
+    reader.readAsArrayBuffer(file);
+  });
+}
+function initImportFromWorkbook(wb){
+  var names = wb.SheetNames;
+  var chosen = names[0];
+  for(var i=0;i<names.length;i++){
+    var g = sheetToGrid(wb.Sheets[names[i]]);
+    var found = g.some(function(row){ return row.some(function(c){ return normalizeHeader(c).indexOf("FERRAMENTA")>=0; }); });
+    if(found){ chosen = names[i]; break; }
+  }
+  state.import.loading = false;
+  state.import.workbook = wb;
+  state.import.sheetNames = names;
+  loadImportSheet(chosen);
+}
+function loadImportSheet(name){
+  var grid = sheetToGrid(state.import.workbook.Sheets[name]);
+  state.import.sheetName = name;
+  state.import.grid = grid;
+  state.import.headerRowIndex = autoDetectHeaderRow(grid);
+  state.import.colMap = autoColMap(grid, state.import.headerRowIndex);
+  state.import.rowChecked = {};
+  state.import.rowTipoOverride = {};
+  render();
+}
+function buildImportDocs(){
+  var imp = state.import;
+  if(!imp || !imp.grid) return [];
+  var rows = classifyRows(imp.grid, imp.headerRowIndex);
+  var toCreate = rows.filter(function(r){ return r.kind==="data" && imp.rowChecked[r.index]!==false; });
+  var now = new Date().toISOString();
+  return toCreate.map(function(r){
+    function cell(field){ var idx=imp.colMap[field]; return idx===undefined? "" : (r.cells[idx]||"").toString().trim(); }
+    var tipo = imp.rowTipoOverride[r.index] || r.tipo;
+    return {
+      codigo: cell("codigo").toUpperCase(),
+      cliente: cell("cliente"),
+      quantidadeKg: parseKg(cell("quantidadeKg")),
+      corte: cell("corte"),
+      liga: cell("liga"),
+      tipo: tipo,
+      prensa: imp.prensa,
+      turno: imp.turno,
+      dataProgramacao: imp.data,
+      observacaoPCP: cell("observacaoPCP"),
+      solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
+      criadoEm: now
+    };
+  }).filter(function(d){ return d.codigo; });
+}
+function doConfirmImport(){
+  var imp = state.import;
+  if(imp.colMap.codigo===undefined || imp.colMap.quantidadeKg===undefined){ imp.error="Selecione as colunas de Código e Quantidade (kg)."; render(); return; }
+  var docs = buildImportDocs();
+  if(!docs.length){ imp.error="Nenhuma linha selecionada."; render(); return; }
+  if(!state.db) return;
+  imp.busy = true; imp.error=""; render();
+  var proceed = function(){
+    Promise.all(docs.map(function(d){ return state.db.collection("ferramentas").add(d).then(function(){ return upsertNecessidadeDelta(d, 1); }); })).then(function(){
+      imp.busy=false; state.modal=null; state.import=null; state.toast=docs.length+" ferramentas importadas."; render();
+    }).catch(function(err){ imp.busy=false; imp.error="Erro ao importar: "+(err&&err.message||""); render(); });
+  };
+  if(imp.importMode==="substituir"){
+    var toDelete = state.ferramentas.filter(function(t){return t.prensa===imp.prensa && t.turno===imp.turno && t.dataProgramacao===imp.data;});
+    Promise.all(toDelete.map(function(t){ return state.db.doc("ferramentas/"+t.id).delete().then(function(){ return upsertNecessidadeDelta(t, -1); }); })).then(proceed).catch(function(err){
+      imp.busy=false; imp.error="Erro ao substituir: "+(err&&err.message||""); render();
+    });
+  } else {
+    proceed();
+  }
+}
+
+/* ================= SUBSCRIPTIONS ================= */
+function startSubs(){
+  if(!state.db) return;
+  if(state.user.perfil==="pcp" && !state.unsub){
+    state.unsub = state.db.collection("ferramentas").limit(2000).onSnapshot(function(snap){
+      state.ferramentas = snap.docs.map(function(d){ var v=d.data(); v.id=d.id; return v; });
+      state.dataLoaded = true;
+      render();
+    }, function(err){
+      state.dataLoaded = true;
+      state.toast = "Conexão de dados interrompida.";
+      render();
+    });
+  }
+  if(state.user.perfil==="correcao" && !state.unsubNecessidades){
+    state.unsubNecessidades = state.db.collection("necessidades").limit(2000).onSnapshot(function(snap){
+      var map = {};
+      snap.docs.forEach(function(d){ map[d.id] = d.data(); });
+      state.necessidadesByKey = map;
+      state.dataLoaded = true;
+      render();
+    }, function(err){
+      state.dataLoaded = true;
+      state.toast = "Conexão de dados interrompida.";
+      render();
+    });
+  }
+  if(!state.unsubStatus){
+    state.unsubStatus = state.db.collection("status").limit(2000).onSnapshot(function(snap){
+      var map = {};
+      snap.docs.forEach(function(d){ map[d.id] = d.data(); });
+      state.statusByKey = map;
+      render();
+    }, function(err){ /* status is supplementary; keep going without it */ });
+  }
+}
+
+/* ================= SETUP SCREEN (shown when Firebase isn't configured) ================= */
+function renderSetupNotice(){
+  return '<div class="setup-wrap"><div class="box">' +
+    '<h2 style="font-size:20px;margin-bottom:10px;">Configuração pendente</h2>' +
+    '<p class="hint" style="font-size:13.5px;line-height:1.5;">Este app ainda não está conectado a um banco de dados. Abra o arquivo <b>index.html</b>, procure por <b>FIREBASE_CONFIG</b> perto do topo, e cole ali a configuração do seu projeto Firebase (Console do Firebase → Configurações do projeto → Seus apps → SDK).</p>' +
+  '</div></div>';
+}
+
+/* ================= INIT ================= */
+render();
+(window.__FIREBASE_DB_PROMISE || Promise.resolve(null)).then(function(result){
+  if(!result){
+    state.dbReady = true; state.user = null; render();
+    app.innerHTML += renderSetupNotice();
+    return;
+  }
+  state.db = result.db;
+  window.__AUTH_API = result.authApi;
+  state.dbReady = true;
+  if(result.initialUid){
+    state.db.doc("users/"+result.initialUid).get().then(function(snap){
+      if(snap.exists){
+        var data = snap.data();
+        state.user = { uid: result.initialUid, nome: data.nome, perfil: data.role };
+        render(); startSubs();
+      } else {
+        state.user = null; render();
+      }
+    }).catch(function(){ state.user = null; render(); });
+  } else {
+    state.user = null; render();
+  }
+}).catch(function(){
+  state.dbReady = true; render();
+});
+
+})();
+</script>
+</body>
+</html>
