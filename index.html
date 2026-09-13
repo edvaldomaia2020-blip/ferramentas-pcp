@@ -249,13 +249,21 @@ img{max-width:100%;}
 .nec-list{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
 .nec-row-wrap{border-bottom:1px solid var(--border);}
 .nec-row-wrap:last-child{border-bottom:none;}
-.nec-row{display:flex;align-items:center;gap:10px;padding:12px 12px;cursor:pointer;}
+.nec-row{display:flex;align-items:flex-start;gap:10px;padding:12px 12px;cursor:pointer;}
 .nec-row.pending{background:var(--surface-2);}
-.nec-chk{width:23px;height:23px;flex:none;accent-color:var(--st-ok);}
-.nec-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.nec-chk{width:23px;height:23px;flex:none;accent-color:var(--st-ok);margin-top:1px;}
+.nec-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
 .nec-main .codigo{font-family:"IBM Plex Mono";font-weight:700;font-size:15px;}
-.nec-obs{font-size:11px;color:var(--st-int);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.nec-kg{font-family:"IBM Plex Mono";font-size:13.5px;color:var(--text-muted);min-width:70px;text-align:right;font-variant-numeric:tabular-nums;flex:none;}
+.nec-obs{font-size:12px;color:var(--st-int);white-space:normal;overflow-wrap:break-word;line-height:1.4;}
+.nec-kg{font-family:"IBM Plex Mono";font-size:13.5px;color:var(--text-muted);min-width:70px;text-align:right;font-variant-numeric:tabular-nums;flex:none;margin-top:1px;}
+.nec-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:0 12px 12px;}
+@media (min-width:480px){ .nec-quick{grid-template-columns:repeat(4,1fr);} }
+.nec-quick-btn{
+  border:1.5px solid var(--border-strong);border-radius:8px;padding:11px 6px;font-weight:700;font-size:12px;
+  background:var(--surface);color:var(--text-muted);cursor:pointer;text-align:center;letter-spacing:.01em;
+}
+.nec-quick-btn.active{border-width:2px;font-weight:800;}
+.nec-quick-btn[disabled]{opacity:.5;cursor:default;}
 .nec-expand{padding:2px 12px 16px;display:flex;flex-direction:column;gap:8px;}
 .nec-expand textarea{
   border:1.5px solid var(--border-strong);border-radius:8px;padding:9px 10px;font-size:13.5px;min-height:52px;
@@ -508,7 +516,7 @@ var state = {
   dataLoaded: false,
   statusByKey: {},
   necessidadesByKey: {},
-  filters: { data: todayStr(), prensa: "Todas", turno: "Todos", onlyPend: false, includeReserva: false },
+  filters: { data: todayStr(), prensa: "Todas", turno: "Todos", onlyPend: false, reservaOnly: false },
   expanded: {},
   modal: null,
   modal_id: null,
@@ -521,7 +529,8 @@ var state = {
   espelhoSync: null,
   correcaoPrensa: "P7",
   necPending: {},
-  necExpanded: {}
+  necExpanded: {},
+  necBusy: {}
 };
 
 var app = document.getElementById("app");
@@ -671,7 +680,7 @@ function renderFilterBarPCP(){
     '<div class="row">' + chip("prensa","Todas","Todas") + chip("prensa","P4","P4") + chip("prensa","P7","P7") + '</div>' +
     '<div class="row">' + chip("turno","Todos","Todos") + chip("turno","Dia","☀ Dia") + chip("turno","Noite","☾ Noite") +
       '<button class="chip '+(f.onlyPend?"active":"")+'" data-filter="onlyPend" data-value="toggle">Pendentes</button>' +
-      '<button class="chip '+(f.includeReserva?"active":"")+'" data-filter="includeReserva" data-value="toggle">Reserva</button>' +
+      '<button class="chip '+(f.reservaOnly?"active":"")+'" data-filter="reserva" data-value="toggle">Reserva</button>' +
     '</div>' +
     '<div class="row">' +
       '<label class="hint" style="white-space:nowrap;">Data programada</label>' +
@@ -686,6 +695,7 @@ function renderFilterBarCorrecao(){
   return '' +
   '<div class="filterbar">' +
     '<div class="row"><div class="segmented" style="flex:1;">' +
+      '<button data-action="set-correcao-prensa" data-value="Todas" class="'+(state.correcaoPrensa==="Todas"?"active":"")+'">Todas</button>' +
       '<button data-action="set-correcao-prensa" data-value="P7" class="'+(state.correcaoPrensa==="P7"?"active":"")+'">P7</button>' +
       '<button data-action="set-correcao-prensa" data-value="P4" class="'+(state.correcaoPrensa==="P4"?"active":"")+'">P4</button>' +
     '</div></div>' +
@@ -709,7 +719,8 @@ function applyFilters(list){
       var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao)];
       if(sd && sd.status==="OK") return false;
     }
-    if(!f.includeReserva && t.tipo==="Reserva") return false;
+    if(f.reservaOnly){ if(t.tipo!=="Reserva") return false; }
+    else if(t.tipo==="Reserva") return false;
     return true;
   });
 }
@@ -847,7 +858,7 @@ function getCorrecaoGroups(){
     };
   });
   var scoped = all.filter(function(g){
-    if(g.prensa !== state.correcaoPrensa) return false;
+    if(state.correcaoPrensa!=="Todas" && g.prensa !== state.correcaoPrensa) return false;
     if(f.data!=="__all__" && g.data !== f.data) return false;
     return true;
   });
@@ -891,7 +902,7 @@ function renderNecRow(g){
   var html = '<div class="nec-row-wrap">';
   html += '<div class="nec-row '+(pending?"pending":"")+'" data-action="toggle-nec-expand" data-key="'+key+'">';
   html += '<input type="checkbox" class="nec-chk" data-action="toggle-nec-ok" data-key="'+key+'" onclick="event.stopPropagation()" '+(isOk?"checked":"")+'>';
-  html += '<div class="nec-main"><span class="codigo mono">'+esc(g.codigo)+'</span>' +
+  html += '<div class="nec-main"><span class="codigo mono">'+esc(g.codigo)+(state.correcaoPrensa==="Todas" ? ' <span class="tag">'+esc(g.prensa)+'</span>' : '')+'</span>' +
     (g.observacoes.length ? '<span class="nec-obs">⚠ PCP: '+esc(g.observacoes.join(" · "))+'</span>' : '') +
   '</div>';
   html += '<span class="nec-kg">'+fmtKg(g.kgTotal)+' kg</span>';
@@ -899,6 +910,7 @@ function renderNecRow(g){
     html += '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>';
   }
   html += '</div>';
+  html += renderNecQuickActions(g, eff);
   if(expanded){
     html += '<div class="nec-expand">';
     html += '<div class="status-grid">' + MOTIVO_LIST.map(function(s){
@@ -920,6 +932,23 @@ function renderNecRow(g){
   }
   html += '</div>';
   return html;
+}
+var NEC_QUICK_ACTIONS = [
+  { status:"OK", label:"✓ OK" },
+  { status:"Soda / Limpeza", label:"LIMPEZA" },
+  { status:"Nitretação", label:"NITRETAÇÃO" },
+  { status:"Correção interna", label:"CORREÇÃO" }
+];
+function renderNecQuickActions(g, eff){
+  var key = g.key;
+  var busy = !!(state.necBusy && state.necBusy[key]);
+  return '<div class="nec-quick">' + NEC_QUICK_ACTIONS.map(function(a){
+    var m = STATUS_META[a.status];
+    var active = eff.status === a.status;
+    return '<button type="button" class="nec-quick-btn '+(active?"active":"")+'" '+(busy?"disabled":"")+
+      ' style="'+(active?('background:var(--st-'+m.v+'-bg);color:var(--st-'+m.v+');border-color:var(--st-'+m.v+');'):'')+'"'+
+      ' data-action="quick-nec-status" data-key="'+key+'" data-value="'+esc(a.status)+'" onclick="event.stopPropagation()">'+esc(a.label)+'</button>';
+  }).join("") + '</div>';
 }
 function necPrevChip(label,value,current,key){
   return '<button type="button" class="prev-opt '+(current===value?"selected":"")+'" data-action="set-nec-prev" data-key="'+key+'" data-value="'+value+'">'+label+' ('+relLabel(value)+')</button>';
@@ -1088,8 +1117,10 @@ function bindApp(){
   app.querySelectorAll("[data-filter]").forEach(function(el){
     el.addEventListener("click", function(){
       var g = el.getAttribute("data-filter"), v = el.getAttribute("data-value");
-      if(g==="onlyPend"){ state.filters.onlyPend = !state.filters.onlyPend; }
+      if(g==="onlyPend"){ state.filters.onlyPend = !state.filters.onlyPend; state.filters.reservaOnly=false; }
       else if(g==="dataAll"){ state.filters.data = "__all__"; }
+      else if(g==="reserva"){ state.filters.reservaOnly = !state.filters.reservaOnly; }
+      else if(g==="turno"){ state.filters.turno = v; state.filters.reservaOnly=false; }
       else { state.filters[g] = v; }
       render();
     });
@@ -1213,6 +1244,9 @@ function bindApp(){
   app.querySelectorAll('[data-action="toggle-nec-ok"]').forEach(function(el){
     el.addEventListener("change", function(){ toggleNecOk(el.getAttribute("data-key")); });
   });
+  app.querySelectorAll('[data-action="quick-nec-status"]').forEach(function(el){
+    el.addEventListener("click", function(){ quickSetStatus(el.getAttribute("data-key"), el.getAttribute("data-value")); });
+  });
   app.querySelectorAll('[data-action="set-nec-status"]').forEach(function(el){
     el.addEventListener("click", function(){ setNecField(el.getAttribute("data-key"), "status", el.getAttribute("data-value")); });
   });
@@ -1254,48 +1288,77 @@ function setNecField(key, field, value){
 function markAllOk(){
   var groups = getCorrecaoGroups();
   if(!groups.length) return;
-  if(!confirm("Marcar todas as "+groups.length+" ferramentas de "+state.correcaoPrensa+" como OK?")) return;
+  var prensaLabel = state.correcaoPrensa==="Todas" ? "todas as prensas" : state.correcaoPrensa;
+  if(!confirm("Marcar todas as "+groups.length+" ferramentas de "+prensaLabel+" como OK?")) return;
   groups.forEach(function(g){
     var eff = effectiveNecStatus(g.key);
     state.necPending[g.key] = { status:"OK", previsaoLiberacao:null, observacaoCorrecao: eff.observacaoCorrecao||"", codigo:g.codigo, prensa:g.prensa, data:g.data };
   });
   render();
 }
+// Escrita compartilhada de um status de necessidade (usada tanto pelo botão
+// "Salvar" em lote quanto pelos botões de ação rápida — mesma lógica, sem
+// duplicar). Retorna a Promise da gravação.
+function saveNecStatusWrite(key, draft, now){
+  var existing = state.statusByKey[key];
+  var histEntry = {
+    status: draft.status,
+    previsaoLiberacao: draft.previsaoLiberacao||null,
+    observacaoCorrecao: draft.observacaoCorrecao||"",
+    usuario: { uid: state.user.uid, nome: state.user.nome },
+    dataHora: now
+  };
+  var ref = state.db.doc("status/"+key);
+  var base = {
+    status: draft.status,
+    previsaoLiberacao: draft.previsaoLiberacao||null,
+    observacaoCorrecao: draft.observacaoCorrecao||"",
+    atualizadoPor: { uid: state.user.uid, nome: state.user.nome },
+    atualizadoEm: now
+  };
+  return withPermissionRetry(function(){
+    if(existing){
+      return ref.update(Object.assign({}, base, { historico: state.db.arrayUnion(histEntry) }));
+    } else {
+      return ref.set(Object.assign({}, base, { codigo: draft.codigo, prensa: draft.prensa, data: draft.data, historico: [histEntry] }));
+    }
+  });
+}
 function savePendingChanges(){
   var keys = Object.keys(state.necPending);
   if(!keys.length || !state.db) return;
   var now = new Date().toISOString();
-  var promises = keys.map(function(key){
-    var draft = state.necPending[key];
-    var existing = state.statusByKey[key];
-    var histEntry = {
-      status: draft.status,
-      previsaoLiberacao: draft.previsaoLiberacao||null,
-      observacaoCorrecao: draft.observacaoCorrecao||"",
-      usuario: { uid: state.user.uid, nome: state.user.nome },
-      dataHora: now
-    };
-    var ref = state.db.doc("status/"+key);
-    var base = {
-      status: draft.status,
-      previsaoLiberacao: draft.previsaoLiberacao||null,
-      observacaoCorrecao: draft.observacaoCorrecao||"",
-      atualizadoPor: { uid: state.user.uid, nome: state.user.nome },
-      atualizadoEm: now
-    };
-    return withPermissionRetry(function(){
-      if(existing){
-        return ref.update(Object.assign({}, base, { historico: state.db.arrayUnion(histEntry) }));
-      } else {
-        return ref.set(Object.assign({}, base, { codigo: draft.codigo, prensa: draft.prensa, data: draft.data, historico: [histEntry] }));
-      }
-    });
-  });
+  var promises = keys.map(function(key){ return saveNecStatusWrite(key, state.necPending[key], now); });
   Promise.all(promises).then(function(){
     state.necPending = {};
     state.toast = keys.length+" atualização(ões) salva(s).";
     render();
   }).catch(function(err){ state.toast="Erro ao salvar: "+(err&&err.message||""); render(); });
+}
+function quickSetStatus(key, statusValue){
+  if(state.necBusy[key] || !state.db) return; // evita gravação duplicada em duplo toque
+  var g = findGroup(key);
+  if(!g) return;
+  var eff = effectiveNecStatus(key);
+  var draft = {
+    status: statusValue,
+    previsaoLiberacao: statusValue==="OK" ? null : (eff.previsaoLiberacao||null),
+    observacaoCorrecao: eff.observacaoCorrecao||"",
+    codigo: g.codigo, prensa: g.prensa, data: g.data
+  };
+  delete state.necPending[key]; // a ação rápida grava direto; não deixa uma edição em lote pendente e desatualizada
+  state.necBusy[key] = true;
+  render();
+  var now = new Date().toISOString();
+  return saveNecStatusWrite(key, draft, now).then(function(){
+    state.necBusy[key] = false;
+    state.toast = g.codigo+": "+statusValue+" salvo.";
+    render();
+  }).catch(function(err){
+    state.necBusy[key] = false;
+    state.toast = "Erro ao salvar "+g.codigo+": "+(err&&err.message||"");
+    render();
+  });
 }
 
 /* ================= WRITES (PCP) ================= */
