@@ -81,6 +81,9 @@ img{max-width:100%;}
 :focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
 
 #app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+#app.role-pcp{max-width:640px;}
+@media (min-width:900px){ #app.role-pcp{max-width:94vw;} }
+@media (min-width:1300px){ #app.role-pcp{max-width:1600px;} }
 
 /* ---------- Auth screen ---------- */
 .auth-wrap{
@@ -176,15 +179,46 @@ img{max-width:100%;}
 
 /* ---------- Stat tiles ---------- */
 .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+@media (min-width:900px){ .role-pcp .stats-grid{grid-template-columns:repeat(6,1fr);} }
 .stat-tile{
-  background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 8px;
-  display:flex;flex-direction:column;gap:2px;align-items:flex-start;
+  background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:10px 8px;
+  display:flex;flex-direction:column;gap:2px;align-items:flex-start;width:100%;cursor:pointer;
+  font-family:inherit;text-align:left;
 }
 .stat-tile .n{font-family:"IBM Plex Mono";font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;}
 .stat-tile .lbl{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.stat-tile .kg{font-size:11px;color:var(--text-faint);font-weight:600;font-variant-numeric:tabular-nums;}
 .stat-tile.warn .n{color:var(--st-int);}
 .stat-tile.crit .n{color:var(--st-quebrada);}
 .stat-tile.ok .n{color:var(--st-ok);}
+.stat-tile.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--surface-2);}
+
+/* ---------- PCP view toggle (Macro / Compacta) ---------- */
+.view-toggle{display:flex;gap:6px;}
+.view-toggle button{
+  border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-muted);
+  padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;
+}
+.view-toggle button.active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
+
+.tool-cards-grid{display:flex;flex-direction:column;gap:10px;}
+@media (min-width:900px){ .role-pcp .tool-cards-grid{display:grid;grid-template-columns:repeat(2,1fr);align-items:start;} }
+@media (min-width:1300px){ .role-pcp .tool-cards-grid{grid-template-columns:repeat(3,1fr);} }
+
+/* ---------- Compact table (PCP) ---------- */
+.compact-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:9px;background:var(--surface);}
+table.compact-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.compact-table th{
+  position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--text-faint);font-weight:700;padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;
+}
+table.compact-table td{padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle;}
+table.compact-table tbody tr:last-child td{border-bottom:none;}
+table.compact-table tbody tr:hover{background:var(--surface-2);}
+table.compact-table .codigo{font-family:"IBM Plex Mono";font-weight:700;}
+table.compact-table .num{text-align:right;font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums;}
+table.compact-table .reserva-row{background:var(--st-int-bg);}
+.ct-status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
 
 .section-title{
   font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-faint);
@@ -236,13 +270,10 @@ img{max-width:100%;}
 .batchbar .btn{padding:9px 12px;font-size:12.5px;}
 
 .fab{
-  position:fixed;bottom:22px;left:50%;transform:translateX(calc(-50% + 232px));
+  position:fixed;bottom:22px;right:16px;left:auto;
   background:var(--accent);color:var(--accent-contrast);border:none;border-radius:30px;
   padding:15px 22px;font-weight:700;font-size:15px;box-shadow:0 4px 16px rgba(20,30,45,.28);
   cursor:pointer;display:flex;align-items:center;gap:8px;z-index:25;max-width:calc(100vw - 32px);
-}
-@media (max-width:640px){
-  .fab{left:auto;right:16px;transform:none;}
 }
 
 /* ---------- Correção: consolidated list ---------- */
@@ -256,14 +287,40 @@ img{max-width:100%;}
 .nec-main .codigo{font-family:"IBM Plex Mono";font-weight:700;font-size:15px;}
 .nec-obs{font-size:12px;color:var(--st-int);white-space:normal;overflow-wrap:break-word;line-height:1.4;}
 .nec-kg{font-family:"IBM Plex Mono";font-size:13.5px;color:var(--text-muted);min-width:70px;text-align:right;font-variant-numeric:tabular-nums;flex:none;margin-top:1px;}
-.nec-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:0 12px 12px;}
+.nec-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;padding:0 12px 8px;}
 @media (min-width:480px){ .nec-quick{grid-template-columns:repeat(4,1fr);} }
 .nec-quick-btn{
-  border:1.5px solid var(--border-strong);border-radius:8px;padding:11px 6px;font-weight:700;font-size:12px;
+  border:1.5px solid var(--border-strong);border-radius:7px;padding:8px 6px;font-weight:700;font-size:11.5px;
   background:var(--surface);color:var(--text-muted);cursor:pointer;text-align:center;letter-spacing:.01em;
+  min-height:36px;
 }
 .nec-quick-btn.active{border-width:2px;font-weight:800;}
 .nec-quick-btn[disabled]{opacity:.5;cursor:default;}
+.nec-prev-quick{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:0 12px 10px;}
+.nec-prev-quick-btn{
+  border:1.5px solid var(--border-strong);border-radius:7px;padding:6px 4px;font-weight:600;font-size:11px;
+  background:var(--surface);color:var(--text-muted);cursor:pointer;text-align:center;min-height:30px;
+}
+.nec-prev-quick-btn.active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);font-weight:800;}
+.nec-prev-quick-btn[disabled]{opacity:.5;cursor:default;}
+
+/* ---------- Correção: header title / sync info / micro panel ---------- */
+.correcao-title{font-size:15px;color:var(--accent);letter-spacing:.03em;}
+.sync-info{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
+.micro-panel{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.micro-tile{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;
+  display:flex;flex-direction:column;gap:1px;
+}
+.micro-tile .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);}
+.micro-tile .n{font-family:"IBM Plex Mono";font-weight:700;font-size:19px;font-variant-numeric:tabular-nums;}
+.micro-tile .kg{font-size:11px;color:var(--text-faint);font-weight:600;}
+.micro-tile.avail .n{color:var(--st-ok);}
+.micro-tile.unavail .n{color:var(--st-int);}
+
+/* ---------- Logo ---------- */
+.login-logo{display:block;max-width:190px;max-height:100px;object-fit:contain;margin:0 0 6px;align-self:center;}
+.header-logo{display:block;height:26px;width:auto;object-fit:contain;flex:none;}
 .nec-expand{padding:2px 12px 16px;display:flex;flex-direction:column;gap:8px;}
 .nec-expand textarea{
   border:1.5px solid var(--border-strong);border-radius:8px;padding:9px 10px;font-size:13.5px;min-height:52px;
@@ -504,6 +561,93 @@ function computeNecessidades(list){
 }
 function sortNec(list){ return list.slice().sort(function(a,b){ return (a.codigo||"").localeCompare(b.codigo||""); }); }
 
+/* ================= AUDITORIA DE NECESSIDADES (somente leitura) =================
+   Recalcula as necessidades a partir dos registros hoje existentes em
+   "ferramentas" (reaproveitando computeNecessidades, a mesma função usada
+   em todo o resto do app) e compara com o que está gravado em
+   "necessidades", sinalizando divergências. NÃO grava nada — é usada só
+   para diagnóstico antes de qualquer decisão de correção.
+
+   Comportamento investigado e encontrado para registros RETIRADA (não
+   assumido): a coleção "ferramentas" NÃO tem nenhum campo que marque um
+   registro como retirado — as regras do Firestore proíbem update nela
+   (allow update: if false) e o app nunca exclui automaticamente um
+   registro RETIRADA (mantido de propósito para auditoria/histórico do
+   PCP). Ou seja: não existe, hoje, NENHUM jeito de distinguir dentro de
+   "ferramentas" um registro que ainda representa a programação real de um
+   registro que já saiu do Espelho em uma sincronização anterior — os dois
+   têm exatamente a mesma cara. Por isso este recálculo soma TODOS os
+   registros de "ferramentas" que batem com cada código+prensa+data (é a
+   única fonte disponível), e o resultado é rotulado com essa ressalva na
+   tela: uma divergência encontrada aqui pode ser (a) kg que nunca foi
+   decrementado da necessidade (o bug já corrigido no sincronizador), OU
+   (b) um registro "ferramentas" antigo, de fato retirado há muito tempo,
+   que nunca foi removido e por isso ainda entra na soma. Esta auditoria
+   não tem como diferenciar os dois casos sozinha — só uma nova
+   sincronização do Espelho (comparando contra a planilha real) consegue
+   confirmar qual registro específico não faz mais parte da programação
+   atual. Por isso a correção não é executada automaticamente. */
+function computeAuditResult(ferramentas, existingMap){
+  var recalcedByKey = {};
+  computeNecessidades(ferramentas).forEach(function(g){ recalcedByKey[g.key] = g; });
+  var allKeys = {};
+  Object.keys(existingMap).forEach(function(k){ allKeys[k]=true; });
+  Object.keys(recalcedByKey).forEach(function(k){ allKeys[k]=true; });
+
+  var rows = [];
+  var summary = { total:0, semAlteracao:0, aCorrigir:0, aCriar:0, semCorrespondente:0, diffKgAbsTotal:0 };
+  var STATUS_KEY_MAP = { SEM_ALTERACAO:"semAlteracao", A_CORRIGIR:"aCorrigir", A_CRIAR:"aCriar", SEM_CORRESPONDENTE:"semCorrespondente" };
+  Object.keys(allKeys).forEach(function(key){
+    var existing = existingMap[key];
+    var rec = recalcedByKey[key];
+    var existingKg = existing ? (existing.kgTotal||0) : 0;
+    var existingCount = existing ? (existing.count||0) : 0;
+    var recKg = rec ? rec.kgTotal : 0;
+    var recCount = rec ? rec.rawIds.length : 0;
+    var diff = Math.round((recKg - existingKg) * 100) / 100;
+    var status;
+    if(!existing && rec){ status = "A_CRIAR"; }
+    else if(existing && !rec){ status = "SEM_CORRESPONDENTE"; }
+    else if(Math.abs(diff) > 0.01 || existingCount !== recCount){ status = "A_CORRIGIR"; }
+    else { status = "SEM_ALTERACAO"; }
+    summary.total++;
+    summary[STATUS_KEY_MAP[status]]++;
+    summary.diffKgAbsTotal += Math.abs(diff);
+    var parts = key.split("__");
+    rows.push({
+      key: key,
+      codigo: (rec && rec.codigo) || (existing && existing.codigo) || parts[0],
+      prensa: (rec && rec.prensa) || (existing && existing.prensa) || parts[1],
+      data: (rec && rec.data) || (existing && existing.data) || parts[2],
+      status: status, existingKg: existingKg, existingCount: existingCount, recKg: recKg, recCount: recCount, diff: diff,
+      rawRows: ferramentas.filter(function(t){ return necDocId(t.codigo,t.prensa,t.dataProgramacao)===key; })
+    });
+  });
+  var ORDER = { A_CORRIGIR:0, A_CRIAR:1, SEM_CORRESPONDENTE:2, SEM_ALTERACAO:3 };
+  rows.sort(function(a,b){
+    if(ORDER[a.status]!==ORDER[b.status]) return ORDER[a.status]-ORDER[b.status];
+    return (a.codigo||"").localeCompare(b.codigo||"");
+  });
+  return { rows: rows, summary: summary };
+}
+function runAudit(){
+  if(!state.db){ state.audit.loading=false; state.audit.error="Serviço de dados indisponível."; render(); return; }
+  state.db.collection("necessidades").limit(2000).get().then(function(snap){
+    var existingMap = {};
+    snap.docs.forEach(function(d){
+      if(d.id===SYNC_META_DOC_ID) return;
+      existingMap[d.id] = d.data();
+    });
+    state.audit.loading = false;
+    state.audit.result = computeAuditResult(state.ferramentas, existingMap);
+    render();
+  }).catch(function(err){
+    state.audit.loading = false;
+    state.audit.error = "Erro ao carregar necessidades para auditoria: "+(err&&err.message||"");
+    render();
+  });
+}
+
 var state = {
   db: null,
   dbReady: false,
@@ -516,7 +660,9 @@ var state = {
   dataLoaded: false,
   statusByKey: {},
   necessidadesByKey: {},
-  filters: { data: todayStr(), prensa: "Todas", turno: "Todos", onlyPend: false, reservaOnly: false },
+  filters: { data: todayStr(), prensa: "Todas", turno: "Todos", onlyPend: false, reservaOnly: false, indicador: "" },
+  pcpView: (function(){ try{ return localStorage.getItem("pcpView")==="compacta" ? "compacta" : "macro"; }catch(e){ return "macro"; } })(),
+  syncMeta: null,
   expanded: {},
   modal: null,
   modal_id: null,
@@ -536,7 +682,8 @@ var state = {
 var app = document.getElementById("app");
 
 function render(){
-  if(!state.user){ app.innerHTML = renderAuth(); bindAuth(); return; }
+  if(!state.user){ app.className=""; app.innerHTML = renderAuth(); bindAuth(); return; }
+  app.className = state.user.perfil==="pcp" ? "role-pcp" : "role-correcao";
   if(!state.dbReady){ app.innerHTML = '<div class="spinner-wrap">CARREGANDO…</div>'; return; }
   var filterBarHtml = state.user.perfil==="pcp" ? renderFilterBarPCP() : renderFilterBarCorrecao();
   var html = renderTopBar() + filterBarHtml + '<div class="content">' +
@@ -556,6 +703,7 @@ function renderAuth(){
   return '' +
   '<div class="auth-wrap">' +
     '<div class="auth-brand">' +
+      '<img src="logo-extrutech.png" alt="Extrutech" class="login-logo" onerror="this.style.display=\'none\'">' +
       '<span class="eyebrow">PCP &nbsp;⇄&nbsp; Correção de Ferramentas</span>' +
       '<h1>Painel de<br>Ferramentas</h1>' +
     '</div>' +
@@ -651,6 +799,7 @@ function doRegister(){
 function logout(){
   if(window.__AUTH_API) window.__AUTH_API.signOut();
   state.user=null; state.ferramentas=[]; state.dataLoaded=false; state.statusByKey={}; state.necessidadesByKey={}; state.necPending={};
+  state.syncMeta=null; state._backfillChecked=false;
   if(state.unsub){ state.unsub(); state.unsub=null; }
   if(state.unsubNecessidades){ state.unsubNecessidades(); state.unsubNecessidades=null; }
   if(state.unsubStatus){ state.unsubStatus(); state.unsubStatus=null; }
@@ -661,13 +810,17 @@ function logout(){
 function renderTopBar(){
   return '' +
   '<div class="topbar">' +
-    '<div class="who">' +
-      '<span class="name">'+esc(state.user.nome)+'</span>' +
-      '<span class="role-pill '+(state.user.perfil==="pcp"?"pcp":"correcao")+'">'+(state.user.perfil==="pcp"?"PCP":"Correção")+'</span>' +
+    '<div style="display:flex;align-items:center;gap:10px;min-width:0;">' +
+      '<img src="logo-extrutech.png" alt="Extrutech" class="header-logo" onerror="this.style.display=\'none\'">' +
+      '<div class="who">' +
+        '<span class="name">'+esc(state.user.nome)+'</span>' +
+        '<span class="role-pill '+(state.user.perfil==="pcp"?"pcp":"correcao")+'">'+(state.user.perfil==="pcp"?"PCP":"Correção")+'</span>' +
+      '</div>' +
     '</div>' +
     '<div style="display:flex;gap:8px;overflow-x:auto;">' +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-import">Importar</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-espelho">Espelho</button>' : '') +
+      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-audit">Auditoria</button>' : '') +
       '<button class="icon-btn" data-action="logout">Sair</button>' +
     '</div>' +
   '</div>';
@@ -709,20 +862,79 @@ function renderFilterBarCorrecao(){
 }
 
 /* ================= DATA HELPERS ================= */
-function applyFilters(list){
+// Filtros "base": prensa/turno/data/reserva. Não inclui onlyPend nem o
+// indicador clicável — usados isoladamente para o cálculo dos indicadores
+// (que precisam responder aos mesmos filtros de prensa/turno/data/reserva,
+// mas calculam sua PRÓPRIA quebra por status, então não podem já vir
+// pré-filtrados por status).
+function applyBaseFilters(list){
   var f = state.filters;
   return list.filter(function(t){
     if(f.prensa!=="Todas" && t.prensa!==f.prensa) return false;
     if(f.turno!=="Todos" && t.turno!==f.turno) return false;
     if(f.data!=="__all__" && t.dataProgramacao!==f.data) return false;
-    if(f.onlyPend){
-      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao)];
-      if(sd && sd.status==="OK") return false;
-    }
     if(f.reservaOnly){ if(t.tipo!=="Reserva") return false; }
     else if(t.tipo==="Reserva") return false;
     return true;
   });
+}
+// Status efetivo (por necessidade) agrupado nos 4 grupos usados pelos
+// indicadores do PCP: ok / pendente / indisponivel / quebrada.
+// "Quebrada" também conta como indisponível (é um subconjunto), mas tem
+// seu próprio indicador dedicado.
+function necStatusGroup(status){
+  var v = (STATUS_META[status]||STATUS_META["Pendente"]).v;
+  if(v==="ok") return "ok";
+  if(v==="pendente") return "pendente";
+  if(v==="quebrada") return "quebrada";
+  return "indisponivel"; // limpeza, nitretacao, int, ext, outro
+}
+function applyFilters(list){
+  var f = state.filters;
+  var out = applyBaseFilters(list).filter(function(t){
+    if(f.onlyPend){
+      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao)];
+      if(sd && sd.status==="OK") return false;
+    }
+    return true;
+  });
+  if(f.indicador){
+    out = out.filter(function(t){
+      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao)];
+      var status = sd ? sd.status : "Pendente";
+      var grp = necStatusGroup(status);
+      if(f.indicador==="emprocesso") return grp!=="ok";
+      return grp===f.indicador;
+    });
+  }
+  return out;
+}
+// Indicadores do PCP: contam NECESSIDADES (código+prensa+data, sem duplicar
+// pelas linhas brutas da programação — ver computeNecessidades), dentro dos
+// filtros de prensa/turno/data/reserva atualmente ativos (mas ignorando
+// onlyPend/indicador, que são o próprio resultado deste cálculo).
+function computeIndicators(rawList){
+  var necs = computeNecessidades(rawList);
+  var ind = {
+    total:{n:0,kg:0}, ok:{n:0,kg:0}, pendente:{n:0,kg:0}, indisponivel:{n:0,kg:0}, emprocesso:{n:0,kg:0}, quebrada:{n:0,kg:0}
+  };
+  necs.forEach(function(g){
+    var sd = state.statusByKey[g.key];
+    var status = sd ? sd.status : "Pendente";
+    var grp = necStatusGroup(status);
+    ind.total.n++; ind.total.kg += g.kgTotal;
+    ind[grp].n++; ind[grp].kg += g.kgTotal;
+    if(grp!=="ok"){ ind.emprocesso.n++; ind.emprocesso.kg += g.kgTotal; }
+  });
+  return ind;
+}
+function fmtSyncUpdatedBR(iso){
+  if(!iso) return null;
+  var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(iso);
+  if(!m) return iso;
+  var hasTime = !(m[4]==="00" && m[5]==="00" && m[6]==="00");
+  var br = m[3]+"/"+m[2]+"/"+m[1];
+  return hasTime ? (br+" às "+m[4]+":"+m[5]) : br;
 }
 function sortTools(list){
   return list.slice().sort(function(a,b){
@@ -741,41 +953,67 @@ function effectiveNecStatus(key){
 /* ================= PCP VIEW ================= */
 function renderPCP(){
   var visible = applyFilters(state.ferramentas);
-  var baseAll = state.filters.data==="__all__" ? state.ferramentas : state.ferramentas.filter(function(t){return t.dataProgramacao===state.filters.data;});
-  var necs = computeNecessidades(baseAll);
-  var counts = { total: necs.length, ok:0, pend:0, andamento:0, quebrada:0 };
-  necs.forEach(function(g){
-    var sd = state.statusByKey[g.key];
-    var status = sd ? sd.status : "Pendente";
-    var v = (STATUS_META[status]||STATUS_META["Pendente"]).v;
-    if(v==="ok") counts.ok++;
-    else if(v==="pendente") counts.pend++;
-    else if(v==="quebrada") counts.quebrada++;
-    else counts.andamento++;
-  });
+  var indicatorRaw = applyBaseFilters(state.ferramentas);
+  var ind = computeIndicators(indicatorRaw);
+  var f = state.filters;
   var html = '';
   html += '<div class="stats-grid">' +
-    statTile(counts.total,"Ferramentas","") +
-    statTile(counts.ok,"OK","ok") +
-    statTile(counts.pend,"Pendentes","warn") +
-    statTile(counts.andamento,"Em processo","") +
-    statTile(counts.quebrada,"Quebradas","crit") +
-    statTile(counts.total-counts.ok,"Não liberadas","") +
+    statTile("Ferramentas total", "", ind.total, "", !f.indicador) +
+    statTile("Programadas", "ok", ind.ok, "ok", f.indicador==="ok") +
+    statTile("A programar", "pendente", ind.pendente, "warn", f.indicador==="pendente") +
+    statTile("Indisponíveis", "indisponivel", ind.indisponivel, "warn", f.indicador==="indisponivel") +
+    statTile("Em processo", "emprocesso", ind.emprocesso, "", f.indicador==="emprocesso") +
+    statTile("Quebradas", "quebrada", ind.quebrada, "crit", f.indicador==="quebrada") +
   '</div>';
-  html += '<div class="section-title"><span>Registros ('+visible.length+')</span></div>';
+  html += '<div class="section-title"><span>Registros ('+visible.length+')</span>' +
+    '<div class="view-toggle">' +
+      '<button type="button" data-action="set-pcp-view" data-value="macro" class="'+(state.pcpView==="macro"?"active":"")+'">Macro</button>' +
+      '<button type="button" data-action="set-pcp-view" data-value="compacta" class="'+(state.pcpView==="compacta"?"active":"")+'">Compacta</button>' +
+    '</div>' +
+  '</div>';
   if(!state.dataLoaded){
     html += emptyState("Carregando programação…");
   } else if(visible.length===0){
     html += emptyState("Nenhuma ferramenta encontrada com esses filtros.");
+  } else if(state.pcpView==="compacta"){
+    html += renderCompactTable(sortTools(visible));
   } else {
-    html += '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    html += '<div class="tool-cards-grid">' +
       sortTools(visible).map(function(t){ return renderCard(t); }).join("") +
     '</div>';
   }
   return html;
 }
-function statTile(n,lbl,cls){
-  return '<div class="stat-tile '+(cls||"")+'"><span class="n">'+n+'</span><span class="lbl">'+lbl+'</span></div>';
+function statTile(lbl,bucket,ind,cls,active){
+  return '<button type="button" class="stat-tile '+(cls||"")+' '+(active?"active":"")+'" data-action="set-indicador" data-value="'+bucket+'">' +
+    '<span class="n">'+ind.n+'</span><span class="lbl">'+esc(lbl)+'</span><span class="kg">'+fmtKg(ind.kg)+' kg</span>' +
+  '</button>';
+}
+function renderCompactTable(list){
+  var rows = list.map(function(t){
+    var key = necDocId(t.codigo, t.prensa, t.dataProgramacao);
+    var sd = state.statusByKey[key];
+    var status = sd ? sd.status : "Pendente";
+    var meta = STATUS_META[status] || STATUS_META["Pendente"];
+    return '<tr class="'+(t.tipo==="Reserva"?"reserva-row":"")+'">' +
+      '<td class="codigo">'+esc(t.codigo)+'</td>' +
+      '<td>'+esc(t.cliente||"—")+'</td>' +
+      '<td>'+esc(t.prensa)+'</td>' +
+      '<td>'+(t.turno==="Dia"?"☀ Dia":"☾ Noite")+'</td>' +
+      '<td class="num">'+fmtKg(t.quantidadeKg)+'</td>' +
+      '<td>'+esc(t.corte||"—")+'</td>' +
+      '<td>'+esc(t.liga||"—")+'</td>' +
+      '<td>'+(t.tipo==="Reserva"?"Reserva":"Progr.")+'</td>' +
+      '<td><span class="ct-status-dot" style="background:var(--st-'+meta.v+');"></span>'+esc(meta.label)+'</td>' +
+      '<td>'+(sd && sd.previsaoLiberacao ? relLabel(sd.previsaoLiberacao) : "—")+'</td>' +
+    '</tr>';
+  }).join("");
+  return '<div class="compact-wrap"><table class="compact-table">' +
+    '<thead><tr>' +
+      '<th>Ferramenta</th><th>Cliente</th><th>Prensa</th><th>Turno</th><th>Kg</th><th>Corte</th><th>Liga</th><th>Tipo</th><th>Status</th><th>Previsão</th>' +
+    '</tr></thead>' +
+    '<tbody>'+rows+'</tbody>' +
+  '</table></div>';
 }
 function emptyState(msg){
   return '<div class="empty-state"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>'+esc(msg)+'</span></div>';
@@ -873,6 +1111,19 @@ function renderCorrecao(){
   });
   var pendingCount = Object.keys(state.necPending).length;
   var html = '';
+  html += '<h2 class="correcao-title">Programação de produção diária</h2>';
+  var syncLabel = state.syncMeta ? fmtSyncUpdatedBR(state.syncMeta.emitidoEm) : null;
+  html += '<div class="sync-info">' + (syncLabel ? "Programação atualizada em: "+esc(syncLabel) : "Programação atualizada em: não identificado") + '</div>';
+  var micro = { avail:{n:0,kg:0}, unavail:{n:0,kg:0} };
+  visibleGroups.forEach(function(g){
+    var eff = effectiveNecStatus(g.key);
+    var bucket = eff.status==="OK" ? "avail" : "unavail";
+    micro[bucket].n++; micro[bucket].kg += g.kgTotal;
+  });
+  html += '<div class="micro-panel">' +
+    '<div class="micro-tile avail"><span class="lbl">Disponíveis</span><span class="n">'+micro.avail.n+' ferramenta(s)</span><span class="kg">'+fmtKg(micro.avail.kg)+' kg</span></div>' +
+    '<div class="micro-tile unavail"><span class="lbl">Indisponíveis</span><span class="n">'+micro.unavail.n+' ferramenta(s)</span><span class="kg">'+fmtKg(micro.unavail.kg)+' kg</span></div>' +
+  '</div>';
   html += '<div class="section-title"><span>'+state.correcaoPrensa+' · '+visibleGroups.length+' ferramenta(s)</span>' +
     '<button class="btn btn-ghost" data-action="mark-all-ok">Marcar todas OK</button>' +
   '</div>';
@@ -911,6 +1162,7 @@ function renderNecRow(g){
   }
   html += '</div>';
   html += renderNecQuickActions(g, eff);
+  html += renderNecPrevQuick(g, eff);
   if(expanded){
     html += '<div class="nec-expand">';
     html += '<div class="status-grid">' + MOTIVO_LIST.map(function(s){
@@ -950,6 +1202,17 @@ function renderNecQuickActions(g, eff){
       ' data-action="quick-nec-status" data-key="'+key+'" data-value="'+esc(a.status)+'" onclick="event.stopPropagation()">'+esc(a.label)+'</button>';
   }).join("") + '</div>';
 }
+function renderNecPrevQuick(g, eff){
+  var key = g.key;
+  var busy = !!(state.necBusy && state.necBusy[key]);
+  var opts = [ {label:"+1 dia", days:1}, {label:"+2 dias", days:2}, {label:"+3 dias", days:3} ];
+  return '<div class="nec-prev-quick">' + opts.map(function(o){
+    var val = addDaysStr(o.days);
+    var active = eff.previsaoLiberacao === val;
+    return '<button type="button" class="nec-prev-quick-btn '+(active?"active":"")+'" '+(busy?"disabled":"")+
+      ' data-action="quick-nec-prev" data-key="'+key+'" data-value="'+o.days+'" onclick="event.stopPropagation()">'+o.label+'</button>';
+  }).join("") + '</div>';
+}
 function necPrevChip(label,value,current,key){
   return '<button type="button" class="prev-opt '+(current===value?"selected":"")+'" data-action="set-nec-prev" data-key="'+key+'" data-value="'+value+'">'+label+' ('+relLabel(value)+')</button>';
 }
@@ -959,6 +1222,7 @@ function renderModal(){
   if(state.modal==="new") return renderNewToolModal();
   if(state.modal==="import") return renderImportModal();
   if(state.modal==="espelho") return renderEspelhoModal();
+  if(state.modal==="audit") return renderAuditModal();
   return "";
 }
 function renderNewToolModal(){
@@ -1132,6 +1396,21 @@ function bindApp(){
     el.addEventListener("click", function(){ state.correcaoPrensa = el.getAttribute("data-value"); render(); });
   });
 
+  app.querySelectorAll('[data-action="set-indicador"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var v = el.getAttribute("data-value");
+      state.filters.indicador = (v==="" || state.filters.indicador===v) ? "" : v;
+      render();
+    });
+  });
+  app.querySelectorAll('[data-action="set-pcp-view"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      state.pcpView = el.getAttribute("data-value");
+      try{ localStorage.setItem("pcpView", state.pcpView); }catch(e){}
+      render();
+    });
+  });
+
   app.querySelectorAll('[data-action="toggle-card"]').forEach(function(el){
     el.addEventListener("click", function(){
       var id = el.getAttribute("data-id");
@@ -1152,7 +1431,7 @@ function bindApp(){
   });
 
   app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
-    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; render(); });
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; render(); });
   });
 
   var openImportBtn = app.querySelector('[data-action="open-import"]');
@@ -1164,6 +1443,23 @@ function bindApp(){
   if(openEspelhoBtn) openEspelhoBtn.addEventListener("click", function(){
     state.modal="espelho"; state.espelhoSync={ step:"pick", loading:false, error:"", result:null, expanded:{}, busy:false, done:null };
     render();
+  });
+  var openAuditBtn = app.querySelector('[data-action="open-audit"]');
+  if(openAuditBtn) openAuditBtn.addEventListener("click", function(){
+    state.modal="audit"; state.audit={ loading:true, error:"", result:null, expanded:{}, filterCodigo:"" };
+    render();
+    runAudit();
+  });
+  var auditFilterInput = document.getElementById("audit-filter-codigo");
+  if(auditFilterInput) auditFilterInput.addEventListener("change", function(){
+    state.audit.filterCodigo = auditFilterInput.value; render();
+  });
+  app.querySelectorAll('[data-action="toggle-audit-row"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var k = el.getAttribute("data-key");
+      state.audit.expanded[k] = !state.audit.expanded[k];
+      render();
+    });
   });
   var espFile = document.getElementById("esp-file");
   if(espFile) espFile.addEventListener("change", function(){ if(espFile.files && espFile.files[0]) handleEspelhoFile(espFile.files[0]); });
@@ -1246,6 +1542,9 @@ function bindApp(){
   });
   app.querySelectorAll('[data-action="quick-nec-status"]').forEach(function(el){
     el.addEventListener("click", function(){ quickSetStatus(el.getAttribute("data-key"), el.getAttribute("data-value")); });
+  });
+  app.querySelectorAll('[data-action="quick-nec-prev"]').forEach(function(el){
+    el.addEventListener("click", function(){ quickSetPrevisao(el.getAttribute("data-key"), parseInt(el.getAttribute("data-value"),10)); });
   });
   app.querySelectorAll('[data-action="set-nec-status"]').forEach(function(el){
     el.addEventListener("click", function(){ setNecField(el.getAttribute("data-key"), "status", el.getAttribute("data-value")); });
@@ -1357,6 +1656,34 @@ function quickSetStatus(key, statusValue){
   }).catch(function(err){
     state.necBusy[key] = false;
     state.toast = "Erro ao salvar "+g.codigo+": "+(err&&err.message||"");
+    render();
+  });
+}
+// Atalho +1/+2/+3 dias: grava imediatamente só a previsão, reaproveitando
+// exatamente a mesma lógica de previsão (addDaysStr) e o mesmo caminho de
+// gravação (saveNecStatusWrite) — status e observação atuais são mantidos.
+function quickSetPrevisao(key, days){
+  if(state.necBusy[key] || !state.db) return;
+  var g = findGroup(key);
+  if(!g) return;
+  var eff = effectiveNecStatus(key);
+  var draft = {
+    status: eff.status,
+    previsaoLiberacao: addDaysStr(days),
+    observacaoCorrecao: eff.observacaoCorrecao||"",
+    codigo: g.codigo, prensa: g.prensa, data: g.data
+  };
+  delete state.necPending[key];
+  state.necBusy[key] = true;
+  render();
+  var now = new Date().toISOString();
+  return saveNecStatusWrite(key, draft, now).then(function(){
+    state.necBusy[key] = false;
+    state.toast = g.codigo+": previsão +"+days+" dia(s) salva.";
+    render();
+  }).catch(function(err){
+    state.necBusy[key] = false;
+    state.toast = "Erro ao salvar previsão de "+g.codigo+": "+(err&&err.message||"");
     render();
   });
 }
@@ -1544,6 +1871,12 @@ function doConfirmImport(){
    (NOVA / RESERVA→PRINCIPAL / ALTERADA / RETIRADA / SEM ALTERAÇÃO) e só
    grava no Firestore depois de o PCP confirmar explicitamente. */
 
+// Doc reservado dentro de "necessidades" (mesma coleção, sem precisar de
+// nenhuma regra nova) guardando só o resumo da última sincronização do
+// Espelho — id garantidamente diferente de qualquer necDocId real (que
+// nunca começa com "__"). Lido pela Correção em tempo real via a mesma
+// assinatura que já existe; filtrado antes de virar uma linha da lista.
+var SYNC_META_DOC_ID = "__sync_meta__";
 var ESP_PRINCIPAL_RE = /^Programa[cç][aã]o\s+(P\d+)\s*[—-]+\s*(\d{2}\/\d{2}\/\d{4})\s*[—-]+\s*Turno:\s*(DIA|NOITE)/i;
 var ESP_RESERVA_RE = /^PROGRAMA[CÇ][AÃ]O\s+RESERVA.*turno\s+seguinte\s*\((DIA|NOITE)\)/i;
 var ESP_TOTAL_RE = /^TOTAL\b/i;
@@ -1762,6 +2095,82 @@ var ESP_TYPE_META = {
 };
 function espBucketLabel(b){ return b.prensa+" "+b.turno+(b.tipo==="Reserva" ? " (Reserva p/ Noite)" : ""); }
 
+var AUDIT_STATUS_META = {
+  A_CORRIGIR:          { label:"A corrigir",          v:"int" },
+  A_CRIAR:             { label:"A criar",              v:"ok" },
+  SEM_CORRESPONDENTE:  { label:"Sem correspondente",   v:"quebrada" },
+  SEM_ALTERACAO:       { label:"Sem alteração",        v:"pendente" }
+};
+var AUDIT_STATUS_SUMMARY_KEY = { A_CORRIGIR:"aCorrigir", A_CRIAR:"aCriar", SEM_CORRESPONDENTE:"semCorrespondente", SEM_ALTERACAO:"semAlteracao" };
+function renderAuditModal(){
+  var a = state.audit;
+  if(!a) return "";
+  var body = "";
+  if(a.loading){
+    body = '<div class="hint">Recalculando necessidades a partir dos registros de "ferramentas"…</div>';
+  } else if(a.error){
+    body = '<div class="error-msg">'+esc(a.error)+'</div>';
+  } else if(a.result){
+    var r = a.result;
+    body += '<div class="warn-msg"><span>⚠ Este recálculo soma TODOS os registros hoje existentes em "ferramentas" para cada código+prensa+data. A coleção "ferramentas" nunca marca nem exclui um registro RETIRADA — não há, hoje, como diferenciar por aqui um registro ainda válido de um já retirado há tempo. Uma divergência abaixo pode ser tanto kg que nunca foi decrementado (bug já corrigido no sincronizador para sincronizações futuras) quanto um registro antigo genuinamente obsoleto. Esta tela não grava nada — é só diagnóstico.</span></div>';
+    body += '<div class="field"><label>Buscar código</label><input id="audit-filter-codigo" type="text" value="'+esc(a.filterCodigo||"")+'" placeholder="Ex: EIR-033"></div>';
+    body += '<div class="status-grid">' + ["A_CORRIGIR","A_CRIAR","SEM_CORRESPONDENTE","SEM_ALTERACAO"].map(function(t){
+      var meta = AUDIT_STATUS_META[t];
+      var n = r.summary[AUDIT_STATUS_SUMMARY_KEY[t]];
+      return '<div class="status-opt sm" style="color:var(--st-'+meta.v+');cursor:default;">'+esc(meta.label)+'<br><span class="mono" style="font-size:15px;">'+n+'</span></div>';
+    }).join("") + '</div>';
+    body += '<div class="hint" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">' +
+      '<b style="color:var(--text);">Resumo:</b> '+r.summary.total+' necessidade(s) analisada(s) · soma das diferenças de kg em módulo: '+fmtKg(r.summary.diffKgAbsTotal)+' kg.' +
+    '</div>';
+    var filtered = r.rows.filter(function(row){
+      if(!a.filterCodigo) return true;
+      return row.codigo.toUpperCase().indexOf(a.filterCodigo.toUpperCase())>=0;
+    });
+    body += '<div style="border:1px solid var(--border);border-radius:8px;max-height:360px;overflow:auto;">' +
+      (filtered.length ? filtered.map(renderAuditRow).join("") : '<div class="hint" style="padding:12px;">Nenhuma necessidade encontrada com esse filtro.</div>') +
+    '</div>';
+  }
+  return '' +
+  '<div class="modal-overlay" data-action="close-modal">' +
+    '<div class="modal" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Auditoria de necessidades</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      body +
+    '</div>' +
+  '</div>';
+}
+function renderAuditRow(row){
+  var meta = AUDIT_STATUS_META[row.status];
+  var expanded = !!(state.audit.expanded && state.audit.expanded[row.key]);
+  var html = '<div style="border-bottom:1px solid var(--border);">';
+  html += '<div style="padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;" data-action="toggle-audit-row" data-key="'+row.key+'">';
+  html += '<div style="min-width:0;"><span class="mono" style="font-weight:700;">'+esc(row.codigo)+'</span> ' +
+    '<span class="tag">'+esc(row.prensa)+'</span> <span class="tag">'+fmtDateBR(row.data)+'</span></div>';
+  html += '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>';
+  html += '</div>';
+  html += '<div style="padding:0 10px 8px;font-size:12px;color:var(--text-muted);display:flex;gap:14px;flex-wrap:wrap;">' +
+    '<span>Atual: <b class="mono">'+fmtKg(row.existingKg)+' kg</b> ('+row.existingCount+' registro(s))</span>' +
+    '<span>Recalculado: <b class="mono">'+fmtKg(row.recKg)+' kg</b> ('+row.recCount+' registro(s))</span>' +
+    '<span>Diferença: <b class="mono" style="color:'+(row.diff!==0?'var(--st-quebrada)':'var(--st-ok)')+';">'+(row.diff>0?"+":"")+fmtKg(row.diff)+' kg</b></span>' +
+  '</div>';
+  if(expanded){
+    html += '<div style="padding:0 10px 10px;">';
+    if(row.rawRows.length){
+      html += '<div class="hint" style="margin-bottom:4px;">Registros que compõem esta necessidade em "ferramentas":</div>';
+      html += '<div style="display:flex;flex-direction:column;gap:3px;">' + row.rawRows.map(function(t){
+        return '<div style="font-size:11.5px;padding:4px 6px;background:var(--surface-2);border-radius:5px;">' +
+          '<span class="mono">'+esc(t.id)+'</span> · '+esc(t.cliente||"—")+' · '+fmtKg(t.quantidadeKg)+' kg · '+esc(t.tipo)+' · '+esc(t.turno)+
+          (t.origemEspelho ? ' · origemEspelho: '+esc(t.origemEspelho) : ' · importado manualmente') +
+        '</div>';
+      }).join("") + '</div>';
+    } else {
+      html += '<div class="hint">Nenhum registro em "ferramentas" bate com esta chave hoje — a necessidade existente ficou sem correspondente.</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
 function renderEspelhoModal(){
   var es = state.espelhoSync;
   if(!es) return "";
@@ -1910,15 +2319,56 @@ function doConfirmEspelhoSync(){
         .catch(function(err){ counts.erros++; counts.errosDetalhe.push(item.type+" "+item.oldDoc.codigo+": "+(err&&err.message||"")); });
     }
     if(item.type==="SEM_ALTERACAO"){ counts.mantidas++; return Promise.resolve(); }
-    if(item.type==="RETIRADA"){ counts.retiradas++; return Promise.resolve(); } // nunca excluído automaticamente
+    if(item.type==="RETIRADA"){
+      // O registro bruto em "ferramentas" NUNCA é excluído automaticamente
+      // (mantido para auditoria/histórico do PCP) — mas seu kg PRECISA sair
+      // da necessidade consolidada, senão o total da Correção fica inflado
+      // para sempre a cada linha que sai do Espelho (causa raiz de
+      // necessidades com kg "sobrando" depois de reimportações).
+      return withPermissionRetry(function(){ return upsertNecessidadeDelta(item.oldDoc, -1); })
+        .then(function(){ counts.retiradas++; })
+        .catch(function(err){ counts.erros++; counts.errosDetalhe.push("Retirada "+item.oldDoc.codigo+": "+(err&&err.message||"")); });
+    }
     return Promise.resolve();
   });
 
   Promise.all(ops).then(function(){
     es.busy=false; es.step="done";
     es.done = { novas:counts.novas, promovidas:counts.promovidas, alteradas:counts.alteradas, mantidas:counts.mantidas, retiradas:counts.retiradas, erros:counts.erros, errosDetalhe:counts.errosDetalhe, horario:now };
-    render();
+    var registrosOk = counts.novas + counts.promovidas + counts.alteradas + counts.mantidas;
+    withPermissionRetry(function(){
+      return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({
+        __meta__: true, emitidoEm: emitidoEm, sincronizadoEm: now, registros: registrosOk, erros: counts.erros
+      });
+    }).catch(function(){ /* indicador de "última sincronização" é informativo; nunca bloqueia a conclusão do sync */ }).then(function(){
+      render();
+    });
   });
+}
+
+// Recupera (uma única vez, sem rodar nenhum sync novo) a data/hora do último
+// Espelho sincronizado a partir do origemEspelho já gravado nos registros
+// existentes de "ferramentas" — só roda se necessidades/__sync_meta__ ainda
+// não existir (ou seja, só serve de "ponte" para a primeira sincronização
+// real, já feita antes deste indicador existir; todo sync futuro já grava
+// o doc diretamente em doConfirmEspelhoSync).
+function maybeBackfillSyncMeta(){
+  if(state._backfillChecked || !state.db) return;
+  state._backfillChecked = true;
+  var withOrigem = state.ferramentas.filter(function(t){ return !!t.origemEspelho; });
+  if(!withOrigem.length) return;
+  var maxOrigem = withOrigem.reduce(function(a,t){ return t.origemEspelho>a ? t.origemEspelho : a; }, withOrigem[0].origemEspelho);
+  var docsDoUltimoSync = withOrigem.filter(function(t){ return t.origemEspelho===maxOrigem; });
+  var maxCriado = docsDoUltimoSync.reduce(function(a,t){ return (t.criadoEm||"")>a ? t.criadoEm : a; }, docsDoUltimoSync[0].criadoEm||"");
+  state.db.doc("necessidades/"+SYNC_META_DOC_ID).get().then(function(snap){
+    if(snap.exists) return;
+    return withPermissionRetry(function(){
+      return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({
+        __meta__: true, emitidoEm: maxOrigem, sincronizadoEm: maxCriado || null,
+        registros: docsDoUltimoSync.length, erros: 0, backfill: true
+      });
+    });
+  }).catch(function(){ /* indicador informativo; falha aqui não afeta o app */ });
 }
 
 /* ================= SUBSCRIPTIONS ================= */
@@ -1929,6 +2379,7 @@ function startSubs(){
       state.ferramentas = snap.docs.map(function(d){ var v=d.data(); v.id=d.id; return v; });
       state.dataLoaded = true;
       render();
+      maybeBackfillSyncMeta();
     }, function(err){
       state.dataLoaded = true;
       state.toast = "Conexão de dados interrompida.";
@@ -1938,7 +2389,10 @@ function startSubs(){
   if(state.user.perfil==="correcao" && !state.unsubNecessidades){
     state.unsubNecessidades = state.db.collection("necessidades").limit(2000).onSnapshot(function(snap){
       var map = {};
-      snap.docs.forEach(function(d){ map[d.id] = d.data(); });
+      snap.docs.forEach(function(d){
+        if(d.id===SYNC_META_DOC_ID){ state.syncMeta = d.data(); return; }
+        map[d.id] = d.data();
+      });
       state.necessidadesByKey = map;
       state.dataLoaded = true;
       render();
