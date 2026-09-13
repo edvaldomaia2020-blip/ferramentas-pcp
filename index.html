@@ -1261,14 +1261,13 @@ function savePendingChanges(){
       atualizadoPor: { uid: state.user.uid, nome: state.user.nome },
       atualizadoEm: now
     };
-    if(existing){
-      base.historico = state.db.arrayUnion(histEntry);
-      return ref.update(base);
-    } else {
-      base.codigo = draft.codigo; base.prensa = draft.prensa; base.data = draft.data;
-      base.historico = [histEntry];
-      return ref.set(base);
-    }
+    return withPermissionRetry(function(){
+      if(existing){
+        return ref.update(Object.assign({}, base, { historico: state.db.arrayUnion(histEntry) }));
+      } else {
+        return ref.set(Object.assign({}, base, { codigo: draft.codigo, prensa: draft.prensa, data: draft.data, historico: [histEntry] }));
+      }
+    });
   });
   Promise.all(promises).then(function(){
     state.necPending = {};
@@ -1278,6 +1277,17 @@ function savePendingChanges(){
 }
 
 /* ================= WRITES (PCP) ================= */
+/* Retry once, after a short pause, if Firestore momentarily denies a write
+   right after a login/account switch (token propagation race) — never
+   retries a write that is genuinely not permitted. */
+function withPermissionRetry(fn){
+  return fn().catch(function(err){
+    if(err && err.code==="permission-denied"){
+      return new Promise(function(resolve){ setTimeout(resolve, 700); }).then(fn);
+    }
+    throw err;
+  });
+}
 function upsertNecessidadeDelta(t, sign){
   if(!state.db) return Promise.resolve();
   var key = necDocId(t.codigo, t.prensa, t.dataProgramacao);
@@ -1318,8 +1328,10 @@ function submitNewTool(){
     solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
     criadoEm: new Date().toISOString()
   };
-  state.db.collection("ferramentas").add(doc).then(function(){
-    return upsertNecessidadeDelta(doc, 1);
+  withPermissionRetry(function(){
+    return state.db.collection("ferramentas").add(doc).then(function(){
+      return upsertNecessidadeDelta(doc, 1);
+    });
   }).then(function(){
     state.modal=null; state.toast="Ferramenta enviada para a Correção."; render();
   }).catch(function(err){ state.authError="Erro ao salvar: "+(err&&err.message||""); render(); });
@@ -1328,9 +1340,12 @@ function submitNewTool(){
 function deleteTool(id){
   if(!state.db) return;
   var t = state.ferramentas.find(function(x){return x.id===id;});
-  state.db.doc("ferramentas/"+id).delete().then(function(){
-    if(t) return upsertNecessidadeDelta(t, -1);
-  }).then(function(){ state.toast="Solicitação excluída."; render(); });
+  withPermissionRetry(function(){
+    return state.db.doc("ferramentas/"+id).delete().then(function(){
+      if(t) return upsertNecessidadeDelta(t, -1);
+    });
+  }).then(function(){ state.toast="Solicitação excluída."; render(); })
+    .catch(function(err){ state.toast="Erro ao excluir: "+(err&&err.message||""); render(); });
 }
 
 /* ================= IMPORT FROM SPREADSHEET ================= */
@@ -1418,13 +1433,17 @@ function doConfirmImport(){
   if(!state.db) return;
   imp.busy = true; imp.error=""; render();
   var proceed = function(){
-    Promise.all(docs.map(function(d){ return state.db.collection("ferramentas").add(d).then(function(){ return upsertNecessidadeDelta(d, 1); }); })).then(function(){
+    Promise.all(docs.map(function(d){
+      return withPermissionRetry(function(){ return state.db.collection("ferramentas").add(d).then(function(){ return upsertNecessidadeDelta(d, 1); }); });
+    })).then(function(){
       imp.busy=false; state.modal=null; state.import=null; state.toast=docs.length+" ferramentas importadas."; render();
     }).catch(function(err){ imp.busy=false; imp.error="Erro ao importar: "+(err&&err.message||""); render(); });
   };
   if(imp.importMode==="substituir"){
     var toDelete = state.ferramentas.filter(function(t){return t.prensa===imp.prensa && t.turno===imp.turno && t.dataProgramacao===imp.data;});
-    Promise.all(toDelete.map(function(t){ return state.db.doc("ferramentas/"+t.id).delete().then(function(){ return upsertNecessidadeDelta(t, -1); }); })).then(proceed).catch(function(err){
+    Promise.all(toDelete.map(function(t){
+      return withPermissionRetry(function(){ return state.db.doc("ferramentas/"+t.id).delete().then(function(){ return upsertNecessidadeDelta(t, -1); }); });
+    })).then(proceed).catch(function(err){
       imp.busy=false; imp.error="Erro ao substituir: "+(err&&err.message||""); render();
     });
   } else {
