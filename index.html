@@ -1577,12 +1577,47 @@ function espScanColumn(grid, titleCol){
   }
   return { buckets:buckets, ignoredReservaNoite:ignoredReservaNoite, warnings:warnings };
 }
-function parseEspelhoSheet(grid){
-  var emitidoEm = null;
+// Lê o valor BRUTO da célula (não o texto formatado tipo "12-Sep", que
+// esconde ano e hora). Se for uma data reconhecível pelo Excel, devolve
+// ano/mês/dia/hora/minuto exatos via XLSX.SSF (sem passar por Date/fuso
+// horário). Se não for uma data reconhecível, devolve o texto como está,
+// sem inventar nada.
+function espColLetter(idx){
+  var s = ""; idx++;
+  while(idx>0){ var m=(idx-1)%26; s=String.fromCharCode(65+m)+s; idx=Math.floor((idx-1)/26); }
+  return s;
+}
+function espReadEmitidoEmCell(sheet, rowIdx, colIdx){
+  var addr = espColLetter(colIdx) + (rowIdx+1);
+  var cell = sheet[addr];
+  if(!cell) return { iso:null, hasTime:false };
+  if(cell.t === "n" && typeof cell.v === "number" && window.XLSX && XLSX.SSF && XLSX.SSF.parse_date_code){
+    var d = XLSX.SSF.parse_date_code(cell.v);
+    if(d && d.y > 1900 && d.y < 2200){
+      var pad2 = function(n){ return ("0"+Math.floor(n)).slice(-2); };
+      var hasTime = Math.round((d.H||0)*3600+(d.M||0)*60+(d.S||0)) !== 0;
+      return {
+        iso: d.y+"-"+pad2(d.m)+"-"+pad2(d.d)+"T"+pad2(d.H||0)+":"+pad2(d.M||0)+":"+pad2(d.S||0),
+        hasTime: hasTime, y:d.y, mo:d.m, da:d.d, H:d.H||0, Mi:d.M||0
+      };
+    }
+  }
+  var raw = cell.w!=null ? cell.w.toString() : (cell.v!=null ? cell.v.toString() : "");
+  return raw ? { iso: raw, hasTime:false, isRawText:true } : { iso:null, hasTime:false };
+}
+function fmtEmitidoEmBR(meta){
+  if(!meta || !meta.iso) return "não identificado";
+  if(meta.isRawText) return meta.iso;
+  var pad2 = function(n){ return ("0"+n).slice(-2); };
+  var dataBR = pad2(meta.da)+"/"+pad2(meta.mo)+"/"+meta.y;
+  return meta.hasTime ? (dataBR+" "+pad2(meta.H)+":"+pad2(meta.Mi)) : dataBR;
+}
+function parseEspelhoSheet(grid, sheet){
+  var emitidoEm = null, emitidoEmMeta = null;
   for(var r=0; r<Math.min(grid.length,10); r++){
     if(normalizeHeader(grid[r][0]) === "EMITIDO EM"){
-      var raw = grid[r][1];
-      emitidoEm = (raw==null ? "" : raw.toString().trim()) || null;
+      emitidoEmMeta = espReadEmitidoEmCell(sheet, r, 1);
+      emitidoEm = emitidoEmMeta.iso;
       break;
     }
   }
@@ -1590,6 +1625,7 @@ function parseEspelhoSheet(grid){
   var p4 = espScanColumn(grid, 8);
   return {
     emitidoEm: emitidoEm,
+    emitidoEmMeta: emitidoEmMeta,
     buckets: p7.buckets.concat(p4.buckets),
     ignoredReservaNoite: p7.ignoredReservaNoite.concat(p4.ignoredReservaNoite),
     warnings: p7.warnings.concat(p4.warnings)
@@ -1676,10 +1712,10 @@ function renderEspelhoModal(){
   } else if(es.step==="preview"){
     var p = es.parsed, r = es.reconcile;
     body += '<div class="hint" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">' +
-      '<b style="color:var(--text);">Emitido em:</b> '+esc(p.emitidoEm||"não identificado")+
+      '<b style="color:var(--text);">Emitido em:</b> '+esc(fmtEmitidoEmBR(p.emitidoEmMeta))+
     '</div>';
     if(es.duplicateWarning){
-      body += '<div class="warn-msg"><span>⚠ Este Espelho (emitido em '+esc(p.emitidoEm)+') já parece ter sido importado antes. Confirmar mesmo assim não cria duplicidade (linhas idênticas entram como "sem alteração"), mas confira antes.</span></div>';
+      body += '<div class="warn-msg"><span>⚠ Este Espelho (emitido em '+esc(fmtEmitidoEmBR(p.emitidoEmMeta))+') já parece ter sido importado antes. Confirmar mesmo assim não cria duplicidade (linhas idênticas entram como "sem alteração"), mas confira antes.</span></div>';
     }
     var totalFound = p.buckets.reduce(function(a,b){return a+b.rows.length;},0);
     body += '<div class="field"><label>Encontrado na 4.ESPELHO ('+totalFound+' registro(s))</label>' +
@@ -1758,8 +1794,9 @@ function handleEspelhoFile(file){
         if(wb.SheetNames.indexOf("4.ESPELHO") === -1){
           es.loading=false; es.error="Não foi encontrada a aba 4.ESPELHO."; render(); return;
         }
-        var grid = sheetToGrid(wb.Sheets["4.ESPELHO"]);
-        var parsed = parseEspelhoSheet(grid);
+        var espSheet = wb.Sheets["4.ESPELHO"];
+        var grid = sheetToGrid(espSheet);
+        var parsed = parseEspelhoSheet(grid, espSheet);
         var reconcile = espReconcile(parsed.buckets, state.ferramentas);
         var dup = !!(parsed.emitidoEm && state.ferramentas.some(function(t){ return t.origemEspelho && t.origemEspelho===parsed.emitidoEm; }));
         es.loading=false; es.step="preview"; es.parsed=parsed; es.reconcile=reconcile; es.duplicateWarning=dup;
