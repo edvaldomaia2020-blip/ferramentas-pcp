@@ -166,17 +166,17 @@ img{max-width:100%;}
 }
 .filterbar .row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;align-items:center;}
 .row-nova{padding-top:2px;}
-.row-nova .btn{width:100%;}
+.btn-add-compact{padding:8px 14px;font-size:13px;}
 /* Desktop do PCP: as linhas de filtro (prensa/turno-data/hoje) ficam lado a
    lado numa unica faixa, quebrando so quando nao couberem, em vez de
    empilhadas em 3 linhas cheias -- aproveita a largura e reduz a altura.
-   O botao "+ Nova ferramenta" (antes flutuante sobre a lista) passa a
-   morar aqui, alinhado a direita. No mobile nada disso muda. */
+   O botao "+ Ferramenta" (antes flutuante sobre a lista) passa a morar
+   aqui, compacto, na mesma faixa dos filtros, alinhado a direita. No
+   mobile nada disso muda (fica em linha propria, sem flutuar/cobrir). */
 @media (min-width:900px){
   .role-pcp .filterbar{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 18px;}
   .role-pcp .filterbar .row{width:auto;flex:0 0 auto;overflow-x:visible;padding-bottom:0;}
   .role-pcp .filterbar .row-nova{margin-left:auto;padding-top:0;}
-  .role-pcp .filterbar .row-nova .btn{width:auto;}
 }
 .chip{
   border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-muted);
@@ -273,6 +273,20 @@ table.compact-table .reserva-row{background:var(--st-int-bg);}
 }
 .tool-card .foot .prev{font-weight:700;}
 .tool-card .body{border-top:1px solid var(--border);padding:12px 13px;display:flex;flex-direction:column;gap:10px;}
+/* ---------- Urgência PCP -> Correção ---------- */
+.urgent-btn{
+  border:1.5px solid var(--st-quebrada);background:var(--st-quebrada-bg);color:var(--st-quebrada);
+  border-radius:8px;padding:4px 9px;font-size:13px;cursor:pointer;flex:none;line-height:1.3;font-weight:700;
+}
+.urgent-bar{
+  padding:8px 13px;border-top:1.5px solid var(--st-quebrada);background:var(--st-quebrada-bg);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  font-size:12.5px;color:var(--st-quebrada);font-weight:700;
+}
+.urgent-bar .btn-encerrar{
+  border:1.5px solid var(--st-quebrada);background:transparent;color:var(--st-quebrada);
+  border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;flex:none;
+}
 .hist-item{display:flex;gap:8px;font-size:12.5px;padding:7px 0;border-bottom:1px dashed var(--border);}
 .hist-item:last-child{border-bottom:none;}
 .hist-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;}
@@ -292,6 +306,30 @@ table.compact-table .reserva-row{background:var(--st-int-bg);}
 @media (max-width:640px){ .batchbar{left:0;transform:none;} }
 .batchbar .count{font-weight:700;font-size:13px;flex:1;}
 .batchbar .btn{padding:9px 12px;font-size:12.5px;}
+
+/* ---------- Urgência (visão Correção) ---------- */
+.urgent-banner{
+  background:var(--st-quebrada-bg);border:1.5px solid var(--st-quebrada);border-radius:9px;
+  padding:10px 14px;display:flex;flex-direction:column;gap:4px;color:var(--st-quebrada);font-weight:700;font-size:13.5px;
+}
+.urgent-banner .out-of-filter{font-weight:600;font-size:12px;opacity:.9;}
+.nec-row.urgent-nr{background:var(--st-quebrada-bg);border-left:4px solid var(--st-quebrada);}
+.nec-row.urgent-rec{background:var(--st-quebrada-bg);border-left:4px solid var(--st-int);}
+.nec-row.urgent-pulse{animation:urgentPulse .9s ease-in-out 4;}
+@keyframes urgentPulse{
+  0%,100%{ box-shadow:0 0 0 0 rgba(196,51,31,0); }
+  50%{ box-shadow:0 0 0 4px rgba(196,51,31,.38); }
+}
+.urgent-tag{
+  display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;color:var(--st-quebrada);
+  background:var(--surface);border:1px solid var(--st-quebrada);border-radius:5px;padding:1px 6px;
+}
+.urgent-info{font-size:11px;color:var(--st-quebrada);font-weight:700;padding:0 12px 8px;}
+.btn-ciente{
+  border:1.5px solid var(--st-quebrada);background:var(--st-quebrada);color:var(--accent-contrast);
+  border-radius:7px;padding:7px 10px;font-size:11.5px;font-weight:800;cursor:pointer;flex:none;
+}
+.btn-ciente[disabled]{opacity:.6;cursor:default;}
 
 /* ---------- Correção: consolidated list ---------- */
 .nec-list{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
@@ -416,7 +454,7 @@ html.modal-open, body.modal-open{ overflow:hidden; overscroll-behavior:none; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc,
-  collection, onSnapshot, query, limit, getDocs, increment, arrayUnion
+  collection, onSnapshot, query, limit, getDocs, increment, arrayUnion, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -478,7 +516,7 @@ window.__FIREBASE_DB_PROMISE = new Promise(function(resolve){
       };
     }
 
-    var dbApi = { doc: docRef, collection: collectionRef, increment: increment, arrayUnion: arrayUnion };
+    var dbApi = { doc: docRef, collection: collectionRef, increment: increment, arrayUnion: arrayUnion, serverTimestamp: serverTimestamp };
     var authApi = {
       signUp: function(email, password){ return createUserWithEmailAndPassword(auth, email, password).then(function(cred){ return cred.user.uid; }); },
       signIn: function(email, password){ return signInWithEmailAndPassword(auth, email, password).then(function(cred){ return cred.user.uid; }); },
@@ -602,6 +640,17 @@ function computeNecessidades(list){
   return Object.keys(groups).map(function(k){return groups[k];});
 }
 function sortNec(list){ return list.slice().sort(function(a,b){ return (a.codigo||"").localeCompare(b.codigo||""); }); }
+// Prioridade visual da Correção: 1º urgências ativas não reconhecidas,
+// 2º urgências ativas já reconhecidas, 3º as demais — preservando a
+// ordenação alfabética já existente dentro de cada grupo.
+function urgRank(key){
+  var u = state.urgenciasByKey[key];
+  if(!(u && u.urgente)) return 2;
+  return u.reconhecida ? 1 : 0;
+}
+function sortNecComUrgencia(list){
+  return sortNec(list).sort(function(a,b){ return urgRank(a.key)-urgRank(b.key); });
+}
 
 /* ================= AUDITORIA DE NECESSIDADES (somente leitura) =================
    Recalcula as necessidades a partir dos registros hoje existentes em
@@ -718,7 +767,10 @@ var state = {
   correcaoPrensa: "P7",
   necPending: {},
   necExpanded: {},
-  necBusy: {}
+  necBusy: {},
+  urgenciasByKey: {},
+  unsubUrgencias: null,
+  urgentPulseUntil: {}
 };
 
 var app = document.getElementById("app");
@@ -845,10 +897,11 @@ function doRegister(){
 function logout(){
   if(window.__AUTH_API) window.__AUTH_API.signOut();
   state.user=null; state.ferramentas=[]; state.dataLoaded=false; state.statusByKey={}; state.necessidadesByKey={}; state.necPending={};
-  state.syncMeta=null; state._backfillChecked=false; state.modal=null;
+  state.syncMeta=null; state.modal=null; state.urgenciasByKey={}; state.urgentPulseUntil={}; state._prevUrgencias=null;
   if(state.unsub){ state.unsub(); state.unsub=null; }
   if(state.unsubNecessidades){ state.unsubNecessidades(); state.unsubNecessidades=null; }
   if(state.unsubStatus){ state.unsubStatus(); state.unsubStatus=null; }
+  if(state.unsubUrgencias){ state.unsubUrgencias(); state.unsubUrgencias=null; }
   render();
 }
 
@@ -887,7 +940,7 @@ function renderFilterBarPCP(){
       '<button class="chip '+(f.data===todayStr()?"active":"")+'" data-filter="data" data-value="'+todayStr()+'">Hoje</button>' +
       '<button class="chip '+(f.data==="__all__"?"active":"")+'" data-filter="dataAll" data-value="all">Todas as datas</button>' +
     '</div>' +
-    '<div class="row row-nova"><button class="btn btn-primary" data-action="open-new">+ &nbsp;Nova ferramenta</button></div>' +
+    '<div class="row row-nova"><button class="btn btn-primary btn-add-compact" data-action="open-new">+ Ferramenta</button></div>' +
   '</div>';
 }
 function renderFilterBarCorrecao(){
@@ -1001,13 +1054,20 @@ function computeIndicators(rawList){
   });
   return ind;
 }
-function fmtSyncUpdatedBR(iso){
-  if(!iso) return null;
-  var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(iso);
-  if(!m) return iso;
-  var hasTime = !(m[4]==="00" && m[5]==="00" && m[6]==="00");
-  var br = m[3]+"/"+m[2]+"/"+m[1];
-  return hasTime ? (br+" às "+m[4]+":"+m[5]) : br;
+// Formata o timestamp do SERVIDOR (Firestore Timestamp, com .toDate()) da
+// última sincronização bem-sucedida do Espelho, sempre em horário de
+// São Paulo — independente do fuso do aparelho de quem está vendo.
+// Aceita também um Date puro (usado pelos testes com mock).
+function fmtSyncUpdatedBR(ts){
+  if(!ts) return null;
+  var d = (ts && typeof ts.toDate === "function") ? ts.toDate() : (ts instanceof Date ? ts : new Date(ts));
+  if(!d || isNaN(d.getTime())) return null;
+  var parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false
+  }).formatToParts(d);
+  var map = {};
+  parts.forEach(function(p){ map[p.type] = p.value; });
+  return map.day+"/"+map.month+"/"+map.year+" às "+map.hour+":"+map.minute;
 }
 function sortTools(list){
   return list.slice().sort(function(a,b){
@@ -1100,7 +1160,9 @@ function renderCard(t){
   var meta = STATUS_META[status] || STATUS_META["Pendente"];
   var open = !!state.expanded[t.id];
   var stripeVar = "var(--st-"+meta.v+")";
-  var card = '<div class="tool-card" style="border-left-color:'+stripeVar+';" data-card="'+t.id+'">';
+  var urg = state.urgenciasByKey[key];
+  var isUrgent = !!(urg && urg.urgente);
+  var card = '<div class="tool-card" style="border-left-color:'+(isUrgent?"var(--st-quebrada)":stripeVar)+';" data-card="'+t.id+'">';
   card += '<div class="head" data-action="toggle-card" data-id="'+t.id+'">' +
     '<div class="id-block">' +
       '<span class="codigo">'+esc(t.codigo)+'</span>' +
@@ -1114,7 +1176,10 @@ function renderCard(t){
         (t.tipo==="Reserva" ? '<span class="tag" style="color:var(--st-int);border-color:var(--st-int);">Reserva</span>' : '') +
       '</div>' +
     '</div>' +
-    '<span class="status-badge" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
+    '<div style="display:flex;align-items:center;gap:6px;flex:none;">' +
+      (isUrgent ? '' : '<button type="button" class="urgent-btn" data-action="mark-urgent" data-codigo="'+esc(t.codigo)+'" data-prensa="'+esc(t.prensa)+'" data-data="'+esc(t.dataProgramacao)+'" onclick="event.stopPropagation()" title="Marcar como urgente para a Correção">🚨 Urgente</button>') +
+      '<span class="status-badge" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
+    '</div>' +
   '</div>';
   if(t.observacaoPCP){
     card += '<div class="obs"><b>PCP:</b> '+esc(t.observacaoPCP)+'</div>';
@@ -1125,6 +1190,13 @@ function renderCard(t){
   card += '<div class="foot"><span>Programado '+fmtDateBR(t.dataProgramacao)+' · '+esc(t.solicitadoPor.nome)+'</span>' +
     (sd && sd.previsaoLiberacao ? '<span class="prev" style="color:var(--st-int);">Previsão: '+relLabel(sd.previsaoLiberacao)+'</span>' : '') +
   '</div>';
+  if(isUrgent){
+    var reconhecidaLabel = urg.reconhecida ? ("🚨 URGENTE — Correção ciente"+(urg.reconhecidaEm?(" em "+(fmtSyncUpdatedBR(urg.reconhecidaEm)||"")):"")) : "🚨 URGENTE — aguardando ciência da Correção";
+    card += '<div class="urgent-bar">' +
+      '<span>'+esc(reconhecidaLabel)+'</span>' +
+      '<button type="button" class="btn-encerrar" data-action="close-urgent" data-key="'+key+'" data-codigo="'+esc(t.codigo)+'">Encerrar urgência</button>' +
+    '</div>';
+  }
   if(open){
     var grupo = state.ferramentas.filter(function(x){return necDocId(x.codigo,x.prensa,x.dataProgramacao)===key;});
     card += '<div class="body">';
@@ -1173,7 +1245,29 @@ function getCorrecaoGroups(){
     if(f.data!=="__all__" && g.data !== f.data) return false;
     return true;
   });
-  return sortNec(scoped);
+  return sortNecComUrgencia(scoped);
+}
+// Urgências ativas (urgente:true) que caem FORA da lista atualmente
+// visível (por causa do filtro de prensa/data) não podem se misturar nos
+// resultados — mas o banner avisa que elas existem, para não passarem
+// despercebidas. As que ESTÃO na lista visível aparecem nominalmente.
+function renderUrgentBanner(visibleGroups){
+  var activeKeys = Object.keys(state.urgenciasByKey).filter(function(k){ return state.urgenciasByKey[k].urgente; });
+  if(!activeKeys.length) return "";
+  var visibleKeys = {};
+  visibleGroups.forEach(function(g){ visibleKeys[g.key]=true; });
+  var inFilter = activeKeys.filter(function(k){ return visibleKeys[k]; });
+  var outFilter = activeKeys.filter(function(k){ return !visibleKeys[k]; });
+  var html = '<div class="urgent-banner">';
+  if(inFilter.length){
+    var codigos = inFilter.map(function(k){ return state.urgenciasByKey[k].codigo; });
+    html += '<div>🚨 '+inFilter.length+' URGÊNCIA'+(inFilter.length>1?"S":"")+' DO PCP — '+esc(codigos.join(", "))+'</div>';
+  }
+  if(outFilter.length){
+    html += '<div class="out-of-filter">🚨 Existe'+(outFilter.length>1?"m "+outFilter.length+" urgências ativas":" 1 urgência ativa")+' fora do filtro atual.</div>';
+  }
+  html += '</div>';
+  return html;
 }
 function renderCorrecao(){
   var groups = getCorrecaoGroups();
@@ -1185,8 +1279,9 @@ function renderCorrecao(){
   var pendingCount = Object.keys(state.necPending).length;
   var html = '';
   html += '<h2 class="correcao-title">Programação de produção diária</h2>';
-  var syncLabel = state.syncMeta ? fmtSyncUpdatedBR(state.syncMeta.emitidoEm) : null;
-  html += '<div class="sync-info">' + (syncLabel ? "Programação atualizada em: "+esc(syncLabel) : "Programação atualizada em: não identificado") + '</div>';
+  var syncLabel = state.syncMeta ? fmtSyncUpdatedBR(state.syncMeta.ultimaAtualizacaoProgramacao) : null;
+  html += '<div class="sync-info">Programação atualizada em: ' + (syncLabel ? esc(syncLabel) : "ainda não registrada") + '</div>';
+  html += renderUrgentBanner(visibleGroups);
   var micro = { avail:{n:0,kg:0}, unavail:{n:0,kg:0} };
   visibleGroups.forEach(function(g){
     var eff = effectiveNecStatus(g.key);
@@ -1223,10 +1318,15 @@ function renderNecRow(g){
   var pending = !!state.necPending[key];
   var expanded = !!state.necExpanded[key];
   var isOk = eff.status==="OK";
+  var urg = state.urgenciasByKey[key];
+  var isUrgent = !!(urg && urg.urgente);
+  var isPulsing = isUrgent && !urg.reconhecida && (state.urgentPulseUntil[key]||0) > Date.now();
+  var rowClass = pending ? "pending" : "";
+  if(isUrgent) rowClass += " " + (urg.reconhecida ? "urgent-rec" : "urgent-nr") + (isPulsing ? " urgent-pulse" : "");
   var html = '<div class="nec-row-wrap">';
-  html += '<div class="nec-row '+(pending?"pending":"")+'" data-action="toggle-nec-expand" data-key="'+key+'">';
+  html += '<div class="nec-row '+rowClass+'" data-action="toggle-nec-expand" data-key="'+key+'">';
   html += '<input type="checkbox" class="nec-chk" data-action="toggle-nec-ok" data-key="'+key+'" onclick="event.stopPropagation()" '+(isOk?"checked":"")+'>';
-  html += '<div class="nec-main"><span class="codigo mono">'+esc(g.codigo)+(state.correcaoPrensa==="Todas" ? ' <span class="tag">'+esc(g.prensa)+'</span>' : '')+'</span>' +
+  html += '<div class="nec-main"><span class="codigo mono">'+esc(g.codigo)+(state.correcaoPrensa==="Todas" ? ' <span class="tag">'+esc(g.prensa)+'</span>' : '')+(isUrgent ? ' <span class="urgent-tag">🚨 URGENTE</span>' : '')+'</span>' +
     (g.observacoes.length ? '<span class="nec-obs">⚠ PCP: '+esc(g.observacoes.join(" · "))+'</span>' : '') +
   '</div>';
   html += '<span class="nec-kg">'+fmtKg(g.kgTotal)+' kg</span>';
@@ -1234,6 +1334,15 @@ function renderNecRow(g){
     html += '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>';
   }
   html += '</div>';
+  if(isUrgent && !urg.reconhecida){
+    var busyUrg = !!(state.necBusy && state.necBusy["urg_"+key]);
+    html += '<div class="urgent-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+      '<span>PCP solicita posição desta ferramenta</span>' +
+      '<button type="button" class="btn-ciente" '+(busyUrg?"disabled":"")+' data-action="reconhecer-urgente" data-key="'+key+'" data-codigo="'+esc(g.codigo)+'" onclick="event.stopPropagation()">👁 Ciente</button>' +
+    '</div>';
+  } else if(isUrgent){
+    html += '<div class="urgent-info">🚨 Urgência ativa — Correção já ciente</div>';
+  }
   html += renderNecQuickActions(g, eff);
   html += renderNecPrevQuick(g, eff);
   if(expanded){
@@ -1619,6 +1728,15 @@ function bindApp(){
   app.querySelectorAll('[data-action="quick-nec-prev"]').forEach(function(el){
     el.addEventListener("click", function(){ quickSetPrevisao(el.getAttribute("data-key"), parseInt(el.getAttribute("data-value"),10)); });
   });
+  app.querySelectorAll('[data-action="mark-urgent"]').forEach(function(el){
+    el.addEventListener("click", function(){ marcarUrgente(el.getAttribute("data-codigo"), el.getAttribute("data-prensa"), el.getAttribute("data-data")); });
+  });
+  app.querySelectorAll('[data-action="close-urgent"]').forEach(function(el){
+    el.addEventListener("click", function(){ encerrarUrgencia(el.getAttribute("data-key"), el.getAttribute("data-codigo")); });
+  });
+  app.querySelectorAll('[data-action="reconhecer-urgente"]').forEach(function(el){
+    el.addEventListener("click", function(){ reconhecerUrgencia(el.getAttribute("data-key"), el.getAttribute("data-codigo")); });
+  });
   app.querySelectorAll('[data-action="set-nec-status"]').forEach(function(el){
     el.addEventListener("click", function(){ setNecField(el.getAttribute("data-key"), "status", el.getAttribute("data-value")); });
   });
@@ -1760,6 +1878,29 @@ function quickSetPrevisao(key, days){
     render();
   });
 }
+// "Ciente" — a Correção só confirma que VIU a urgência. Não toca em status,
+// previsão nem observação (grava só nos 3 campos que a regra do Firestore
+// permite à Correção: reconhecida/reconhecidaEm/reconhecidaPor).
+function reconhecerUrgencia(key, codigo){
+  if(state.necBusy["urg_"+key] || !state.db) return;
+  state.necBusy["urg_"+key] = true;
+  render();
+  return withPermissionRetry(function(){
+    return state.db.doc("urgencias/"+key).update({
+      reconhecida: true,
+      reconhecidaEm: state.db.serverTimestamp(),
+      reconhecidaPor: { uid: state.user.uid, nome: state.user.nome }
+    });
+  }).then(function(){
+    state.necBusy["urg_"+key] = false;
+    state.toast = codigo+": urgência marcada como ciente.";
+    render();
+  }).catch(function(err){
+    state.necBusy["urg_"+key] = false;
+    state.toast = "Erro ao registrar ciência: "+(err&&err.message||"");
+    render();
+  });
+}
 
 /* ================= WRITES (PCP) ================= */
 /* Retry once, after a short pause, if Firestore momentarily denies a write
@@ -1831,6 +1972,41 @@ function deleteTool(id){
     });
   }).then(function(){ state.toast="Solicitação excluída."; render(); })
     .catch(function(err){ state.toast="Erro ao excluir: "+(err&&err.message||""); render(); });
+}
+
+/* ================= URGÊNCIA (PCP -> Correção) =================
+   Camada independente do status/kg/previsão — nunca sobrescreve nem
+   substitui nada disso. Usa a MESMA chave de consolidação já usada por
+   necessidades/status (código+prensa+data), numa coleção própria
+   ("urgencias"), para não misturar com o histórico de status que é
+   escrito exclusivamente pela Correção. */
+function marcarUrgente(codigo, prensa, data){
+  var key = necDocId(codigo, prensa, data);
+  if(!confirm("Marcar "+codigo+" como URGENTE para a Correção?")) return;
+  if(!state.db) return;
+  return withPermissionRetry(function(){
+    return state.db.doc("urgencias/"+key).set({
+      codigo: codigo, prensa: prensa, data: data,
+      urgente: true,
+      criadoEm: state.db.serverTimestamp(),
+      criadoPor: { uid: state.user.uid, nome: state.user.nome },
+      reconhecida: false, reconhecidaEm: null, reconhecidaPor: null,
+      encerradaEm: null, encerradaPor: null
+    });
+  }).then(function(){ state.toast = codigo+": marcado como URGENTE para a Correção."; render(); })
+    .catch(function(err){ state.toast = "Erro ao marcar urgência: "+(err&&err.message||""); render(); });
+}
+function encerrarUrgencia(key, codigo){
+  if(!confirm("Encerrar a urgência de "+codigo+"?")) return;
+  if(!state.db) return;
+  return withPermissionRetry(function(){
+    return state.db.doc("urgencias/"+key).update({
+      urgente: false,
+      encerradaEm: state.db.serverTimestamp(),
+      encerradaPor: { uid: state.user.uid, nome: state.user.nome }
+    });
+  }).then(function(){ state.toast = "Urgência de "+codigo+" encerrada."; render(); })
+    .catch(function(err){ state.toast = "Erro ao encerrar urgência: "+(err&&err.message||""); render(); });
 }
 
 /* ================= IMPORT FROM SPREADSHEET ================= */
@@ -2410,39 +2586,30 @@ function doConfirmEspelhoSync(){
     es.busy=false; es.step="done";
     es.done = { novas:counts.novas, promovidas:counts.promovidas, alteradas:counts.alteradas, mantidas:counts.mantidas, retiradas:counts.retiradas, erros:counts.erros, errosDetalhe:counts.errosDetalhe, horario:now };
     var registrosOk = counts.novas + counts.promovidas + counts.alteradas + counts.mantidas;
-    withPermissionRetry(function(){
-      return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({
-        __meta__: true, emitidoEm: emitidoEm, sincronizadoEm: now, registros: registrosOk, erros: counts.erros
+    // "Programação atualizada em" (exibida na Correção) só avança quando a
+    // sincronização termina TOTALMENTE sem erros — se qualquer item falhou,
+    // o horário mostrado para a Correção continua sendo o da última
+    // sincronização que de fato deu certo por completo. Usa o horário do
+    // SERVIDOR do Firestore (serverTimestamp), não o relógio do aparelho,
+    // para nunca mostrar um horário errado por causa de um relógio
+    // desacertado. emitidoEm (marcador interno da própria planilha) é
+    // gravado à parte, só para referência — nunca é o que é exibido como
+    // "atualizada em".
+    if(counts.erros===0){
+      withPermissionRetry(function(){
+        return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({
+          __meta__: true, emitidoEm: emitidoEm, registros: registrosOk, erros: 0,
+          ultimaAtualizacaoProgramacao: state.db.serverTimestamp(),
+          atualizadoPor: { uid: state.user.uid, nome: state.user.nome },
+          origem: "espelho"
+        });
+      }).catch(function(){ /* indicador de "última sincronização" é informativo; nunca bloqueia a conclusão do sync */ }).then(function(){
+        render();
       });
-    }).catch(function(){ /* indicador de "última sincronização" é informativo; nunca bloqueia a conclusão do sync */ }).then(function(){
+    } else {
       render();
-    });
+    }
   });
-}
-
-// Recupera (uma única vez, sem rodar nenhum sync novo) a data/hora do último
-// Espelho sincronizado a partir do origemEspelho já gravado nos registros
-// existentes de "ferramentas" — só roda se necessidades/__sync_meta__ ainda
-// não existir (ou seja, só serve de "ponte" para a primeira sincronização
-// real, já feita antes deste indicador existir; todo sync futuro já grava
-// o doc diretamente em doConfirmEspelhoSync).
-function maybeBackfillSyncMeta(){
-  if(state._backfillChecked || !state.db) return;
-  state._backfillChecked = true;
-  var withOrigem = state.ferramentas.filter(function(t){ return !!t.origemEspelho; });
-  if(!withOrigem.length) return;
-  var maxOrigem = withOrigem.reduce(function(a,t){ return t.origemEspelho>a ? t.origemEspelho : a; }, withOrigem[0].origemEspelho);
-  var docsDoUltimoSync = withOrigem.filter(function(t){ return t.origemEspelho===maxOrigem; });
-  var maxCriado = docsDoUltimoSync.reduce(function(a,t){ return (t.criadoEm||"")>a ? t.criadoEm : a; }, docsDoUltimoSync[0].criadoEm||"");
-  state.db.doc("necessidades/"+SYNC_META_DOC_ID).get().then(function(snap){
-    if(snap.exists) return;
-    return withPermissionRetry(function(){
-      return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({
-        __meta__: true, emitidoEm: maxOrigem, sincronizadoEm: maxCriado || null,
-        registros: docsDoUltimoSync.length, erros: 0, backfill: true
-      });
-    });
-  }).catch(function(){ /* indicador informativo; falha aqui não afeta o app */ });
 }
 
 /* ================= SUBSCRIPTIONS ================= */
@@ -2453,7 +2620,6 @@ function startSubs(){
       state.ferramentas = snap.docs.map(function(d){ var v=d.data(); v.id=d.id; return v; });
       state.dataLoaded = true;
       render();
-      maybeBackfillSyncMeta();
     }, function(err){
       state.dataLoaded = true;
       state.toast = "Conexão de dados interrompida.";
@@ -2483,6 +2649,30 @@ function startSubs(){
       state.statusByKey = map;
       render();
     }, function(err){ /* status is supplementary; keep going without it */ });
+  }
+  if(!state.unsubUrgencias){
+    state.unsubUrgencias = state.db.collection("urgencias").limit(500).onSnapshot(function(snap){
+      var map = {};
+      snap.docs.forEach(function(d){ map[d.id] = d.data(); });
+      // Dispara o pulso curto (alguns segundos) para toda urgência ativa e
+      // ainda não reconhecida que seja NOVA nesta leitura — seja porque
+      // acabou de ser criada pelo PCP com o app da Correção já aberto, seja
+      // porque é a primeira leitura da sessão (garante que uma urgência já
+      // existente não passe despercebida ao abrir o app).
+      var prev = state._prevUrgencias || {};
+      var now = Date.now();
+      var anyNew = false;
+      Object.keys(map).forEach(function(k){
+        var u = map[k];
+        var isAtivaNaoRec = !!(u.urgente && !u.reconhecida);
+        var eraAtivaNaoRec = !!(prev[k] && prev[k].urgente && !prev[k].reconhecida);
+        if(isAtivaNaoRec && !eraAtivaNaoRec){ state.urgentPulseUntil[k] = now + 3800; anyNew = true; }
+      });
+      state._prevUrgencias = map;
+      state.urgenciasByKey = map;
+      render();
+      if(anyNew) setTimeout(render, 3900);
+    }, function(err){ /* urgência é informativa; nunca bloqueia o resto do app */ });
   }
 }
 
