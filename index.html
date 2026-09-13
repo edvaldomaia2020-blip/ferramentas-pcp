@@ -328,6 +328,12 @@ table.compact-table .reserva-row{background:var(--st-int-bg);}
 }
 
 /* ---------- Modal ---------- */
+/* Enquanto qualquer modal está aberto (classe aplicada em html/body por
+   render(), sincronizada com state.modal em toda renderização — nunca
+   fica "presa" porque roda de novo a cada render, inclusive ao fechar),
+   a página de fundo não pode rolar: só o conteúdo do modal deve responder
+   à roda do mouse/trackpad/toque. */
+html.modal-open, body.modal-open{ overflow:hidden; overscroll-behavior:none; }
 .modal-overlay{
   position:fixed;inset:0;background:rgba(15,20,28,.5);z-index:50;display:flex;align-items:flex-end;
   justify-content:center;
@@ -335,6 +341,7 @@ table.compact-table .reserva-row{background:var(--st-int-bg);}
 @media (min-width:640px){.modal-overlay{align-items:center;}}
 .modal{
   background:var(--surface);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   border-radius:16px 16px 0 0;padding:18px 18px 24px;display:flex;flex-direction:column;gap:14px;
 }
 @media (min-width:640px){.modal{border-radius:14px;}}
@@ -682,6 +689,11 @@ var state = {
 var app = document.getElementById("app");
 
 function render(){
+  // Trava/destrava o scroll da página de fundo em sincronia com state.modal,
+  // em TODA renderização — como render() roda depois de qualquer mudança de
+  // estado (inclusive ao fechar um modal), isso nunca deixa o scroll preso.
+  document.documentElement.classList.toggle("modal-open", !!state.modal);
+  document.body.classList.toggle("modal-open", !!state.modal);
   if(!state.user){ app.className=""; app.innerHTML = renderAuth(); bindAuth(); return; }
   app.className = state.user.perfil==="pcp" ? "role-pcp" : "role-correcao";
   if(!state.dbReady){ app.innerHTML = '<div class="spinner-wrap">CARREGANDO…</div>'; return; }
@@ -799,7 +811,7 @@ function doRegister(){
 function logout(){
   if(window.__AUTH_API) window.__AUTH_API.signOut();
   state.user=null; state.ferramentas=[]; state.dataLoaded=false; state.statusByKey={}; state.necessidadesByKey={}; state.necPending={};
-  state.syncMeta=null; state._backfillChecked=false;
+  state.syncMeta=null; state._backfillChecked=false; state.modal=null;
   if(state.unsub){ state.unsub(); state.unsub=null; }
   if(state.unsubNecessidades){ state.unsubNecessidades(); state.unsubNecessidades=null; }
   if(state.unsubStatus){ state.unsubStatus(); state.unsubStatus=null; }
