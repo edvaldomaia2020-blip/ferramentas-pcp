@@ -518,6 +518,7 @@ var state = {
   unsubNecessidades: null,
   unsubStatus: null,
   import: null,
+  espelhoSync: null,
   correcaoPrensa: "P7",
   necPending: {},
   necExpanded: {}
@@ -655,8 +656,9 @@ function renderTopBar(){
       '<span class="name">'+esc(state.user.nome)+'</span>' +
       '<span class="role-pill '+(state.user.perfil==="pcp"?"pcp":"correcao")+'">'+(state.user.perfil==="pcp"?"PCP":"Correção")+'</span>' +
     '</div>' +
-    '<div style="display:flex;gap:8px;">' +
+    '<div style="display:flex;gap:8px;overflow-x:auto;">' +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-import">Importar</button>' : '') +
+      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-espelho">Espelho</button>' : '') +
       '<button class="icon-btn" data-action="logout">Sair</button>' +
     '</div>' +
   '</div>';
@@ -691,6 +693,7 @@ function renderFilterBarCorrecao(){
       '<button class="chip '+(f.onlyPend?"active":"")+'" data-filter="onlyPend" data-value="toggle">Só pendentes</button>' +
       '<input type="date" id="filter-date" value="'+(f.data==="__all__"?"":f.data)+'">' +
       '<button class="chip '+(f.data===todayStr()?"active":"")+'" data-filter="data" data-value="'+todayStr()+'">Hoje</button>' +
+      '<button class="chip '+(f.data==="__all__"?"active":"")+'" data-filter="dataAll" data-value="all">Todas as datas</button>' +
     '</div>' +
   '</div>';
 }
@@ -926,6 +929,7 @@ function necPrevChip(label,value,current,key){
 function renderModal(){
   if(state.modal==="new") return renderNewToolModal();
   if(state.modal==="import") return renderImportModal();
+  if(state.modal==="espelho") return renderEspelhoModal();
   return "";
 }
 function renderNewToolModal(){
@@ -1117,7 +1121,7 @@ function bindApp(){
   });
 
   app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
-    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; render(); });
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; render(); });
   });
 
   var openImportBtn = app.querySelector('[data-action="open-import"]');
@@ -1125,6 +1129,24 @@ function bindApp(){
     state.modal="import"; state.import={grid:null,error:"",loading:false,sheetNames:[],rowChecked:{},rowTipoOverride:{},prensa:"P7",turno:"Dia",data:todayStr(),importMode:"complementar"};
     render();
   });
+  var openEspelhoBtn = app.querySelector('[data-action="open-espelho"]');
+  if(openEspelhoBtn) openEspelhoBtn.addEventListener("click", function(){
+    state.modal="espelho"; state.espelhoSync={ step:"pick", loading:false, error:"", result:null, expanded:{}, busy:false, done:null };
+    render();
+  });
+  var espFile = document.getElementById("esp-file");
+  if(espFile) espFile.addEventListener("change", function(){ if(espFile.files && espFile.files[0]) handleEspelhoFile(espFile.files[0]); });
+  app.querySelectorAll('[data-action="toggle-esp-group"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var k = el.getAttribute("data-group");
+      state.espelhoSync.expanded[k] = !state.espelhoSync.expanded[k];
+      render();
+    });
+  });
+  var espConfirmBtn = app.querySelector('[data-action="confirm-espelho"]');
+  if(espConfirmBtn) espConfirmBtn.addEventListener("click", doConfirmEspelhoSync);
+  var espCloseResultBtn = app.querySelector('[data-action="close-espelho-result"]');
+  if(espCloseResultBtn) espCloseResultBtn.addEventListener("click", function(){ state.modal=null; state.espelhoSync=null; render(); });
   var impFile = document.getElementById("imp-file");
   if(impFile) impFile.addEventListener("change", function(){ if(impFile.files && impFile.files[0]) handleImportFile(impFile.files[0]); });
   var impSheet = document.getElementById("imp-sheet");
@@ -1449,6 +1471,354 @@ function doConfirmImport(){
   } else {
     proceed();
   }
+}
+
+/* ================= ESPELHO SYNC (4.ESPELHO) =================
+   Importador dedicado para a aba "4.ESPELHO" da Master do PCP. Completamente
+   separado do importador genérico acima (que continua funcionando como
+   antes, para qualquer outra planilha/aba). Lê só os valores já calculados
+   do Excel (nunca tenta recalcular fórmulas), monta uma prévia classificada
+   (NOVA / RESERVA→PRINCIPAL / ALTERADA / RETIRADA / SEM ALTERAÇÃO) e só
+   grava no Firestore depois de o PCP confirmar explicitamente. */
+
+var ESP_PRINCIPAL_RE = /^Programa[cç][aã]o\s+(P\d+)\s*[—-]+\s*(\d{2}\/\d{2}\/\d{4})\s*[—-]+\s*Turno:\s*(DIA|NOITE)/i;
+var ESP_RESERVA_RE = /^PROGRAMA[CÇ][AÃ]O\s+RESERVA.*turno\s+seguinte\s*\((DIA|NOITE)\)/i;
+var ESP_TOTAL_RE = /^TOTAL\b/i;
+
+function espBrDateToIso(dd_mm_yyyy){
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dd_mm_yyyy);
+  return m ? (m[3]+"-"+m[2]+"-"+m[1]) : null;
+}
+function mapEspelhoCols(headerRowCells){
+  var map = {};
+  headerRowCells.forEach(function(cell, idx){
+    var h = normalizeHeader(cell);
+    if(map.codigo===undefined && /FERRAMENTA/.test(h)) map.codigo = idx;
+    else if(map.cliente===undefined && /CLIENTE/.test(h)) map.cliente = idx;
+    else if(map.quantidadeKg===undefined && /QUANT/.test(h)) map.quantidadeKg = idx;
+    else if(map.corte===undefined && /CORTE/.test(h)) map.corte = idx;
+    else if(map.liga===undefined && /^LIGA/.test(h)) map.liga = idx;
+    else if(map.barras===undefined && /BARRA/.test(h)) map.barras = idx;
+    else if(map.observacaoPCP===undefined && /OBSERV/.test(h)) map.observacaoPCP = idx;
+  });
+  return map;
+}
+// Célula "QUANT. (KG)" vem formatada pelo XLSX.js como texto (ex: "1,445 KG").
+// Verificado contra os valores calculados reais do arquivo: "," aqui é
+// separador de milhar (não decimal) — kg nesta planilha é sempre inteiro.
+function parseKgEspelho(raw){
+  var s = (raw==null?"":raw).toString().replace(/[^\d.,\-]/g,"");
+  s = s.replace(/,/g, "");
+  var n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function espReadSection(grid, titleRow, titleCol){
+  var warnings = [];
+  var headerRowIdx = titleRow + 1;
+  var headerCells = grid[headerRowIdx] ? grid[headerRowIdx].slice(titleCol, titleCol+7) : [];
+  var colMap = mapEspelhoCols(headerCells);
+  if(colMap.codigo===undefined || colMap.quantidadeKg===undefined){
+    warnings.push("Linha "+(headerRowIdx+1)+": não encontrei as colunas FERRAMENTA/QUANT.(KG) esperadas — seção ignorada.");
+    return { rows: [], warnings: warnings };
+  }
+  var rows = [];
+  for(var r = headerRowIdx + 1; r < grid.length; r++){
+    var firstCell = (grid[r][titleCol] || "").toString().trim();
+    if(ESP_TOTAL_RE.test(firstCell)) break;
+    if(ESP_PRINCIPAL_RE.test(firstCell) || ESP_RESERVA_RE.test(firstCell)) break;
+    function cell(field){
+      var idx = colMap[field];
+      if(idx===undefined) return "";
+      var v = grid[r][titleCol+idx];
+      return v==null ? "" : v.toString().trim();
+    }
+    var codigo = cell("codigo");
+    if(!codigo) continue;
+    var kg = parseKgEspelho(cell("quantidadeKg"));
+    if(kg===null){
+      warnings.push("Linha "+(r+1)+": ferramenta \""+codigo+"\" sem quantidade (kg) válida — registro não incluído.");
+      continue;
+    }
+    rows.push({ codigo: codigo.toUpperCase(), cliente: cell("cliente"), quantidadeKg: kg, corte: cell("corte"), liga: cell("liga"), barras: cell("barras"), observacaoPCP: cell("observacaoPCP") });
+  }
+  return { rows: rows, warnings: warnings };
+}
+function espScanColumn(grid, titleCol){
+  var buckets = [], ignoredReservaNoite = [], warnings = [];
+  var currentDate = null, currentPrensa = null;
+  for(var r = 0; r < grid.length; r++){
+    var cellVal = (grid[r][titleCol] || "").toString().trim();
+    if(!cellVal) continue;
+    var mP = ESP_PRINCIPAL_RE.exec(cellVal);
+    var mR = !mP ? ESP_RESERVA_RE.exec(cellVal) : null;
+    if(mP){
+      var prensa = mP[1].toUpperCase();
+      var dataIso = espBrDateToIso(mP[2]);
+      var turno = mP[3].toUpperCase()==="DIA" ? "Dia" : "Noite";
+      currentDate = dataIso; currentPrensa = prensa;
+      if(!dataIso){ warnings.push("Linha "+(r+1)+": não consegui interpretar a data do título \""+cellVal+"\"."); continue; }
+      var sec = espReadSection(grid, r, titleCol);
+      buckets.push({ prensa:prensa, turno:turno, tipo:"Programação", turnoOrigem:null, data:dataIso, rows:sec.rows });
+      warnings.push.apply(warnings, sec.warnings);
+    } else if(mR){
+      var turnoAlvo = mR[1].toUpperCase()==="DIA" ? "Dia" : "Noite";
+      if(!currentDate || !currentPrensa){
+        warnings.push("Linha "+(r+1)+": bloco de reserva sem programação principal antes — ignorado.");
+        continue;
+      }
+      var sec2 = espReadSection(grid, r, titleCol);
+      if(turnoAlvo === "Noite"){
+        buckets.push({ prensa:currentPrensa, turno:"Noite", tipo:"Reserva", turnoOrigem:"Dia", data:currentDate, rows:sec2.rows });
+        warnings.push.apply(warnings, sec2.warnings);
+      } else {
+        ignoredReservaNoite.push({ prensa:currentPrensa, data:currentDate, count:sec2.rows.length });
+      }
+    }
+  }
+  return { buckets:buckets, ignoredReservaNoite:ignoredReservaNoite, warnings:warnings };
+}
+function parseEspelhoSheet(grid){
+  var emitidoEm = null;
+  for(var r=0; r<Math.min(grid.length,10); r++){
+    if(normalizeHeader(grid[r][0]) === "EMITIDO EM"){
+      var raw = grid[r][1];
+      emitidoEm = (raw==null ? "" : raw.toString().trim()) || null;
+      break;
+    }
+  }
+  var p7 = espScanColumn(grid, 0);
+  var p4 = espScanColumn(grid, 8);
+  return {
+    emitidoEm: emitidoEm,
+    buckets: p7.buckets.concat(p4.buckets),
+    ignoredReservaNoite: p7.ignoredReservaNoite.concat(p4.ignoredReservaNoite),
+    warnings: p7.warnings.concat(p4.warnings)
+  };
+}
+function espSignature(row){
+  return (row.codigo||"")+"|"+(row.cliente||"")+"|"+(row.quantidadeKg==null?"":row.quantidadeKg)+"|"+(row.corte||"");
+}
+function espReconcileBucket(bucket, existingDocs, claimedIds){
+  var items = [];
+  function scoped(pred){
+    return existingDocs.filter(function(d){ return d.prensa===bucket.prensa && d.dataProgramacao===bucket.data && !claimedIds.has(d.id) && pred(d); });
+  }
+  var poolPromotion = (bucket.tipo==="Programação" && bucket.turno==="Noite")
+    ? scoped(function(d){ return d.tipo==="Reserva" && d.turnoOrigem==="Dia" && d.turno==="Noite"; }) : [];
+  var poolSameBucket = scoped(function(d){
+    if(bucket.tipo==="Reserva") return d.tipo==="Reserva" && d.turnoOrigem==="Dia" && d.turno==="Noite";
+    return d.tipo==="Programação" && d.turno===bucket.turno && !d.turnoOrigem;
+  });
+  function bySignature(pool){ var m={}; pool.forEach(function(d){ var s=espSignature(d); (m[s]=m[s]||[]).push(d); }); return m; }
+  var promoIdx = bySignature(poolPromotion), sameIdx = bySignature(poolSameBucket);
+  var unmatchedNew = [];
+  bucket.rows.forEach(function(newRow){
+    var sig = espSignature(newRow);
+    if(promoIdx[sig] && promoIdx[sig].length){
+      var oldP = promoIdx[sig].shift(); claimedIds.add(oldP.id);
+      items.push({ type:"PROMOVIDA", newRow:newRow, oldDoc:oldP, prensa:bucket.prensa, data:bucket.data, turno:bucket.turno, tipo:bucket.tipo }); return;
+    }
+    if(sameIdx[sig] && sameIdx[sig].length){
+      var oldS = sameIdx[sig].shift(); claimedIds.add(oldS.id);
+      items.push({ type:"SEM_ALTERACAO", newRow:newRow, oldDoc:oldS, prensa:bucket.prensa, data:bucket.data, turno:bucket.turno, tipo:bucket.tipo }); return;
+    }
+    unmatchedNew.push(newRow);
+  });
+  var leftoverOld = poolSameBucket.filter(function(d){ return !claimedIds.has(d.id); });
+  unmatchedNew.forEach(function(newRow){
+    var idx = leftoverOld.findIndex(function(d){ return d.codigo===newRow.codigo && !claimedIds.has(d.id); });
+    if(idx>=0){
+      var oldA = leftoverOld[idx]; claimedIds.add(oldA.id); leftoverOld.splice(idx,1);
+      items.push({ type:"ALTERADA", newRow:newRow, oldDoc:oldA, prensa:bucket.prensa, data:bucket.data, turno:bucket.turno, tipo:bucket.tipo });
+    } else {
+      items.push({ type:"NOVA", newRow:newRow, oldDoc:null, prensa:bucket.prensa, data:bucket.data, turno:bucket.turno, tipo:bucket.tipo });
+    }
+  });
+  leftoverOld.forEach(function(d){
+    if(claimedIds.has(d.id)) return;
+    items.push({ type:"RETIRADA", newRow:null, oldDoc:d, prensa:bucket.prensa, data:bucket.data, turno:d.turno, tipo:d.tipo });
+    claimedIds.add(d.id);
+  });
+  return items;
+}
+function espReconcile(buckets, existingDocs){
+  var claimedIds = new Set();
+  var allItems = [];
+  var ordered = buckets.slice().sort(function(a,b){
+    function rank(x){ if(x.tipo==="Programação" && x.turno==="Noite") return 0; if(x.tipo==="Programação") return 1; return 2; }
+    return rank(a)-rank(b);
+  });
+  ordered.forEach(function(bucket){ allItems = allItems.concat(espReconcileBucket(bucket, existingDocs, claimedIds)); });
+  var summary = { NOVA:0, PROMOVIDA:0, ALTERADA:0, RETIRADA:0, SEM_ALTERACAO:0 };
+  allItems.forEach(function(it){ summary[it.type]++; });
+  return { items: allItems, summary: summary };
+}
+
+var ESP_TYPE_META = {
+  NOVA:          { label:"Novas",                v:"ok" },
+  PROMOVIDA:     { label:"Reserva → Principal",   v:"nitretacao" },
+  ALTERADA:      { label:"Alteradas",             v:"int" },
+  RETIRADA:      { label:"Retiradas (não excluídas)", v:"quebrada" },
+  SEM_ALTERACAO: { label:"Sem alteração",         v:"pendente" }
+};
+function espBucketLabel(b){ return b.prensa+" "+b.turno+(b.tipo==="Reserva" ? " (Reserva p/ Noite)" : ""); }
+
+function renderEspelhoModal(){
+  var es = state.espelhoSync;
+  if(!es) return "";
+  var body = "";
+  if(es.step==="pick"){
+    body = '' +
+      '<div class="field"><label>Selecione o arquivo da Master (.xlsx)</label><input id="esp-file" type="file" accept=".xlsx,.xls"></div>' +
+      '<div class="hint">O app procura exclusivamente a aba <b>4.ESPELHO</b>. As demais abas da Master são ignoradas.</div>' +
+      (es.loading ? '<div class="hint">Lendo arquivo…</div>' : '') +
+      (es.error ? '<div class="error-msg">'+esc(es.error)+'</div>' : '');
+  } else if(es.step==="preview"){
+    var p = es.parsed, r = es.reconcile;
+    body += '<div class="hint" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">' +
+      '<b style="color:var(--text);">Emitido em:</b> '+esc(p.emitidoEm||"não identificado")+
+    '</div>';
+    if(es.duplicateWarning){
+      body += '<div class="warn-msg"><span>⚠ Este Espelho (emitido em '+esc(p.emitidoEm)+') já parece ter sido importado antes. Confirmar mesmo assim não cria duplicidade (linhas idênticas entram como "sem alteração"), mas confira antes.</span></div>';
+    }
+    var totalFound = p.buckets.reduce(function(a,b){return a+b.rows.length;},0);
+    body += '<div class="field"><label>Encontrado na 4.ESPELHO ('+totalFound+' registro(s))</label>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;">' +
+      p.buckets.map(function(b){ return '<div class="hint">'+esc(espBucketLabel(b))+' — '+b.rows.length+' registro(s)</div>'; }).join("") +
+      (p.ignoredReservaNoite.length ? p.ignoredReservaNoite.map(function(b){ return '<div class="hint">'+esc(b.prensa)+' Reserva p/ Dia seguinte — '+b.count+' registro(s) <b>ignorados</b> (não importados, por definição do processo)</div>'; }).join("") : '') +
+      '</div>' +
+    '</div>';
+    if(p.warnings.length){
+      body += '<div class="warn-msg"><span>⚠ '+p.warnings.length+' aviso(s) durante a leitura:</span>' +
+        '<div style="display:flex;flex-direction:column;gap:2px;max-height:120px;overflow:auto;">' +
+        p.warnings.map(function(w){ return '<div class="hint">'+esc(w)+'</div>'; }).join("") +
+      '</div></div>';
+    }
+    body += '<div class="field"><label>Classificação das alterações</label><div class="status-grid">' +
+      ["NOVA","PROMOVIDA","ALTERADA","RETIRADA","SEM_ALTERACAO"].map(function(t){
+        var meta = ESP_TYPE_META[t];
+        return '<button type="button" class="status-opt sm" style="color:var(--st-'+meta.v+');" data-action="toggle-esp-group" data-group="'+t+'">'+esc(meta.label)+'<br><span class="mono" style="font-size:15px;">'+r.summary[t]+'</span></button>';
+      }).join("") + '</div></div>';
+    ["NOVA","PROMOVIDA","ALTERADA","RETIRADA"].forEach(function(t){
+      if(!es.expanded[t] || !r.summary[t]) return;
+      var meta = ESP_TYPE_META[t];
+      body += '<div class="field"><label style="color:var(--st-'+meta.v+');">'+esc(meta.label)+' ('+r.summary[t]+')</label>' +
+        '<div style="border:1px solid var(--border);border-radius:8px;max-height:200px;overflow:auto;">' +
+        r.items.filter(function(it){return it.type===t;}).map(function(it){
+          if(t==="ALTERADA"){
+            return '<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12.5px;">' +
+              '<b class="mono">'+esc(it.oldDoc.codigo)+'</b> · '+esc(it.prensa)+' · '+fmtDateBR(it.data)+'<br>' +
+              '<span class="hint">antes: '+fmtKg(it.oldDoc.quantidadeKg)+' kg, '+esc(it.oldDoc.cliente||"—")+', '+esc(it.oldDoc.corte||"—")+'</span><br>' +
+              '<span class="hint">depois: '+fmtKg(it.newRow.quantidadeKg)+' kg, '+esc(it.newRow.cliente||"—")+', '+esc(it.newRow.corte||"—")+'</span>' +
+            '</div>';
+          }
+          var row = it.newRow || it.oldDoc;
+          return '<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12.5px;display:flex;justify-content:space-between;gap:8px;">' +
+            '<span class="mono">'+esc(row.codigo)+'</span><span class="hint">'+esc(it.prensa)+' · '+esc(it.turno)+' · '+fmtDateBR(it.data)+'</span><span class="mono">'+fmtKg(row.quantidadeKg)+' kg</span>' +
+          '</div>';
+        }).join("") +
+      '</div></div>';
+    });
+    body += (es.error ? '<div class="error-msg">'+esc(es.error)+'</div>' : '') +
+      '<div style="display:flex;gap:8px;">' +
+        '<button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Cancelar</button>' +
+        '<button class="btn btn-primary" style="flex:2;" data-action="confirm-espelho" '+(es.busy?"disabled":"")+'>'+(es.busy?"Sincronizando…":"Confirmar sincronização")+'</button>' +
+      '</div>';
+  } else if(es.step==="done"){
+    var d = es.done;
+    body += '<div class="field"><label style="color:var(--st-ok);">Sincronização concluída</label>' +
+      '<div class="hint">Horário: '+fmtDateTimeBR(d.horario)+'</div>' +
+    '</div>' +
+    '<div class="status-grid">' +
+      statTileEsp(d.novas,"Novas") + statTileEsp(d.promovidas,"Reserva→Principal") + statTileEsp(d.alteradas,"Alteradas") +
+      statTileEsp(d.mantidas,"Sem alteração") + statTileEsp(d.retiradas,"Retiradas (não excl.)") + statTileEsp(d.erros,"Erros") +
+    '</div>' +
+    (d.errosDetalhe && d.errosDetalhe.length ? '<div class="error-msg">'+d.errosDetalhe.map(esc).join("<br>")+'</div>' : '') +
+    '<button class="btn btn-primary btn-block" data-action="close-espelho-result">Fechar</button>';
+  }
+  return '' +
+  '<div class="modal-overlay" '+(es.step==="pick"?'data-action="close-modal"':'')+'>' +
+    '<div class="modal" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Sincronizar Espelho</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      body +
+    '</div>' +
+  '</div>';
+}
+function statTileEsp(n,lbl){ return '<div class="status-opt sm" style="cursor:default;">'+esc(lbl)+'<br><span class="mono" style="font-size:16px;">'+n+'</span></div>'; }
+
+function handleEspelhoFile(file){
+  var es = state.espelhoSync;
+  es.loading = true; es.error=""; render();
+  ensureXLSX(function(){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:"array"});
+        if(wb.SheetNames.indexOf("4.ESPELHO") === -1){
+          es.loading=false; es.error="Não foi encontrada a aba 4.ESPELHO."; render(); return;
+        }
+        var grid = sheetToGrid(wb.Sheets["4.ESPELHO"]);
+        var parsed = parseEspelhoSheet(grid);
+        var reconcile = espReconcile(parsed.buckets, state.ferramentas);
+        var dup = !!(parsed.emitidoEm && state.ferramentas.some(function(t){ return t.origemEspelho && t.origemEspelho===parsed.emitidoEm; }));
+        es.loading=false; es.step="preview"; es.parsed=parsed; es.reconcile=reconcile; es.duplicateWarning=dup;
+        render();
+      }catch(err){
+        es.loading=false; es.error="Erro ao ler arquivo: "+(err&&err.message||""); render();
+      }
+    };
+    reader.onerror = function(){ es.loading=false; es.error="Erro ao ler arquivo."; render(); };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function doConfirmEspelhoSync(){
+  var es = state.espelhoSync;
+  if(!es || !es.reconcile || !state.db) return;
+  es.busy = true; es.error=""; render();
+  var now = new Date().toISOString();
+  var emitidoEm = es.parsed.emitidoEm;
+  var counts = { novas:0, promovidas:0, alteradas:0, mantidas:0, retiradas:0, erros:0, errosDetalhe:[] };
+
+  function buildNewDoc(row, item){
+    return {
+      codigo: row.codigo, cliente: row.cliente, quantidadeKg: row.quantidadeKg, corte: row.corte,
+      liga: row.liga, barras: row.barras||"", tipo: item.tipo, prensa: item.prensa, turno: item.turno,
+      turnoOrigem: (item.tipo==="Reserva" ? "Dia" : (item.oldDoc && item.oldDoc.turnoOrigem==="Dia" ? "Dia" : null)),
+      dataProgramacao: item.data, observacaoPCP: row.observacaoPCP||"",
+      solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
+      criadoEm: now, origemEspelho: emitidoEm
+    };
+  }
+
+  var ops = es.reconcile.items.map(function(item){
+    if(item.type==="NOVA"){
+      var doc = buildNewDoc(item.newRow, item);
+      return withPermissionRetry(function(){
+        return state.db.collection("ferramentas").add(doc).then(function(){ return upsertNecessidadeDelta(doc, 1); });
+      }).then(function(){ counts.novas++; }).catch(function(err){ counts.erros++; counts.errosDetalhe.push("Nova "+item.newRow.codigo+": "+(err&&err.message||"")); });
+    }
+    if(item.type==="PROMOVIDA" || item.type==="ALTERADA"){
+      var newDoc = buildNewDoc(item.newRow, item);
+      return withPermissionRetry(function(){
+        return state.db.doc("ferramentas/"+item.oldDoc.id).delete()
+          .then(function(){ return upsertNecessidadeDelta(item.oldDoc, -1); })
+          .then(function(){ return state.db.collection("ferramentas").add(newDoc); })
+          .then(function(){ return upsertNecessidadeDelta(newDoc, 1); });
+      }).then(function(){ if(item.type==="PROMOVIDA") counts.promovidas++; else counts.alteradas++; })
+        .catch(function(err){ counts.erros++; counts.errosDetalhe.push(item.type+" "+item.oldDoc.codigo+": "+(err&&err.message||"")); });
+    }
+    if(item.type==="SEM_ALTERACAO"){ counts.mantidas++; return Promise.resolve(); }
+    if(item.type==="RETIRADA"){ counts.retiradas++; return Promise.resolve(); } // nunca excluído automaticamente
+    return Promise.resolve();
+  });
+
+  Promise.all(ops).then(function(){
+    es.busy=false; es.step="done";
+    es.done = { novas:counts.novas, promovidas:counts.promovidas, alteradas:counts.alteradas, mantidas:counts.mantidas, retiradas:counts.retiradas, erros:counts.erros, errosDetalhe:counts.errosDetalhe, horario:now };
+    render();
+  });
 }
 
 /* ================= SUBSCRIPTIONS ================= */
