@@ -288,12 +288,18 @@ table.compact-table th{
   position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:10.5px;text-transform:uppercase;
   letter-spacing:.04em;color:var(--text-faint);font-weight:700;padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;
 }
+table.compact-table th[data-action="compact-sort"]{cursor:pointer;user-select:none;}
+table.compact-table th[data-action="compact-sort"]:hover{color:var(--text);}
+table.compact-table th.sort-active{color:var(--accent-2);}
+table.compact-table th .sort-arrow{font-size:9px;margin-left:2px;}
 table.compact-table td{padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle;}
 table.compact-table tbody tr:last-child td{border-bottom:none;}
 table.compact-table tbody tr:hover{background:var(--surface-2);}
 table.compact-table .codigo{font-family:"IBM Plex Mono";font-weight:700;}
 table.compact-table .num{text-align:right;font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums;}
 table.compact-table .reserva-row{background:var(--st-int-bg);}
+table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellipsis;color:var(--text-muted);}
+@media (max-width:640px){ table.compact-table .ct-obs{max-width:120px;} }
 .ct-status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
 
 .section-title{
@@ -856,6 +862,12 @@ var state = {
   statusByKey: {},
   necessidadesByKey: {},
   filters: { data: todayStr(), prensa: "Todas", turno: "Todos", tipo: "Todas", onlyPend: false, indicador: "", busca: "" },
+  // Ordenação da tabela compacta do PCP (Etapa 3.3). Vive fora de `filters`
+  // de propósito: não é um filtro (não esconde nada), só reordena o que já
+  // passou pelos filtros/busca — clicar num cabeçalho nunca deve resetar
+  // prensa/turno/tipo/data/busca/onlyPend/indicador, e vice-versa.
+  sortColumn: null,
+  sortDirection: "asc",
   pcpView: (function(){ try{ return localStorage.getItem("pcpView")==="compacta" ? "compacta" : "macro"; }catch(e){ return "macro"; } })(),
   correcaoView: (function(){ try{ return localStorage.getItem("correcaoView")==="compacta" ? "compacta" : "normal"; }catch(e){ return "normal"; } })(),
   syncMeta: null,
@@ -1258,6 +1270,129 @@ function sortTools(list){
     return (a.codigo||"").localeCompare(b.codigo||"");
   });
 }
+/* ================= TABELA COMPACTA (PCP) — colunas e ordenação (Etapa 3.3) =================
+   Observação combinada: reaproveita t.observacaoPCP (já existente, por
+   linha bruta) + statusByKey[key].observacaoCorrecao (já existente, por
+   necessidade) — nenhum campo novo nos dados, só exibição. Nunca duplica
+   o mesmo texto quando os dois lados escreveram exatamente a mesma coisa. */
+function compactObsCombined(obsPCP, obsCorrecao){
+  var pcp = (obsPCP||"").trim();
+  var cor = (obsCorrecao||"").trim();
+  if(pcp && cor){
+    if(pcp===cor) return "PCP/Correção: "+pcp;
+    return "PCP: "+pcp+" | Correção: "+cor;
+  }
+  if(pcp) return "PCP: "+pcp;
+  if(cor) return "Correção: "+cor;
+  return "";
+}
+// Info derivada de cada linha bruta, usada tanto pela renderização quanto
+// pela ordenação (evita repetir o lookup de status/observação nos dois
+// lugares e garante que ordenam exatamente o que é exibido).
+function compactRowInfo(t){
+  var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
+  var sd = state.statusByKey[key];
+  var status = sd ? sd.status : "Pendente";
+  return {
+    key: key,
+    status: status,
+    previsaoLiberacao: (sd && sd.previsaoLiberacao) || null,
+    obs: compactObsCombined(t.observacaoPCP, sd && sd.observacaoCorrecao)
+  };
+}
+// Ordem operacional fixa usada pela coluna Status (não é alfabética nem a
+// ordem de cadastro — é a ordem de "gravidade"/fluxo pedida: Pendente < OK
+// < Limpeza < Nitretação < Correção interna < Correção externa < Outro <
+// Quebrada). Status fora dessa lista (não deveria existir) vai pro fim.
+var COMPACT_STATUS_ORDER = ["Pendente","OK","Soda / Limpeza","Nitretação","Correção interna","Correção externa","Outro","Quebrada"];
+// Corte pode ser numérico (ex: "6101") ou texto (ex: "A"), dependendo dos
+// dados reais importados — detectado dinamicamente na lista atual (já
+// filtrada) a cada ordenação, não fixo por coluna.
+function isCorteNumeric(list){
+  var any = false;
+  for(var i=0;i<list.length;i++){
+    var c = (list[i].corte==null?"":String(list[i].corte)).trim();
+    if(!c) continue;
+    any = true;
+    if(!/^-?\d+(\.\d+)?$/.test(c)) return false;
+  }
+  return any;
+}
+var COMPACT_COLUMNS = [
+  { key:"codigo",     label:"Ferramenta" },
+  { key:"cliente",    label:"Cliente" },
+  { key:"prensa",     label:"Prensa" },
+  { key:"turno",      label:"Turno" },
+  { key:"kg",         label:"Kg" },
+  { key:"corte",      label:"Corte" },
+  { key:"tipo",       label:"Tipo" },
+  { key:"status",     label:"Status" },
+  { key:"previsao",   label:"Previsão" },
+  { key:"observacao", label:"Observação" }
+];
+var COMPACT_TURNO_RANK = { "Dia":0, "Noite":1 };
+function compactCompare(col, a, b, infoA, infoB, corteNumeric){
+  switch(col){
+    case "codigo": return (a.codigo||"").localeCompare(b.codigo||"");
+    case "cliente": return (a.cliente||"").localeCompare(b.cliente||"");
+    case "prensa": return (a.prensa||"").localeCompare(b.prensa||"");
+    case "turno": {
+      var ta = COMPACT_TURNO_RANK[a.turno], tb = COMPACT_TURNO_RANK[b.turno];
+      return (ta==null?9:ta) - (tb==null?9:tb);
+    }
+    case "kg": return (a.quantidadeKg||0) - (b.quantidadeKg||0);
+    case "corte":
+      if(corteNumeric) return (parseFloat(a.corte)||0) - (parseFloat(b.corte)||0);
+      return (a.corte||"").localeCompare(b.corte||"");
+    case "tipo": {
+      var pa = a.tipo==="Reserva" ? 1 : 0, pb = b.tipo==="Reserva" ? 1 : 0;
+      return pa - pb;
+    }
+    case "status": {
+      var ia = COMPACT_STATUS_ORDER.indexOf(infoA.status); if(ia<0) ia = COMPACT_STATUS_ORDER.length;
+      var ib = COMPACT_STATUS_ORDER.indexOf(infoB.status); if(ib<0) ib = COMPACT_STATUS_ORDER.length;
+      return ia - ib;
+    }
+    case "observacao": {
+      var ha = infoA.obs ? 0 : 1, hb = infoB.obs ? 0 : 1;
+      if(ha!==hb) return ha - hb;
+      return infoA.obs.localeCompare(infoB.obs);
+    }
+  }
+  return 0;
+}
+// Aplica state.sortColumn/sortDirection sobre uma lista JÁ filtrada/buscada
+// (sortTools(applyFilters(...))) — nunca mexe em filtro/busca/data, só
+// reordena o que já está visível. Sem coluna ativa, devolve a lista como
+// veio (ordem padrão de sortTools, comportamento pré-existente intacto).
+function applyCompactSort(list){
+  var col = state.sortColumn;
+  if(!col) return list;
+  var dir = state.sortDirection === "desc" ? -1 : 1;
+  var corteNumeric = col==="corte" ? isCorteNumeric(list) : false;
+  var infos = list.map(compactRowInfo);
+  var idx = list.map(function(_, i){ return i; });
+  idx.sort(function(ia, ib){
+    var a = list[ia], b = list[ib];
+    if(col==="previsao"){
+      // Previsão: mais próxima -> mais distante no 1º clique, invertido no
+      // 2º -- MAS valores vazios ficam sempre por último, nas duas direções
+      // (por isso o tratamento de vazio fica FORA do "* dir" abaixo).
+      var pa = infos[ia].previsaoLiberacao, pb = infos[ib].previsaoLiberacao;
+      if(!pa && !pb) return 0;
+      if(!pa) return 1;
+      if(!pb) return -1;
+      return (pa < pb ? -1 : pa > pb ? 1 : 0) * dir;
+    }
+    return compactCompare(col, a, b, infos[ia], infos[ib], corteNumeric) * dir;
+  });
+  return idx.map(function(i){ return list[i]; });
+}
+function renderCompactHeaderCell(c){
+  var active = state.sortColumn === c.key;
+  var arrow = active ? '<span class="sort-arrow">'+(state.sortDirection==="desc"?"▼":"▲")+'</span>' : "";
+  return '<th class="'+(active?"sort-active":"")+'" data-action="compact-sort" data-col="'+c.key+'">'+esc(c.label)+arrow+'</th>';
+}
 function effectiveNecStatus(key){
   if(state.necPending[key]) return state.necPending[key];
   var sd = state.statusByKey[key];
@@ -1291,7 +1426,7 @@ function renderPCP(){
   } else if(visible.length===0){
     html += emptyState("Nenhuma ferramenta encontrada com esses filtros.");
   } else if(state.pcpView==="compacta"){
-    html += renderCompactTable(sortTools(visible));
+    html += renderCompactTable(applyCompactSort(sortTools(visible)));
   } else {
     html += '<div class="tool-cards-grid">' +
       sortTools(visible).map(function(t){ return renderCard(t); }).join("") +
@@ -1306,10 +1441,8 @@ function statTile(lbl,bucket,ind,cls,active){
 }
 function renderCompactTable(list){
   var rows = list.map(function(t){
-    var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
-    var sd = state.statusByKey[key];
-    var status = sd ? sd.status : "Pendente";
-    var meta = STATUS_META[status] || STATUS_META["Pendente"];
+    var info = compactRowInfo(t);
+    var meta = STATUS_META[info.status] || STATUS_META["Pendente"];
     return '<tr class="'+(t.tipo==="Reserva"?"reserva-row":"")+'">' +
       '<td class="codigo">'+esc(t.codigo)+'</td>' +
       '<td>'+esc(t.cliente||"—")+'</td>' +
@@ -1317,16 +1450,14 @@ function renderCompactTable(list){
       '<td>'+(t.turno==="Dia"?"☀ Dia":"☾ Noite")+'</td>' +
       '<td class="num">'+fmtKg(t.quantidadeKg)+'</td>' +
       '<td>'+esc(t.corte||"—")+'</td>' +
-      '<td>'+esc(t.liga||"—")+'</td>' +
       '<td>'+(t.tipo==="Reserva"?"Reserva":"Progr.")+'</td>' +
       '<td><span class="ct-status-dot" style="background:var(--st-'+meta.v+');"></span>'+esc(meta.label)+'</td>' +
-      '<td>'+(sd && sd.previsaoLiberacao ? relLabel(sd.previsaoLiberacao) : "—")+'</td>' +
+      '<td>'+(info.previsaoLiberacao ? relLabel(info.previsaoLiberacao) : "—")+'</td>' +
+      '<td class="ct-obs" title="'+esc(info.obs)+'">'+esc(info.obs||"—")+'</td>' +
     '</tr>';
   }).join("");
   return '<div class="compact-wrap"><table class="compact-table">' +
-    '<thead><tr>' +
-      '<th>Ferramenta</th><th>Cliente</th><th>Prensa</th><th>Turno</th><th>Kg</th><th>Corte</th><th>Liga</th><th>Tipo</th><th>Status</th><th>Previsão</th>' +
-    '</tr></thead>' +
+    '<thead><tr>' + COMPACT_COLUMNS.map(renderCompactHeaderCell).join("") + '</tr></thead>' +
     '<tbody>'+rows+'</tbody>' +
   '</table></div>';
 }
@@ -2032,6 +2163,20 @@ function bindApp(){
     el.addEventListener("click", function(){
       state.pcpView = el.getAttribute("data-value");
       try{ localStorage.setItem("pcpView", state.pcpView); }catch(e){}
+      render();
+    });
+  });
+  app.querySelectorAll('[data-action="compact-sort"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var col = el.getAttribute("data-col");
+      if(state.sortColumn === col){
+        state.sortDirection = state.sortDirection==="asc" ? "desc" : "asc";
+      } else {
+        state.sortColumn = col;
+        if(col==="kg") state.sortDirection = "desc";
+        else if(col==="corte") state.sortDirection = isCorteNumeric(applyFilters(state.ferramentas)) ? "desc" : "asc";
+        else state.sortDirection = "asc";
+      }
       render();
     });
   });
