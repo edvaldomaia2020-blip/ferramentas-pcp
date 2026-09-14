@@ -214,6 +214,21 @@ img{max-width:100%;}
   padding:7px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex:none;
 }
 .chip.active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
+/* Etapa 3.2: 3 grupos de filtro do PCP (Prensa/Turno/Tipo), cada um com
+   rótulo discreto e uma leve identidade de cor própria (nunca vermelho —
+   vermelho fica reservado a urgência/quebra, ver .urgent-*/.st-quebrada
+   em outro lugar). Reaproveita tokens de cor já existentes no tema
+   (accent-2/st-limpeza/st-nitretacao), sem criar paleta nova. */
+.filterbar .row.filter-groups-row{flex-wrap:wrap;overflow-x:visible;align-items:stretch;}
+.filter-group{
+  display:flex;flex-direction:column;gap:4px;border:1px solid var(--border);border-radius:9px;
+  padding:6px 9px 7px;background:var(--surface);flex:none;
+}
+.fg-label{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);}
+.fg-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.fg-prensa{border-left:3px solid var(--accent-2);}
+.fg-turno{border-left:3px solid var(--st-limpeza);}
+.fg-tipo{border-left:3px solid var(--st-nitretacao);}
 .filterbar input[type=date]{
   border:1.5px solid var(--border-strong);border-radius:8px;padding:7px 10px;font-size:13.5px;
   background:var(--surface);color:var(--text);font-family:inherit;
@@ -225,7 +240,7 @@ img{max-width:100%;}
 .busca-input:focus{outline:none;border-color:var(--accent);}
 @media (min-width:900px){ .role-pcp .filterbar .row:has(.busca-input){ width:100%; flex:1 1 100%; } }
 
-.content{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:16px;}
+.content{flex:1;padding:14px 16px 130px;display:flex;flex-direction:column;gap:16px;}
 .role-pcp .content{padding-bottom:24px;} /* PCP nao tem mais botao flutuante fixo no rodape (ver row-nova) */
 
 /* ---------- Stat tiles ---------- */
@@ -345,6 +360,11 @@ table.compact-table .reserva-row{background:var(--st-int-bg);}
 @media (max-width:640px){ .batchbar{left:0;transform:none;} }
 .batchbar .count{font-weight:700;font-size:13px;flex:1;}
 .batchbar .btn{padding:9px 12px;font-size:12.5px;}
+@media (max-width:480px){
+  .batchbar{flex-wrap:wrap;}
+  .batchbar .count{flex:1 1 100%;}
+  .batchbar .btn{flex:1 1 0;}
+}
 
 /* ---------- Urgência (visão Correção) ---------- */
 .urgent-banner{
@@ -374,11 +394,17 @@ table.compact-table .reserva-row{background:var(--st-int-bg);}
 .nec-list{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
 .nec-row-wrap{border-bottom:1px solid var(--border);}
 .nec-row-wrap:last-child{border-bottom:none;}
+.nec-row-wrap:nth-child(even){background:var(--surface-2);}
 .nec-row{display:flex;align-items:flex-start;gap:10px;padding:12px 12px;cursor:pointer;}
-.nec-row.pending{background:var(--surface-2);}
+.nec-row.pending:not(.urgent-nr):not(.urgent-rec){background:var(--surface-2);border-left:3px solid var(--accent-2);}
 .nec-chk{width:23px;height:23px;flex:none;accent-color:var(--st-ok);margin-top:1px;}
 .nec-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
-.nec-main .codigo{font-family:"IBM Plex Mono";font-weight:700;font-size:15px;}
+.nec-main .codigo{font-family:"IBM Plex Mono";font-weight:800;font-size:17px;letter-spacing:.01em;}
+.pending-chip{
+  display:inline-flex;align-items:center;font-size:9.5px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--accent-2);border:1.5px dashed var(--accent-2);border-radius:20px;
+  padding:2px 7px;white-space:nowrap;flex:none;
+}
 .nec-obs{font-size:12px;color:var(--st-int);white-space:normal;overflow-wrap:break-word;line-height:1.4;}
 .nec-kg{font-family:"IBM Plex Mono";font-size:13.5px;color:var(--text-muted);min-width:70px;text-align:right;font-variant-numeric:tabular-nums;flex:none;margin-top:1px;}
 .nec-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;padding:0 12px 8px;}
@@ -401,12 +427,14 @@ table.compact-table .reserva-row{background:var(--st-int-bg);}
 /* ---------- Correção: modo compacto (Etapa 3.1) ---------- */
 .nec-list-compact{background:transparent;border:none;}
 .nec-list-compact .nec-compact-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;}
+.nec-list-compact .nec-compact-row:nth-child(even){background:var(--surface-2);}
 .nec-list-compact .nec-compact-row:last-child{margin-bottom:0;}
+.nec-compact-row.pending:not(.urgent-nr):not(.urgent-rec){border-color:var(--accent-2);border-left-width:3px;}
 .nec-compact-row.urgent-nr{border-color:var(--st-quebrada);background:var(--st-quebrada-bg);}
 .nec-compact-row.urgent-rec{border-color:var(--st-int);background:var(--st-quebrada-bg);}
 .nec-compact-row.urgent-pulse{animation:urgentPulse .9s ease-in-out 4;}
 .nec-compact-main{display:flex;align-items:center;gap:8px;padding:7px 9px 4px;flex-wrap:wrap;}
-.nec-compact-main .codigo{font-family:"IBM Plex Mono";font-weight:700;font-size:13.5px;}
+.nec-compact-main .codigo{font-family:"IBM Plex Mono";font-weight:800;font-size:15px;letter-spacing:.01em;}
 .nec-compact-kg{font-family:"IBM Plex Mono";font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;margin-left:auto;}
 .nec-compact-actions{display:flex;flex-wrap:wrap;gap:4px;padding:0 9px 7px;}
 .nec-compact-btn{
@@ -827,7 +855,7 @@ var state = {
   dataLoaded: false,
   statusByKey: {},
   necessidadesByKey: {},
-  filters: { data: todayStr(), prensa: "Todas", turno: "Todos", onlyPend: false, reservaOnly: false, indicador: "", busca: "" },
+  filters: { data: todayStr(), prensa: "Todas", turno: "Todos", tipo: "Todas", onlyPend: false, indicador: "", busca: "" },
   pcpView: (function(){ try{ return localStorage.getItem("pcpView")==="compacta" ? "compacta" : "macro"; }catch(e){ return "macro"; } })(),
   correcaoView: (function(){ try{ return localStorage.getItem("correcaoView")==="compacta" ? "compacta" : "normal"; }catch(e){ return "normal"; } })(),
   syncMeta: null,
@@ -1019,8 +1047,6 @@ function renderTopBar(){
     '</div>' +
     '<div style="display:flex;gap:8px;overflow-x:auto;">' +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-baseapp-import">Importar BASE_APP</button>' : '') +
-      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-import">Importar</button>' : '') +
-      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-espelho">Espelho</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-audit">Auditoria</button>' : '') +
       '<button class="icon-btn" data-action="logout">Sair</button>' +
     '</div>' +
@@ -1029,13 +1055,16 @@ function renderTopBar(){
 function renderFilterBarPCP(){
   var f = state.filters;
   function chip(group,val,label){ return '<button class="chip '+(f[group]===val?"active":"")+'" data-filter="'+group+'" data-value="'+val+'">'+label+'</button>'; }
+  function fgroup(cls,label,chipsHtml){
+    return '<div class="filter-group '+cls+'"><span class="fg-label">'+label+'</span><div class="fg-chips">'+chipsHtml+'</div></div>';
+  }
   return '' +
   '<div class="filterbar">' +
     '<div class="row"><input type="text" id="filter-busca" class="busca-input" placeholder="Buscar ferramenta ou cliente…" value="'+esc(f.busca||"")+'" autocomplete="off"></div>' +
-    '<div class="row">' + chip("prensa","Todas","Todas") + chip("prensa","P4","P4") + chip("prensa","P7","P7") + '</div>' +
-    '<div class="row">' + chip("turno","Todos","Todos") + chip("turno","Dia","☀ Dia") + chip("turno","Noite","☾ Noite") +
-      '<button class="chip '+(f.onlyPend?"active":"")+'" data-filter="onlyPend" data-value="toggle">Pendentes</button>' +
-      '<button class="chip '+(f.reservaOnly?"active":"")+'" data-filter="reserva" data-value="toggle">Reserva</button>' +
+    '<div class="row filter-groups-row">' +
+      fgroup("fg-prensa","Prensa", chip("prensa","Todas","Todas") + chip("prensa","P4","P4") + chip("prensa","P7","P7")) +
+      fgroup("fg-turno","Turno", chip("turno","Todos","Todas") + chip("turno","Dia","☀ Dia") + chip("turno","Noite","☾ Noite")) +
+      fgroup("fg-tipo","Tipo", chip("tipo","Todas","Todas") + chip("tipo","Principal","Principal") + chip("tipo","Reserva","Reserva")) +
     '</div>' +
     '<div class="row">' +
       '<label class="hint" style="white-space:nowrap;">Data programada</label>' +
@@ -1104,9 +1133,9 @@ function isRecordActive(programacaoId, data, turno){
 }
 
 /* ================= DATA HELPERS ================= */
-// Filtros "base": prensa/turno/data/reserva. Não inclui onlyPend nem o
+// Filtros "base": prensa/turno/data/tipo. Não inclui onlyPend nem o
 // indicador clicável — usados isoladamente para o cálculo dos indicadores
-// (que precisam responder aos mesmos filtros de prensa/turno/data/reserva,
+// (que precisam responder aos mesmos filtros de prensa/turno/data/tipo,
 // mas calculam sua PRÓPRIA quebra por status, então não podem já vir
 // pré-filtrados por status).
 function applyBaseFilters(list){
@@ -1115,35 +1144,31 @@ function applyBaseFilters(list){
     if(f.prensa!=="Todas" && t.prensa!==f.prensa) return false;
     if(f.turno!=="Todos" && t.turno!==f.turno) return false;
     if(f.data!=="__all__" && t.dataProgramacao!==f.data) return false;
-    if(f.reservaOnly){ if(t.tipo!=="Reserva") return false; }
-    else if(t.tipo==="Reserva") return false;
+    if(f.tipo==="Reserva"){ if(t.tipo!=="Reserva") return false; }
+    else if(f.tipo==="Principal"){ if(t.tipo==="Reserva") return false; }
     if(!isRecordActive(t.programacaoId, t.dataProgramacao, t.turno)) return false;
     return true;
   });
 }
-// Filtro usado SÓ pelos indicadores do PCP (os 6 cards). Prensa/turno/data
-// funcionam igual a applyBaseFilters, mas Reserva é tratada de forma
-// DIFERENTE de propósito: reservaOnly=true estreita para só as
-// necessidades alimentadas por linha(s) de Reserva (igual à lista de
-// registros); reservaOnly=false (padrão) NÃO exclui Reserva — os
-// indicadores precisam refletir o MESMO universo de necessidades
-// consolidadas que a Correção enxerga, e a Correção nunca separa
-// Reserva de Programação dentro de uma necessidade (upsertNecessidadeDelta
-// soma as duas no mesmo doc). Causa raiz da divergência 32×44: com
-// applyBaseFilters, reservaOnly=false excluía TODA linha de Reserva —
-// necessidades compostas 100% por Reserva desapareciam por completo do
-// total do PCP, e necessidades mistas (Programação+Reserva) ficavam com
-// kg subcontado. Isso é intencionalmente diferente de applyBaseFilters,
-// que CONTINUA ocultando Reserva por padrão — usada só pela lista de
-// registros brutos (Macro/Compacta), comportamento já aprovado e
-// testado anteriormente, e que não muda aqui.
+// Filtro usado SÓ pelos indicadores do PCP (os 6 cards). Prensa/turno/data/
+// tipo funcionam igual a applyBaseFilters (Etapa 3.2 unificou os dois sob o
+// mesmo state.filters.tipo de 3 vias: Todas/Principal/Reserva). O padrão
+// "Todas" NÃO exclui Reserva — os indicadores precisam refletir o MESMO
+// universo de necessidades consolidadas que a Correção enxerga, e a
+// Correção nunca separa Reserva de Programação dentro de uma necessidade
+// (upsertNecessidadeDelta soma as duas no mesmo doc). Causa raiz da
+// divergência 32×44 (Etapa 1): com o padrão excluindo Reserva, necessidades
+// compostas 100% por Reserva desapareciam por completo do total do PCP, e
+// necessidades mistas (Programação+Reserva) ficavam com kg subcontado —
+// por isso o padrão ("Todas") continua sem filtrar por tipo aqui.
 function applyFiltersForIndicators(list){
   var f = state.filters;
   return list.filter(function(t){
     if(f.prensa!=="Todas" && t.prensa!==f.prensa) return false;
     if(f.turno!=="Todos" && t.turno!==f.turno) return false;
     if(f.data!=="__all__" && t.dataProgramacao!==f.data) return false;
-    if(f.reservaOnly && t.tipo!=="Reserva") return false;
+    if(f.tipo==="Reserva"){ if(t.tipo!=="Reserva") return false; }
+    else if(f.tipo==="Principal"){ if(t.tipo==="Reserva") return false; }
     if(!isRecordActive(t.programacaoId, t.dataProgramacao, t.turno)) return false;
     return true;
   });
@@ -1475,9 +1500,9 @@ function renderCorrecao(){
   }
   if(pendingCount>0){
     html += '<div class="batchbar">' +
-      '<span class="count">'+pendingCount+' alteração(ões) não salva(s)</span>' +
-      '<button class="btn btn-ghost" data-action="discard-pending">Descartar</button>' +
-      '<button class="btn btn-primary" data-action="save-pending">Salvar</button>' +
+      '<span class="count">'+pendingCount+' alteração(ões) pendente(s)</span>' +
+      '<button class="btn btn-ghost" data-action="discard-pending">Descartar alterações</button>' +
+      '<button class="btn btn-primary" data-action="save-pending">Gravar alterações ('+pendingCount+')</button>' +
     '</div>';
   }
   return html;
@@ -1545,8 +1570,11 @@ function renderNecRow(g){
     (g.observacoes.length ? '<span class="nec-obs">⚠ PCP: '+esc(g.observacoes.join(" · "))+'</span>' : '') +
   '</div>';
   html += '<span class="nec-kg">'+fmtKg(g.kgTotal)+' kg</span>';
-  if(eff.status!=="OK"){
+  if(eff.status!=="OK" || pending){
     html += '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>';
+  }
+  if(pending){
+    html += '<span class="pending-chip" title="Selecionado, ainda não gravado">pendente</span>';
   }
   html += '</div>';
   if(isUrgent && !urg.reconhecida){
@@ -1598,10 +1626,11 @@ function renderNecRowCompact(g){
   var eff = effectiveNecStatus(key);
   var meta = STATUS_META[eff.status] || STATUS_META["Pendente"];
   var busy = !!(state.necBusy && state.necBusy[key]);
+  var pending = !!state.necPending[key];
   var urg = state.urgenciasByKey[key];
   var isUrgent = !!(urg && urg.urgente);
   var isPulsing = isUrgent && !urg.reconhecida && (state.urgentPulseUntil[key]||0) > Date.now();
-  var rowClass = "nec-compact-row";
+  var rowClass = "nec-compact-row" + (pending ? " pending" : "");
   if(isUrgent) rowClass += " " + (urg.reconhecida ? "urgent-rec" : "urgent-nr") + (isPulsing ? " urgent-pulse" : "");
   var html = '<div class="'+rowClass+'">';
   html += '<div class="nec-compact-main">' +
@@ -1609,6 +1638,7 @@ function renderNecRowCompact(g){
     '<span class="tag">'+esc(g.prensa)+'</span>' +
     '<span class="nec-compact-kg">'+fmtKg(g.kgTotal)+' kg</span>' +
     '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
+    (pending ? '<span class="pending-chip" title="Selecionado, ainda não gravado">pendente</span>' : '') +
   '</div>';
   html += '<div class="nec-compact-actions">' +
     NEC_QUICK_ACTIONS_COMPACT.map(function(a){
@@ -1667,8 +1697,13 @@ function renderConfirmStatusModal(){
       '<button class="btn btn-primary" style="flex:1;" data-action="confirm-status-quick">Confirmar</button>' +
     '</div>';
   } else if(c.kind==="batch"){
+    // Itens com só previsão alterada (sem mudança de status) saem da lista
+    // principal e vão para a seção "Previsões" abaixo — evita duplicar a
+    // mesma informação em dois lugares (ver requestBatchConfirm).
+    var mainItems = c.items.filter(function(it){ return it.statusChanged || !it.previsaoChanged; });
+    var prevItems = c.items.filter(function(it){ return it.previsaoChanged; });
     body += '<div class="hint" style="margin-bottom:2px;">'+c.items.length+' alteração(ões) será(ão) realizada(s):</div>';
-    body += '<div class="confirm-batch-list">' + c.items.map(function(it){
+    body += '<div class="confirm-batch-list">' + mainItems.map(function(it){
       var mAtual = STATUS_META[it.statusAtual] || STATUS_META["Pendente"];
       var mNovo = STATUS_META[it.statusNovo] || STATUS_META["Pendente"];
       return '<div class="confirm-batch-item">' +
@@ -1678,9 +1713,18 @@ function renderConfirmStatusModal(){
           : '<span class="hint">previsão/observação atualizada (status mantido: '+esc(mAtual.label)+')</span>') +
       '</div>';
     }).join("") + '</div>';
+    if(prevItems.length){
+      body += '<div class="hint" style="margin:10px 0 2px;font-weight:700;">Previsões:</div>';
+      body += '<div class="confirm-batch-list">' + prevItems.map(function(it){
+        return '<div class="confirm-batch-item">' +
+          '<span class="mono" style="font-weight:700;">'+esc(it.codigo)+'</span>' +
+          '<span class="hint">'+(it.previsaoNova ? esc(relLabel(it.previsaoNova)) : "sem previsão")+'</span>' +
+        '</div>';
+      }).join("") + '</div>';
+    }
     body += '<div style="display:flex;gap:8px;">' +
       '<button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Cancelar</button>' +
-      '<button class="btn btn-primary" style="flex:1;" data-action="confirm-status-batch">Confirmar alterações</button>' +
+      '<button class="btn btn-primary" style="flex:1;" data-action="confirm-status-batch">Confirmar e gravar</button>' +
     '</div>';
   }
   return '' +
@@ -1962,10 +2006,8 @@ function bindApp(){
   app.querySelectorAll("[data-filter]").forEach(function(el){
     el.addEventListener("click", function(){
       var g = el.getAttribute("data-filter"), v = el.getAttribute("data-value");
-      if(g==="onlyPend"){ state.filters.onlyPend = !state.filters.onlyPend; state.filters.reservaOnly=false; }
+      if(g==="onlyPend"){ state.filters.onlyPend = !state.filters.onlyPend; }
       else if(g==="dataAll"){ state.filters.data = "__all__"; }
-      else if(g==="reserva"){ state.filters.reservaOnly = !state.filters.reservaOnly; }
-      else if(g==="turno"){ state.filters.turno = v; state.filters.reservaOnly=false; }
       else { state.filters[g] = v; }
       render();
     });
@@ -2152,10 +2194,10 @@ function bindApp(){
     el.addEventListener("change", function(){ toggleNecOk(el.getAttribute("data-key")); });
   });
   app.querySelectorAll('[data-action="quick-nec-status"]').forEach(function(el){
-    el.addEventListener("click", function(){ requestQuickStatusConfirm(el.getAttribute("data-key"), el.getAttribute("data-value")); });
+    el.addEventListener("click", function(){ stageQuickStatus(el.getAttribute("data-key"), el.getAttribute("data-value")); });
   });
   app.querySelectorAll('[data-action="quick-nec-prev"]').forEach(function(el){
-    el.addEventListener("click", function(){ quickSetPrevisao(el.getAttribute("data-key"), parseInt(el.getAttribute("data-value"),10)); });
+    el.addEventListener("click", function(){ stageQuickPrevisao(el.getAttribute("data-key"), parseInt(el.getAttribute("data-value"),10)); });
   });
   app.querySelectorAll('[data-action="toggle-urgente"]').forEach(function(el){
     el.addEventListener("click", function(){
@@ -2259,6 +2301,44 @@ function savePendingChanges(){
     render();
   }).catch(function(err){ state.toast="Erro ao salvar: "+(err&&err.message||""); render(); });
 }
+// Ações rápidas em LOTE (Etapa 3.2): clicar em ✓/COR./LIMP./NIT. ou +1/+2/+3
+// não grava mais imediatamente — só monta o draft (mesma forma exata que
+// quickSetStatus/quickSetPrevisao sempre montaram) e guarda em
+// state.necPending, reaproveitando a MESMA estrutura de pendências já usada
+// pelo fluxo detalhado (toggleNecOk/setNecField) e a mesma gravação final
+// (savePendingChanges -> saveNecStatusWrite). Nada escreve no Firestore
+// aqui; só depois de "GRAVAR ALTERAÇÕES" -> confirmar no modal.
+function stageQuickStatus(key, statusValue){
+  var g = findGroup(key);
+  if(!g) return;
+  var eff = effectiveNecStatus(key);
+  if(eff.status===statusValue) return; // já está nesse status; nada a alterar
+  state.necPending[key] = {
+    status: statusValue,
+    previsaoLiberacao: statusValue==="OK" ? null : (eff.previsaoLiberacao||null),
+    observacaoCorrecao: eff.observacaoCorrecao||"",
+    codigo: g.codigo, prensa: g.prensa, data: g.data, programacaoId: g.programacaoId
+  };
+  render();
+}
+function stageQuickPrevisao(key, days){
+  var g = findGroup(key);
+  if(!g) return;
+  var eff = effectiveNecStatus(key);
+  var val = addDaysStr(days);
+  if(eff.previsaoLiberacao===val) return; // já está com essa previsão; nada a alterar
+  state.necPending[key] = {
+    status: eff.status,
+    previsaoLiberacao: val,
+    observacaoCorrecao: eff.observacaoCorrecao||"",
+    codigo: g.codigo, prensa: g.prensa, data: g.data, programacaoId: g.programacaoId
+  };
+  render();
+}
+// Confirmação individual (Etapa 1) — não é mais chamada pela UI desde a
+// Etapa 3.2 (ações rápidas agora vão para o lote via stageQuickStatus/
+// stageQuickPrevisao), mas fica preservada sem uso: mesma lógica, sem
+// risco de regressão, caso algum fluxo volte a precisar dela.
 // Confirmação antes de gravar — abre o modal comparando status atual x
 // novo; a gravação em si só acontece em confirmQuickStatus/confirmBatchStatus,
 // chamando exatamente as mesmas funções de sempre (quickSetStatus/
@@ -2286,7 +2366,13 @@ function requestBatchConfirm(){
     var draft = state.necPending[key];
     var existing = state.statusByKey[key];
     var statusAtual = existing ? existing.status : "Pendente";
-    return { key:key, codigo:draft.codigo, statusAtual:statusAtual, statusNovo:draft.status, statusChanged: statusAtual!==draft.status };
+    var previsaoAtual = existing ? (existing.previsaoLiberacao||null) : null;
+    var previsaoNova = draft.previsaoLiberacao||null;
+    return {
+      key:key, codigo:draft.codigo,
+      statusAtual:statusAtual, statusNovo:draft.status, statusChanged: statusAtual!==draft.status,
+      previsaoAtual:previsaoAtual, previsaoNova:previsaoNova, previsaoChanged: previsaoAtual!==previsaoNova
+    };
   });
   state.confirmStatus = { kind:"batch", items:items };
   state.modal = "confirm-status";
