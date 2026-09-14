@@ -124,6 +124,34 @@ img{max-width:100%;}
   background:var(--st-int-bg);color:var(--st-int);border:1px solid var(--st-int);
   border-radius:8px;padding:10px 12px;font-size:13px;font-weight:500;display:flex;flex-direction:column;gap:8px;
 }
+/* ---------- BASE_APP import (Etapa 3) ---------- */
+.baseapp-cards{display:flex;flex-direction:column;gap:10px;margin:10px 0;}
+.baseapp-card{border:1px solid var(--border);border-radius:10px;padding:12px;}
+.baseapp-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.baseapp-datehead{font-weight:700;font-size:14px;}
+.baseapp-papel-badge{font-size:11px;font-weight:800;letter-spacing:.03em;padding:3px 8px;border-radius:999px;text-transform:uppercase;}
+.baseapp-papel-badge.atual{background:var(--accent);color:var(--accent-contrast);}
+.baseapp-papel-badge.proxima{background:var(--surface-2,var(--border));color:var(--text);}
+.baseapp-papel-badge.futura{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.baseapp-situacao{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;margin-left:auto;}
+.baseapp-situacao.NOVA{background:var(--st-ok-bg);color:var(--st-ok);}
+.baseapp-situacao.SEM_ALTERACAO{background:var(--border);color:var(--text-muted);}
+.baseapp-situacao.MUDANCA_PAPEL{background:var(--st-limpeza-bg);color:var(--st-limpeza);}
+.baseapp-situacao.NOVA_VERSAO{background:var(--st-nitretacao-bg);color:var(--st-nitretacao);}
+.baseapp-totais{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;margin-top:6px;color:var(--text);}
+.baseapp-diff{margin-top:8px;font-size:13px;padding:8px;border-radius:8px;background:var(--st-nitretacao-bg);color:var(--st-nitretacao);}
+.baseapp-ciente{display:flex;align-items:flex-start;gap:8px;font-size:13px;margin:10px 0;padding:10px;border:1px dashed var(--border);border-radius:8px;}
+.baseapp-result-row{padding:6px 0;border-bottom:1px dashed var(--border);font-size:13.5px;}
+.baseapp-result-row:last-child{border-bottom:none;}
+/* ---------- Correção: seções ATUAL/PRÓXIMA/FUTURA/legado ---------- */
+.prog-section{margin-bottom:16px;}
+.prog-section-head{display:flex;align-items:center;gap:8px;padding:6px 2px;margin-bottom:6px;border-bottom:2px solid var(--border);}
+.prog-section-head .lbl{font-weight:800;font-size:13px;letter-spacing:.03em;text-transform:uppercase;}
+.prog-section-head .sub{font-size:12px;color:var(--text-muted);}
+.prog-section.atual .prog-section-head{border-bottom-color:var(--accent);}
+.prog-section.atual .prog-section-head .lbl{color:var(--accent);}
+.prog-section.futura{opacity:.92;}
+.prog-section-toggle{margin-left:auto;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;padding:4px 8px;}
 .segmented{display:flex;gap:8px;}
 .segmented button{
   flex:1;border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text);
@@ -631,15 +659,22 @@ function classifyRows(grid, headerRowIndex){
 /* ---- Consolidation key (code + prensa + data). Used both client-side
    (PCP dashboard, which has full "ferramentas" access) and as the
    Firestore doc id in "necessidades" / "status". ---- */
-function necDocId(codigo, prensa, data){
+// programacaoId é o 4º parâmetro, OPCIONAL: chamadas com 3 argumentos
+// (todo o código legado) continuam gerando exatamente a mesma chave de
+// sempre — undefined/null/"" nunca entram na chave. Só quando um valor
+// real é passado (registros de uma nova programação, Etapa 3 em diante)
+// a chave ganha o sufixo "__<programacaoId>", isolando completamente
+// aquela ocorrência de qualquer outra com o mesmo código+prensa+data.
+function necDocId(codigo, prensa, data, programacaoId){
   var c = (codigo||"").toString().normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z0-9._-]+/g,"-").replace(/-+/g,"-").replace(/^-+|-+$/g,"");
-  return (c||"X") + "__" + (prensa||"X") + "__" + (data||"X");
+  var base = (c||"X") + "__" + (prensa||"X") + "__" + (data||"X");
+  return programacaoId ? base + "__" + programacaoId : base;
 }
 function computeNecessidades(list){
   var groups = {};
   list.forEach(function(t){
-    var key = necDocId(t.codigo, t.prensa, t.dataProgramacao);
-    if(!groups[key]) groups[key] = { key:key, codigo:t.codigo, prensa:t.prensa, data:t.dataProgramacao, kgTotal:0, kgProgramacao:0, kgReserva:0, observacoes:[], rawIds:[] };
+    var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
+    if(!groups[key]) groups[key] = { key:key, codigo:t.codigo, prensa:t.prensa, data:t.dataProgramacao, programacaoId: t.programacaoId||null, kgTotal:0, kgProgramacao:0, kgReserva:0, observacoes:[], rawIds:[] };
     var g = groups[key];
     var kg = t.quantidadeKg||0;
     g.kgTotal += kg;
@@ -720,8 +755,9 @@ function computeAuditResult(ferramentas, existingMap){
       codigo: (rec && rec.codigo) || (existing && existing.codigo) || parts[0],
       prensa: (rec && rec.prensa) || (existing && existing.prensa) || parts[1],
       data: (rec && rec.data) || (existing && existing.data) || parts[2],
+      programacaoId: (rec && rec.programacaoId) || (existing && existing.programacaoId) || null,
       status: status, existingKg: existingKg, existingCount: existingCount, recKg: recKg, recCount: recCount, diff: diff,
-      rawRows: ferramentas.filter(function(t){ return necDocId(t.codigo,t.prensa,t.dataProgramacao)===key; })
+      rawRows: ferramentas.filter(function(t){ return necDocId(t.codigo,t.prensa,t.dataProgramacao,t.programacaoId)===key; })
     });
   });
   var ORDER = { A_CORRIGIR:0, A_CRIAR:1, SEM_CORRESPONDENTE:2, SEM_ALTERACAO:3 };
@@ -781,7 +817,17 @@ var state = {
   urgenciasByKey: {},
   unsubUrgencias: null,
   urgentPulseUntil: {},
-  confirmStatus: null
+  confirmStatus: null,
+  // Coleção programacoes (Etapa 3) — substitui o conceito de ponteiro
+  // único necessidades/__programacao_meta__ da Etapa 2 (que nunca chegou
+  // a ser criado). Cada doc representa uma programação (atual/próxima/
+  // futura/histórica); enquanto não houver nenhum doc vigente para um
+  // determinado slot (data+turno), o legado daquele slot continua 100%
+  // ativo — ver isRecordActive.
+  programacoesByKey: {},
+  unsubProgramacoes: null,
+  correcaoSecaoRecolhida: {},
+  baseAppImport: null
 };
 
 var app = document.getElementById("app");
@@ -928,6 +974,7 @@ function renderTopBar(){
       '</div>' +
     '</div>' +
     '<div style="display:flex;gap:8px;overflow-x:auto;">' +
+      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-baseapp-import">Importar BASE_APP</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-import">Importar</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-espelho">Espelho</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-audit">Auditoria</button>' : '') +
@@ -972,6 +1019,44 @@ function renderFilterBarCorrecao(){
   '</div>';
 }
 
+/* ================= PROGRAMAÇÃO ATIVA (Etapa 3) =================
+   isRecordActive decide se um registro pertence à programação
+   operacionalmente vigente. Duas situações:
+
+   1) Registro já pertence à nova arquitetura (programacaoId presente):
+      é ativo se e somente se o doc programacoes/{programacaoId}
+      correspondente existir e estiver com vigente===true. Cobre atual/
+      próxima/futura ao mesmo tempo — não existe mais um único ponteiro.
+
+   2) Registro do LEGADO (sem programacaoId): continua ativo até que o
+      MESMO slot (data [+turno, quando conhecido]) seja efetivamente
+      coberto por uma programação vigente da nova arquitetura. Nenhuma
+      migração em massa — cada slot só some quando uma programação real
+      o substitui. `turno` é opcional (necessidades consolidadas não o
+      carregam, de propósito — Reserva/Programação do mesmo dia sempre
+      convergem); quando omitido, qualquer programação vigente naquela
+      data já basta para considerar o slot substituído (mais conservador
+      = nunca deixa status desatualizado visível por engano).
+
+   Enquanto nenhum doc de programacoes existir (estado de hoje, antes da
+   primeira importação BASE_APP), é sempre true para tudo — comportamento
+   idêntico à v1.2. */
+function isRecordActive(programacaoId, data, turno){
+  if(programacaoId){
+    var p = state.programacoesByKey[programacaoId];
+    return !!(p && p.vigente);
+  }
+  var keys = Object.keys(state.programacoesByKey);
+  for(var i=0;i<keys.length;i++){
+    var pr = state.programacoesByKey[keys[i]];
+    if(!pr.vigente) continue;
+    if(pr.data!==data) continue;
+    if(turno && pr.turno!==turno) continue;
+    return false;
+  }
+  return true;
+}
+
 /* ================= DATA HELPERS ================= */
 // Filtros "base": prensa/turno/data/reserva. Não inclui onlyPend nem o
 // indicador clicável — usados isoladamente para o cálculo dos indicadores
@@ -986,6 +1071,7 @@ function applyBaseFilters(list){
     if(f.data!=="__all__" && t.dataProgramacao!==f.data) return false;
     if(f.reservaOnly){ if(t.tipo!=="Reserva") return false; }
     else if(t.tipo==="Reserva") return false;
+    if(!isRecordActive(t.programacaoId, t.dataProgramacao, t.turno)) return false;
     return true;
   });
 }
@@ -1012,6 +1098,7 @@ function applyFiltersForIndicators(list){
     if(f.turno!=="Todos" && t.turno!==f.turno) return false;
     if(f.data!=="__all__" && t.dataProgramacao!==f.data) return false;
     if(f.reservaOnly && t.tipo!=="Reserva") return false;
+    if(!isRecordActive(t.programacaoId, t.dataProgramacao, t.turno)) return false;
     return true;
   });
 }
@@ -1030,14 +1117,14 @@ function applyFilters(list){
   var f = state.filters;
   var out = applyBaseFilters(list).filter(function(t){
     if(f.onlyPend){
-      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao)];
+      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao,t.programacaoId)];
       if(sd && sd.status==="OK") return false;
     }
     return true;
   });
   if(f.indicador){
     out = out.filter(function(t){
-      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao)];
+      var sd = state.statusByKey[necDocId(t.codigo,t.prensa,t.dataProgramacao,t.programacaoId)];
       var status = sd ? sd.status : "Pendente";
       var grp = necStatusGroup(status);
       if(f.indicador==="emprocesso") return grp!=="ok";
@@ -1188,7 +1275,7 @@ function renderCard(t){
       '</div>' +
     '</div>' +
     '<div style="display:flex;align-items:center;gap:6px;flex:none;">' +
-      (isUrgent ? '' : '<button type="button" class="urgent-btn" data-action="mark-urgent" data-codigo="'+esc(t.codigo)+'" data-prensa="'+esc(t.prensa)+'" data-data="'+esc(t.dataProgramacao)+'" onclick="event.stopPropagation()" title="Marcar como urgente para a Correção">🚨 Urgente</button>') +
+      (isUrgent ? '' : '<button type="button" class="urgent-btn" data-action="mark-urgent" data-codigo="'+esc(t.codigo)+'" data-prensa="'+esc(t.prensa)+'" data-data="'+esc(t.dataProgramacao)+'" data-programacao-id="'+esc(t.programacaoId||"")+'" onclick="event.stopPropagation()" title="Marcar como urgente para a Correção">🚨 Urgente</button>') +
       '<span class="status-badge" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
     '</div>' +
   '</div>';
@@ -1245,8 +1332,10 @@ function getCorrecaoGroups(){
   var f = state.filters;
   var all = Object.keys(state.necessidadesByKey).map(function(k){
     var d = state.necessidadesByKey[k];
+    var prog = d.programacaoId ? state.programacoesByKey[d.programacaoId] : null;
     return {
-      key:k, codigo:d.codigo, prensa:d.prensa, data:d.data,
+      key:k, codigo:d.codigo, prensa:d.prensa, data:d.data, programacaoId: d.programacaoId||null,
+      papel: prog ? prog.papel : "legado",
       kgTotal:d.kgTotal||0, kgProgramacao:d.kgProgramacao||0, kgReserva:d.kgReserva||0,
       observacoes:d.observacoes||[], count:d.count||0
     };
@@ -1254,6 +1343,10 @@ function getCorrecaoGroups(){
   var scoped = all.filter(function(g){
     if(state.correcaoPrensa!=="Todas" && g.prensa !== state.correcaoPrensa) return false;
     if(f.data!=="__all__" && g.data !== f.data) return false;
+    // necessidades consolidadas não carregam turno de propósito (Reserva/
+    // Programação do mesmo dia convergem no mesmo doc) — por isso não dá
+    // pra passar turno aqui; ver nota em isRecordActive.
+    if(!isRecordActive(g.programacaoId, g.data, null)) return false;
     return true;
   });
   return sortNecComUrgencia(scoped);
@@ -1311,7 +1404,7 @@ function renderCorrecao(){
   } else if(visibleGroups.length===0){
     html += emptyState("Nenhuma ferramenta encontrada.");
   } else {
-    html += '<div class="nec-list">' + visibleGroups.map(renderNecRow).join("") + '</div>';
+    html += renderCorrecaoSections(visibleGroups);
   }
   if(pendingCount>0){
     html += '<div class="batchbar">' +
@@ -1321,6 +1414,48 @@ function renderCorrecao(){
     '</div>';
   }
   return html;
+}
+// Seções ATUAL/PRÓXIMA/FUTURA/legado (Etapa 3). Enquanto só existir 1
+// papel entre as necessidades visíveis (o caso de hoje, antes de
+// qualquer importação BASE_APP: tudo é "legado"), renderiza uma lista
+// plana idêntica à de sempre — nenhuma mudança visual até que exista
+// pelo menos uma programação real da nova arquitetura ao lado do
+// legado. Nunca mistura papéis diferentes na mesma seção; vermelho
+// continua reservado só para urgência (ver .urgent-* em outro lugar),
+// nunca usado aqui para diferenciar ATUAL/PRÓXIMA/FUTURA.
+var CORRECAO_SECOES = [
+  { papel:"atual",   titulo:"Programação atual" },
+  { papel:"proxima", titulo:"Próxima programação" },
+  { papel:"futura",  titulo:"Programação futura", recolhivel:true },
+  { papel:"legado",  titulo:"Outras ferramentas" }
+];
+function renderCorrecaoSections(visibleGroups){
+  var byPapel = {};
+  visibleGroups.forEach(function(g){
+    var p = g.papel || "legado";
+    if(!byPapel[p]) byPapel[p] = [];
+    byPapel[p].push(g);
+  });
+  var papeisPresentes = Object.keys(byPapel);
+  if(papeisPresentes.length<=1){
+    return '<div class="nec-list">' + visibleGroups.map(renderNecRow).join("") + '</div>';
+  }
+  return CORRECAO_SECOES.map(function(sec){
+    var itens = byPapel[sec.papel];
+    if(!itens || !itens.length) return "";
+    // FUTURA começa recolhida por padrão (evita poluição visual); as
+    // demais seções começam sempre abertas. state.correcaoSecaoRecolhida
+    // só guarda o que o usuário já alternou manualmente nesta sessão.
+    var jaAlternada = state.correcaoSecaoRecolhida.hasOwnProperty(sec.papel);
+    var recolhida = jaAlternada ? state.correcaoSecaoRecolhida[sec.papel] : !!sec.recolhivel;
+    var html = '<div class="prog-section '+sec.papel+'">';
+    html += '<div class="prog-section-head"><span class="lbl">'+esc(sec.titulo)+'</span><span class="sub">'+itens.length+' ferramenta(s)</span>' +
+      (sec.recolhivel ? '<button type="button" class="prog-section-toggle" data-action="toggle-prog-secao" data-papel="'+sec.papel+'">'+(recolhida?"Mostrar":"Recolher")+'</button>' : '') +
+    '</div>';
+    if(!recolhida) html += '<div class="nec-list">' + itens.map(renderNecRow).join("") + '</div>';
+    html += '</div>';
+    return html;
+  }).join("");
 }
 function renderNecRow(g){
   var key = g.key;
@@ -1441,6 +1576,81 @@ function renderConfirmStatusModal(){
     '</div>' +
   '</div>';
 }
+var BASE_APP_SITUACAO_LABEL = { NOVA:"NOVA PROGRAMAÇÃO", SEM_ALTERACAO:"SEM ALTERAÇÃO", MUDANCA_PAPEL:"MUDANÇA DE PAPEL", NOVA_VERSAO:"NOVA VERSÃO" };
+var BASE_APP_PAPEL_LABEL = { atual:"ATUAL", proxima:"PRÓXIMA", futura:"FUTURA" };
+function renderBaseAppPlanCard(e){
+  var html = '<div class="baseapp-card">';
+  html += '<div class="baseapp-card-head">' +
+    '<span class="baseapp-papel-badge '+e.papel+'">'+BASE_APP_PAPEL_LABEL[e.papel]+'</span>' +
+    '<span class="baseapp-datehead">'+esc(fmtDateBR(e.data))+' — '+esc(e.turno)+'</span>' +
+    '<span class="baseapp-situacao '+e.situacao+'">'+BASE_APP_SITUACAO_LABEL[e.situacao]+'</span>' +
+  '</div>';
+  html += '<div class="hint">Origem: '+esc(e.origem)+'</div>';
+  html += '<div class="baseapp-totais">' +
+    '<div>P7: '+e.totais.P7.n+' ocorrência(s), '+fmtKg(e.totais.P7.kg)+' kg</div>' +
+    '<div>P4: '+e.totais.P4.n+' ocorrência(s), '+fmtKg(e.totais.P4.kg)+' kg</div>' +
+    '<div>Principal: '+e.secaoCount.PRINCIPAL+' · Reserva: '+e.secaoCount.RESERVA+'</div>' +
+  '</div>';
+  if(e.situacao==="NOVA_VERSAO" && e.diff){
+    html += '<div class="baseapp-diff">Versão anterior: <span class="mono">'+esc(e.existing.id)+'</span><br>' +
+      '+'+e.diff.added+' ocorrência(s) · -'+e.diff.removed+' ocorrência(s) · '+(e.diff.kgDelta>=0?"+":"")+fmtKg(e.diff.kgDelta)+' kg</div>';
+  }
+  if(e.situacao==="MUDANCA_PAPEL" && e.existing){
+    html += '<div class="hint">Conteúdo idêntico ao já gravado (mesma versão) — só o papel operacional muda de '+esc(BASE_APP_PAPEL_LABEL[e.existing.papel]||e.existing.papel)+' para '+esc(BASE_APP_PAPEL_LABEL[e.papel])+'.</div>';
+  }
+  html += '</div>';
+  return html;
+}
+function renderBaseAppImportModal(){
+  var bi = state.baseAppImport;
+  if(!bi) return "";
+  var body = "";
+  if(!bi.step || bi.step==="pick"){
+    body = '<div class="field"><label>Selecione o arquivo (.xlsx ou .xlsm) contendo a aba BASE_APP</label><input id="baseapp-file" type="file" accept=".xlsx,.xlsm,.xls"></div>';
+  } else if(bi.step==="carregando"){
+    body = '<div class="hint">Lendo arquivo…</div>';
+  } else if(bi.step==="erro"){
+    body = '<div class="error-msg">'+esc(bi.error)+'</div>' +
+      '<button class="btn btn-ghost" style="width:100%;margin-top:10px;" data-action="close-modal">Fechar</button>';
+  } else if(bi.step==="erro-validacao"){
+    body = '<div class="error-msg"><b>Importação não realizada.</b><ul style="margin:6px 0 0 18px;">' +
+      bi.errors.map(function(e){ return '<li>'+esc(e)+'</li>'; }).join("") + '</ul></div>';
+    if(bi.warnings && bi.warnings.length){
+      body += '<div class="warn-msg" style="margin-top:8px;"><ul style="margin:0 0 0 18px;">'+bi.warnings.map(function(w){return '<li>'+esc(w)+'</li>';}).join("")+'</ul></div>';
+    }
+    body += '<button class="btn btn-ghost" style="width:100%;margin-top:10px;" data-action="close-modal">Fechar</button>';
+  } else if(bi.step==="previa"){
+    if(bi.warnings && bi.warnings.length){
+      body += '<div class="warn-msg"><b>Atenção:</b><ul style="margin:6px 0 0 18px;">'+bi.warnings.map(function(w){return '<li>'+esc(w)+'</li>';}).join("")+'</ul></div>';
+    }
+    body += '<div class="baseapp-cards">';
+    BASE_APP_POSICOES.forEach(function(pos){ if(bi.plan[pos]) body += renderBaseAppPlanCard(bi.plan[pos]); });
+    body += '</div>';
+    if(bi.warnings && bi.warnings.length){
+      body += '<label class="baseapp-ciente"><input type="checkbox" data-action="baseapp-ciente-toggle" '+(bi.cienteAlertas?"checked":"")+'> Estou ciente das inconsistências acima e quero prosseguir assim mesmo.</label>';
+    }
+    if(bi.error) body += '<div class="error-msg" style="margin-top:8px;">'+esc(bi.error)+'</div>';
+    var podeConfirmar = (!bi.warnings || !bi.warnings.length || bi.cienteAlertas) && !bi.busy;
+    body += '<div style="display:flex;gap:8px;margin-top:10px;">' +
+      '<button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Cancelar</button>' +
+      '<button class="btn btn-primary" style="flex:1;" '+(podeConfirmar?"":"disabled")+' data-action="baseapp-confirmar">'+(bi.busy?"Gravando…":"Confirmar e importar")+'</button>' +
+    '</div>';
+  } else if(bi.step==="concluido"){
+    body += '<div class="hint">Importação concluída com sucesso.</div>';
+    body += '<div class="baseapp-cards">' + (bi.resultados||[]).map(function(r){
+      var acaoLabel = r.acao==="nenhuma" ? "sem alteração" : r.acao==="papel" ? "papel atualizado" : r.acao==="nova" ? "nova programação criada" : "nova versão criada";
+      return '<div class="baseapp-result-row">'+esc(r.posicao)+': '+esc(acaoLabel)+(r.programacaoId ? ' <span class="mono hint">('+esc(r.programacaoId)+')</span>' : '')+'</div>';
+    }).join("") + '</div>';
+    body += '<button class="btn btn-primary" style="width:100%;margin-top:10px;" data-action="close-modal">Fechar</button>';
+  }
+  return '' +
+  '<div class="modal-overlay" '+(bi.step==="previa"||bi.step==="concluido"?'':'data-action="close-modal"')+'>' +
+    '<div class="modal modal-wide" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Importar BASE_APP</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      body +
+    '</div>' +
+  '</div>';
+}
 function renderNecPrevQuick(g, eff){
   var key = g.key;
   var busy = !!(state.necBusy && state.necBusy[key]);
@@ -1463,6 +1673,7 @@ function renderModal(){
   if(state.modal==="espelho") return renderEspelhoModal();
   if(state.modal==="audit") return renderAuditModal();
   if(state.modal==="confirm-status") return renderConfirmStatusModal();
+  if(state.modal==="baseapp-import") return renderBaseAppImportModal();
   return "";
 }
 function renderNewToolModal(){
@@ -1671,8 +1882,29 @@ function bindApp(){
   });
 
   app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
-    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; render(); });
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; state.baseAppImport=null; render(); });
   });
+
+  app.querySelectorAll('[data-action="toggle-prog-secao"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var p = el.getAttribute("data-papel");
+      state.correcaoSecaoRecolhida[p] = !state.correcaoSecaoRecolhida[p];
+      render();
+    });
+  });
+  var openBaseAppBtn = app.querySelector('[data-action="open-baseapp-import"]');
+  if(openBaseAppBtn) openBaseAppBtn.addEventListener("click", function(){
+    state.modal="baseapp-import"; state.baseAppImport={ step:"pick" };
+    render();
+  });
+  var baseAppFile = document.getElementById("baseapp-file");
+  if(baseAppFile) baseAppFile.addEventListener("change", function(){ if(baseAppFile.files && baseAppFile.files[0]) handleBaseAppFile(baseAppFile.files[0]); });
+  var baseAppCienteChk = app.querySelector('[data-action="baseapp-ciente-toggle"]');
+  if(baseAppCienteChk) baseAppCienteChk.addEventListener("change", function(){
+    state.baseAppImport.cienteAlertas = baseAppCienteChk.checked; render();
+  });
+  var baseAppConfirmBtn = app.querySelector('[data-action="baseapp-confirmar"]');
+  if(baseAppConfirmBtn) baseAppConfirmBtn.addEventListener("click", doConfirmBaseAppImport);
 
   var openImportBtn = app.querySelector('[data-action="open-import"]');
   if(openImportBtn) openImportBtn.addEventListener("click", function(){
@@ -1787,7 +2019,7 @@ function bindApp(){
     el.addEventListener("click", function(){ quickSetPrevisao(el.getAttribute("data-key"), parseInt(el.getAttribute("data-value"),10)); });
   });
   app.querySelectorAll('[data-action="mark-urgent"]').forEach(function(el){
-    el.addEventListener("click", function(){ marcarUrgente(el.getAttribute("data-codigo"), el.getAttribute("data-prensa"), el.getAttribute("data-data")); });
+    el.addEventListener("click", function(){ marcarUrgente(el.getAttribute("data-codigo"), el.getAttribute("data-prensa"), el.getAttribute("data-data"), el.getAttribute("data-programacao-id")||null); });
   });
   app.querySelectorAll('[data-action="close-urgent"]').forEach(function(el){
     el.addEventListener("click", function(){ encerrarUrgencia(el.getAttribute("data-key"), el.getAttribute("data-codigo")); });
@@ -1821,7 +2053,7 @@ function findGroup(key){ return getCorrecaoGroups().find(function(g){return g.ke
 function toggleNecOk(key){
   var eff = effectiveNecStatus(key);
   var g = findGroup(key);
-  var base = { codigo: g&&g.codigo, prensa: g&&g.prensa, data: g&&g.data };
+  var base = { codigo: g&&g.codigo, prensa: g&&g.prensa, data: g&&g.data, programacaoId: g&&g.programacaoId };
   if(eff.status==="OK"){
     state.necPending[key] = Object.assign({}, base, { status:"Pendente", previsaoLiberacao:null, observacaoCorrecao: eff.observacaoCorrecao||"" });
   } else {
@@ -1832,7 +2064,7 @@ function toggleNecOk(key){
 function setNecField(key, field, value){
   var eff = effectiveNecStatus(key);
   var g = findGroup(key);
-  var draft = state.necPending[key] || { status:eff.status, previsaoLiberacao:eff.previsaoLiberacao, observacaoCorrecao:eff.observacaoCorrecao, codigo:g&&g.codigo, prensa:g&&g.prensa, data:g&&g.data };
+  var draft = state.necPending[key] || { status:eff.status, previsaoLiberacao:eff.previsaoLiberacao, observacaoCorrecao:eff.observacaoCorrecao, codigo:g&&g.codigo, prensa:g&&g.prensa, data:g&&g.data, programacaoId:g&&g.programacaoId };
   draft[field] = value;
   state.necPending[key] = draft;
   render();
@@ -1844,7 +2076,7 @@ function markAllOk(){
   if(!confirm("Marcar todas as "+groups.length+" ferramentas de "+prensaLabel+" como OK?")) return;
   groups.forEach(function(g){
     var eff = effectiveNecStatus(g.key);
-    state.necPending[g.key] = { status:"OK", previsaoLiberacao:null, observacaoCorrecao: eff.observacaoCorrecao||"", codigo:g.codigo, prensa:g.prensa, data:g.data };
+    state.necPending[g.key] = { status:"OK", previsaoLiberacao:null, observacaoCorrecao: eff.observacaoCorrecao||"", codigo:g.codigo, prensa:g.prensa, data:g.data, programacaoId:g.programacaoId };
   });
   render();
 }
@@ -1872,7 +2104,9 @@ function saveNecStatusWrite(key, draft, now){
     if(existing){
       return ref.update(Object.assign({}, base, { historico: state.db.arrayUnion(histEntry) }));
     } else {
-      return ref.set(Object.assign({}, base, { codigo: draft.codigo, prensa: draft.prensa, data: draft.data, historico: [histEntry] }));
+      var novo = { codigo: draft.codigo, prensa: draft.prensa, data: draft.data, historico: [histEntry] };
+      if(draft.programacaoId) novo.programacaoId = draft.programacaoId;
+      return ref.set(Object.assign({}, base, novo));
     }
   });
 }
@@ -1935,7 +2169,7 @@ function quickSetStatus(key, statusValue){
     status: statusValue,
     previsaoLiberacao: statusValue==="OK" ? null : (eff.previsaoLiberacao||null),
     observacaoCorrecao: eff.observacaoCorrecao||"",
-    codigo: g.codigo, prensa: g.prensa, data: g.data
+    codigo: g.codigo, prensa: g.prensa, data: g.data, programacaoId: g.programacaoId
   };
   delete state.necPending[key]; // a ação rápida grava direto; não deixa uma edição em lote pendente e desatualizada
   state.necBusy[key] = true;
@@ -1963,7 +2197,7 @@ function quickSetPrevisao(key, days){
     status: eff.status,
     previsaoLiberacao: addDaysStr(days),
     observacaoCorrecao: eff.observacaoCorrecao||"",
-    codigo: g.codigo, prensa: g.prensa, data: g.data
+    codigo: g.codigo, prensa: g.prensa, data: g.data, programacaoId: g.programacaoId
   };
   delete state.necPending[key];
   state.necBusy[key] = true;
@@ -2017,13 +2251,14 @@ function withPermissionRetry(fn){
 }
 function upsertNecessidadeDelta(t, sign){
   if(!state.db) return Promise.resolve();
-  var key = necDocId(t.codigo, t.prensa, t.dataProgramacao);
+  var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
   var kg = (t.quantidadeKg||0) * sign;
   var body = {
     codigo: t.codigo, prensa: t.prensa, data: t.dataProgramacao,
     kgTotal: state.db.increment(kg),
     count: state.db.increment(sign)
   };
+  if(t.programacaoId) body.programacaoId = t.programacaoId;
   if(t.tipo==="Reserva") body.kgReserva = state.db.increment(kg); else body.kgProgramacao = state.db.increment(kg);
   if(sign>0 && t.observacaoPCP) body.observacoes = state.db.arrayUnion(t.observacaoPCP);
   return state.db.doc("necessidades/"+key).set(body, {merge:true});
@@ -2081,19 +2316,21 @@ function deleteTool(id){
    necessidades/status (código+prensa+data), numa coleção própria
    ("urgencias"), para não misturar com o histórico de status que é
    escrito exclusivamente pela Correção. */
-function marcarUrgente(codigo, prensa, data){
-  var key = necDocId(codigo, prensa, data);
+function marcarUrgente(codigo, prensa, data, programacaoId){
+  var key = necDocId(codigo, prensa, data, programacaoId);
   if(!confirm("Marcar "+codigo+" como URGENTE para a Correção?")) return;
   if(!state.db) return;
+  var body = {
+    codigo: codigo, prensa: prensa, data: data,
+    urgente: true,
+    criadoEm: state.db.serverTimestamp(),
+    criadoPor: { uid: state.user.uid, nome: state.user.nome },
+    reconhecida: false, reconhecidaEm: null, reconhecidaPor: null,
+    encerradaEm: null, encerradaPor: null
+  };
+  if(programacaoId) body.programacaoId = programacaoId;
   return withPermissionRetry(function(){
-    return state.db.doc("urgencias/"+key).set({
-      codigo: codigo, prensa: prensa, data: data,
-      urgente: true,
-      criadoEm: state.db.serverTimestamp(),
-      criadoPor: { uid: state.user.uid, nome: state.user.nome },
-      reconhecida: false, reconhecidaEm: null, reconhecidaPor: null,
-      encerradaEm: null, encerradaPor: null
-    });
+    return state.db.doc("urgencias/"+key).set(body);
   }).then(function(){ state.toast = codigo+": marcado como URGENTE para a Correção."; render(); })
     .catch(function(err){ state.toast = "Erro ao marcar urgência: "+(err&&err.message||""); render(); });
 }
@@ -2713,6 +2950,382 @@ function doConfirmEspelhoSync(){
   });
 }
 
+/* ================= BASE_APP IMPORT (Etapa 3) =================
+   Único caminho de importação de "programação" a partir desta etapa.
+   Lê EXCLUSIVAMENTE a aba BASE_APP (contrato normalizado gerado pelo
+   VBA) — nunca abas datadas, nunca PROG. DO DIA/NOITE/FUTURA, nunca
+   TOTAL/RESERVA por layout, nunca células mescladas, nunca o cabeçalho
+   "Programação P7"...". Toda essa complexidade agora é responsabilidade
+   exclusiva do Excel/VBA. Se a aba BASE_APP não existir, a importação é
+   BLOQUEADA com mensagem clara — não há fallback para o importador
+   genérico nem para o sincronizador do Espelho (que continuam existindo,
+   intocados, para outros usos). */
+var BASE_APP_SHEET_NAME = "BASE_APP";
+var BASE_APP_REQUIRED_COLS = ["POSICAO_PROGRAMACAO","ORIGEM","DATA_PROGRAMACAO","TURNO","PRENSA","FERRAMENTA","CLIENTE","QUANTIDADE_KG","CORTE","LIGA","OBSERVACAO","ORDEM_ORIGEM","CHAVE_ORIGEM","SECAO"];
+var BASE_APP_POSICOES = ["ATUAL","PROXIMA","FUTURA"];
+var BASE_APP_PAPEL_MAP = { ATUAL:"atual", PROXIMA:"proxima", FUTURA:"futura" };
+
+function baseAppFindHeaderRow(grid){
+  for(var i=0;i<Math.min(grid.length,40);i++){
+    if(grid[i] && normalizeHeader(grid[i][0])==="POSICAO_PROGRAMACAO") return i;
+  }
+  return -1;
+}
+function baseAppColMap(grid, headerRowIndex){
+  var header = grid[headerRowIndex]||[];
+  var map = {};
+  header.forEach(function(cell, idx){
+    var h = normalizeHeader(cell).replace(/\s+/g,"_");
+    BASE_APP_REQUIRED_COLS.forEach(function(name){ if(h===name) map[name]=idx; });
+  });
+  return map;
+}
+// Lê a célula BRUTA (não o texto formatado) para nunca perder ano/hora
+// nem depender de locale — mesmo padrão já usado e testado para o
+// "EMITIDO EM" do Espelho (espReadEmitidoEmCell).
+function baseAppReadDateCell(sheet, rowIdx, colIdx){
+  var addr = espColLetter(colIdx) + (rowIdx+1);
+  var cell = sheet[addr];
+  if(cell && cell.t==="n" && typeof cell.v==="number" && window.XLSX && XLSX.SSF && XLSX.SSF.parse_date_code){
+    var d = XLSX.SSF.parse_date_code(cell.v);
+    if(d && d.y>1900 && d.y<2200){
+      var pad2 = function(n){ return ("0"+Math.floor(n)).slice(-2); };
+      return d.y+"-"+pad2(d.m)+"-"+pad2(d.d);
+    }
+  }
+  return null;
+}
+function baseAppReadNumCell(sheet, rowIdx, colIdx){
+  var addr = espColLetter(colIdx) + (rowIdx+1);
+  var cell = sheet[addr];
+  if(cell && cell.t==="n" && typeof cell.v==="number") return cell.v;
+  if(cell && cell.v!=null && cell.v!==""){ var n=parseFloat(cell.v); if(!isNaN(n)) return n; }
+  return null;
+}
+// BASE_APP entrega TURNO como "DIA"/"NOITE" (maiúsculo); o resto do app
+// usa "Dia"/"Noite" em toda parte (filtros, renderCard, necDocId indireto
+// via t.turno). Normaliza aqui, uma única vez, para nunca vazar o valor
+// bruto do Excel para dentro do app.
+function normTurnoBaseApp(v){
+  var t = normalizeHeader(v);
+  if(t==="DIA") return "Dia";
+  if(t==="NOITE") return "Noite";
+  return (v||"").toString().trim();
+}
+function parseBaseAppSheet(wb){
+  var sheetName = (wb.SheetNames||[]).filter(function(n){ return n===BASE_APP_SHEET_NAME; })[0];
+  if(!sheetName){
+    return { error: 'Importação não realizada. A aba "BASE_APP" não foi encontrada neste arquivo — este importador só aceita a BASE_APP gerada pelo Excel/VBA. Verifique se enviou o arquivo certo.' };
+  }
+  var sheet = wb.Sheets[sheetName];
+  var grid = sheetToGrid(sheet);
+  var headerRowIndex = baseAppFindHeaderRow(grid);
+  if(headerRowIndex===-1){
+    return { error: 'Importação não realizada. Cabeçalho da BASE_APP não encontrado (coluna "POSICAO_PROGRAMACAO" ausente). A aba existe, mas não está no formato esperado.' };
+  }
+  var colMap = baseAppColMap(grid, headerRowIndex);
+  var missing = BASE_APP_REQUIRED_COLS.filter(function(c){ return colMap[c]===undefined; });
+  if(missing.length){
+    return { error: 'Importação não realizada. Coluna(s) não encontrada(s) na BASE_APP: ' + missing.join(", ") + "." };
+  }
+  var records = [];
+  for(var r=headerRowIndex+1; r<grid.length; r++){
+    var row = grid[r];
+    if(!row) continue;
+    var cell = function(name){ var idx=colMap[name]; return idx===undefined? "" : (row[idx]==null? "" : row[idx].toString()); };
+    var posicao = cell("POSICAO_PROGRAMACAO").trim().toUpperCase();
+    var ferramenta = cell("FERRAMENTA").trim();
+    var origem = cell("ORIGEM").trim();
+    var chaveOrigem = cell("CHAVE_ORIGEM").trim();
+    if(!posicao && !ferramenta && !origem && !chaveOrigem) continue; // linha totalmente vazia -- fim da tabela
+    records.push({
+      _excelRow: r+1,
+      posicao: posicao,
+      origem: origem,
+      dataProgramacao: baseAppReadDateCell(sheet, r, colMap["DATA_PROGRAMACAO"]),
+      turno: normTurnoBaseApp(cell("TURNO")),
+      turnoBruto: cell("TURNO").trim(),
+      prensa: cell("PRENSA").trim().toUpperCase(),
+      ferramenta: ferramenta,
+      cliente: cell("CLIENTE").trim(),
+      quantidadeKg: baseAppReadNumCell(sheet, r, colMap["QUANTIDADE_KG"]),
+      corte: cell("CORTE").trim(),
+      liga: cell("LIGA").trim(),
+      observacao: cell("OBSERVACAO").trim(),
+      ordemOrigem: cell("ORDEM_ORIGEM").trim() ? parseInt(cell("ORDEM_ORIGEM"),10) : null,
+      chaveOrigem: chaveOrigem,
+      secao: cell("SECAO").trim().toUpperCase()
+    });
+  }
+  return { sheetName: sheetName, records: records };
+}
+function baseAppUniq(arr){ var seen={}; return arr.filter(function(v){ if(seen[v]) return false; seen[v]=true; return true; }); }
+// Validações defensivas do app, mesmo confiando no VBA — a BASE_APP real
+// analisada continha pelo menos 1 linha com FERRAMENTA vazia (um "TOTAL"
+// vazado da consolidação) mesmo com o banner "SEM DIVERGÊNCIAS"; por
+// isso essas checagens nunca são puladas.
+function validateBaseAppRecords(records){
+  var errors = [], warnings = [];
+  if(!records.length){ errors.push("Nenhuma linha de dados encontrada na BASE_APP."); return { errors:errors, warnings:warnings }; }
+
+  records.forEach(function(rec){
+    var loc = "Linha "+rec._excelRow;
+    if(BASE_APP_POSICOES.indexOf(rec.posicao)===-1) errors.push(loc+": POSICAO_PROGRAMACAO inválida ("+(rec.posicao||"vazia")+").");
+    if(!rec.ferramenta) errors.push(loc+": FERRAMENTA vazia.");
+    if(rec.quantidadeKg==null) errors.push(loc+": QUANTIDADE_KG ausente.");
+    else if(rec.quantidadeKg<=0) errors.push(loc+": QUANTIDADE_KG deve ser maior que zero (encontrado "+rec.quantidadeKg+").");
+    if(["P7","P4"].indexOf(rec.prensa)===-1) errors.push(loc+": PRENSA inválida ("+(rec.prensa||"vazia")+").");
+    if(["Dia","Noite"].indexOf(rec.turno)===-1) errors.push(loc+": TURNO inválido ("+(rec.turnoBruto||"vazio")+").");
+    if(!rec.dataProgramacao) errors.push(loc+": DATA_PROGRAMACAO inválida ou ausente.");
+    if(!rec.chaveOrigem) errors.push(loc+": CHAVE_ORIGEM ausente.");
+    if(["PRINCIPAL","RESERVA"].indexOf(rec.secao)===-1) errors.push(loc+": SECAO inválida ("+(rec.secao||"vazia")+") — esperado PRINCIPAL ou RESERVA.");
+  });
+
+  var chaveCounts = {};
+  records.forEach(function(rec){ if(rec.chaveOrigem) chaveCounts[rec.chaveOrigem]=(chaveCounts[rec.chaveOrigem]||0)+1; });
+  Object.keys(chaveCounts).forEach(function(k){ if(chaveCounts[k]>1) errors.push("CHAVE_ORIGEM duplicada: "+k+" ("+chaveCounts[k]+"x)."); });
+
+  var porPosicao = {};
+  records.forEach(function(rec){
+    if(BASE_APP_POSICOES.indexOf(rec.posicao)===-1) return;
+    if(!porPosicao[rec.posicao]) porPosicao[rec.posicao]=[];
+    porPosicao[rec.posicao].push(rec);
+  });
+  var origemToPosicoes = {};
+  Object.keys(porPosicao).forEach(function(pos){
+    var recs = porPosicao[pos];
+    var datas = baseAppUniq(recs.map(function(r){return r.dataProgramacao;}).filter(Boolean));
+    var turnos = baseAppUniq(recs.map(function(r){return r.turno;}).filter(Boolean));
+    if(datas.length>1) errors.push(pos+": DATA_PROGRAMACAO incoerente entre linhas da mesma posição ("+datas.join(", ")+").");
+    if(turnos.length>1) errors.push(pos+": TURNO incoerente entre linhas da mesma posição ("+turnos.join(", ")+").");
+    var origem = recs[0] && recs[0].origem;
+    if(origem){ if(!origemToPosicoes[origem]) origemToPosicoes[origem]=[]; origemToPosicoes[origem].push(pos); }
+  });
+  Object.keys(origemToPosicoes).forEach(function(origem){
+    var posicoes = baseAppUniq(origemToPosicoes[origem]);
+    if(posicoes.length>1) errors.push('A mesma ORIGEM ("'+origem+'") está selecionada em mais de uma posição: '+posicoes.join(", ")+".");
+  });
+
+  // Ordem cronológica -- ALERTA (não bloqueia); a prioridade operacional
+  // escolhida pelo PCP prevalece, mas a inconsistência precisa ficar
+  // visível e exigir confirmação explícita antes de prosseguir.
+  var slots = {};
+  Object.keys(porPosicao).forEach(function(pos){
+    var recs = porPosicao[pos];
+    if(recs.length && recs[0].dataProgramacao) slots[pos] = { data: recs[0].dataProgramacao, turno: recs[0].turno };
+  });
+  function slotOrdem(s){ return s ? (s.data + (s.turno==="Noite" ? "_2" : "_1")) : null; }
+  if(slots.ATUAL && slots.PROXIMA && slotOrdem(slots.PROXIMA) < slotOrdem(slots.ATUAL)){
+    warnings.push("PRÓXIMA ("+fmtDateBR(slots.PROXIMA.data)+" — "+slots.PROXIMA.turno+") é cronologicamente anterior a ATUAL ("+fmtDateBR(slots.ATUAL.data)+" — "+slots.ATUAL.turno+"). Confira se a seleção está correta.");
+  }
+  if(slots.ATUAL && slots.FUTURA && slotOrdem(slots.FUTURA) < slotOrdem(slots.ATUAL)){
+    warnings.push("FUTURA ("+fmtDateBR(slots.FUTURA.data)+" — "+slots.FUTURA.turno+") é cronologicamente anterior a ATUAL ("+fmtDateBR(slots.ATUAL.data)+" — "+slots.ATUAL.turno+"). Confira se a seleção está correta.");
+  }
+
+  return { errors: errors, warnings: warnings };
+}
+function baseAppGroupByPosicao(records){
+  var groups = {};
+  records.forEach(function(r){
+    if(BASE_APP_POSICOES.indexOf(r.posicao)===-1) return;
+    if(!groups[r.posicao]) groups[r.posicao]=[];
+    groups[r.posicao].push(r);
+  });
+  return groups;
+}
+// Hash determinístico de conteúdo (djb2) — não criptográfico, só precisa
+// detectar mudança de conteúdo de forma estável. ORIGEM/CHAVE_ORIGEM/
+// ORDEM_ORIGEM/POSICAO_PROGRAMACAO ficam DE FORA de propósito: descrevem
+// de onde o dado veio no Excel, não o que o dado é — incluí-los geraria
+// falso "conteúdo mudou" toda vez que a mesma programação fosse digitada
+// numa aba nova. As linhas são ordenadas antes de hashear para que a
+// ordem de digitação no Excel nunca afete o resultado.
+function baseAppHashString(s){
+  var h = 5381;
+  for(var i=0;i<s.length;i++){ h = ((h*33) ^ s.charCodeAt(i)) >>> 0; }
+  return h.toString(36);
+}
+function computeConteudoHash(records){
+  var linhas = records.map(function(r){
+    return [r.prensa, r.ferramenta, r.cliente||"", r.quantidadeKg, r.corte||"", r.liga||"", r.observacao||"", r.secao].join("§");
+  });
+  linhas.sort();
+  return baseAppHashString(linhas.join("¶"));
+}
+function baseAppFindVigenteParaSlot(data, turno){
+  var keys = Object.keys(state.programacoesByKey);
+  for(var i=0;i<keys.length;i++){
+    var p = state.programacoesByKey[keys[i]];
+    if(p.vigente && p.data===data && p.turno===turno) return Object.assign({id:keys[i]}, p);
+  }
+  return null;
+}
+function baseAppDiffContent(oldProgramacaoId, newRecs){
+  var oldRows = state.ferramentas.filter(function(t){ return t.programacaoId===oldProgramacaoId; });
+  function ident(prensa,ferramenta,kg){ return prensa+"|"+ferramenta+"|"+kg; }
+  var oldSet = {}; oldRows.forEach(function(t){ oldSet[ident(t.prensa,t.codigo,t.quantidadeKg)]=true; });
+  var newSet = {}; newRecs.forEach(function(r){ newSet[ident(r.prensa,r.ferramenta,r.quantidadeKg)]=true; });
+  var added=0, removed=0, kgOld=0, kgNew=0;
+  oldRows.forEach(function(t){ kgOld += (t.quantidadeKg||0); if(!newSet[ident(t.prensa,t.codigo,t.quantidadeKg)]) removed++; });
+  newRecs.forEach(function(r){ kgNew += (r.quantidadeKg||0); if(!oldSet[ident(r.prensa,r.ferramenta,r.quantidadeKg)]) added++; });
+  return { added: added, removed: removed, kgDelta: Math.round((kgNew-kgOld)*100)/100 };
+}
+// Monta o plano de importação: para cada posição presente, decide se é
+// NOVA / SEM_ALTERACAO / MUDANCA_PAPEL / NOVA_VERSAO comparando contra a
+// programação vigente do mesmo slot (data+turno), via conteudoHash.
+// Puramente de leitura/cálculo — nenhuma escrita acontece aqui.
+function baseAppBuildPlan(recordsByPosicao){
+  var plan = {};
+  Object.keys(recordsByPosicao).forEach(function(posicao){
+    var recs = recordsByPosicao[posicao];
+    if(!recs.length) return;
+    var data = recs[0].dataProgramacao;
+    var turno = recs[0].turno;
+    var origem = recs[0].origem;
+    var hash = computeConteudoHash(recs);
+    var existing = baseAppFindVigenteParaSlot(data, turno);
+    var papel = BASE_APP_PAPEL_MAP[posicao];
+    var situacao;
+    if(!existing) situacao = "NOVA";
+    else if(existing.conteudoHash===hash) situacao = (existing.papel===papel) ? "SEM_ALTERACAO" : "MUDANCA_PAPEL";
+    else situacao = "NOVA_VERSAO";
+    var totais = { P7:{n:0,kg:0}, P4:{n:0,kg:0} };
+    var secaoCount = { PRINCIPAL:0, RESERVA:0 };
+    recs.forEach(function(r){
+      if(totais[r.prensa]){ totais[r.prensa].n++; totais[r.prensa].kg = Math.round((totais[r.prensa].kg+(r.quantidadeKg||0))*100)/100; }
+      if(secaoCount[r.secao]!==undefined) secaoCount[r.secao]++;
+    });
+    plan[posicao] = {
+      posicao: posicao, papel: papel, data: data, turno: turno, origem: origem,
+      hash: hash, records: recs, totais: totais, secaoCount: secaoCount,
+      situacao: situacao, existing: existing,
+      diff: situacao==="NOVA_VERSAO" ? baseAppDiffContent(existing.id, recs) : null
+    };
+  });
+  return plan;
+}
+function baseAppPrepareImport(wb){
+  var parsed = parseBaseAppSheet(wb);
+  if(parsed.error){ state.baseAppImport = { step:"erro", error: parsed.error }; render(); return; }
+  var val = validateBaseAppRecords(parsed.records);
+  if(val.errors.length){
+    state.baseAppImport = { step:"erro-validacao", errors: val.errors, warnings: val.warnings };
+    render(); return;
+  }
+  var groups = baseAppGroupByPosicao(parsed.records);
+  var plan = baseAppBuildPlan(groups);
+  if(!Object.keys(plan).length){
+    state.baseAppImport = { step:"erro-validacao", errors:["Nenhuma posição válida (ATUAL/PROXIMA/FUTURA) encontrada na BASE_APP."], warnings:[] };
+    render(); return;
+  }
+  state.baseAppImport = { step:"previa", warnings: val.warnings, plan: plan, cienteAlertas:false, busy:false, error:"", resultados:null };
+  render();
+}
+function handleBaseAppFile(file){
+  state.baseAppImport = { step:"carregando" };
+  render();
+  ensureXLSX(function(){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:"array"});
+        baseAppPrepareImport(wb);
+      }catch(err){
+        state.baseAppImport = { step:"erro", error: "Erro ao ler arquivo: "+(err&&err.message||"") };
+        render();
+      }
+    };
+    reader.onerror = function(){ state.baseAppImport = { step:"erro", error:"Erro ao ler arquivo." }; render(); };
+    reader.readAsArrayBuffer(file);
+  });
+}
+function baseAppGenerateProgramacaoId(){
+  var now = new Date();
+  var pad2 = function(n){ return ("0"+n).slice(-2); };
+  var ts = now.getFullYear()+pad2(now.getMonth()+1)+pad2(now.getDate())+"-"+pad2(now.getHours())+pad2(now.getMinutes())+pad2(now.getSeconds());
+  var rand = Math.random().toString(36).slice(2,6);
+  return "PROG-"+ts+"-"+rand;
+}
+function baseAppBuildFerramentaDoc(rec, programacaoId, now){
+  return {
+    codigo: rec.ferramenta, cliente: rec.cliente, quantidadeKg: rec.quantidadeKg,
+    corte: rec.corte, liga: rec.liga, tipo: (rec.secao==="RESERVA" ? "Reserva" : "Programação"),
+    prensa: rec.prensa, turno: rec.turno, dataProgramacao: rec.dataProgramacao,
+    observacaoPCP: rec.observacao||"",
+    solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
+    criadoEm: now, programacaoId: programacaoId, chaveOrigem: rec.chaveOrigem, origemBase: "BASE_APP"
+  };
+}
+// Gravação segura de UMA posição do plano. NOVA/NOVA_VERSAO: grava TODOS
+// os documentos novos primeiro (ferramentas + necessidades), e só cria o
+// doc de programacoes (que é o que efetivamente "ativa" a nova versão)
+// depois de tudo confirmado — e só DEPOIS DISSO, como último passo,
+// aposenta a versão anterior (papel:"historica", vigente:false). Se
+// qualquer coisa falhar antes do doc de programacoes ser criado, nada
+// muda do ponto de vista operacional: a versão anterior continua
+// vigente, e os documentos novos ficam órfãos (sem nenhum programacoes
+// vigente apontando pra eles) — logo isRecordActive nunca os mostra.
+function baseAppWritePosicao(entry){
+  if(entry.situacao==="SEM_ALTERACAO") return Promise.resolve({posicao:entry.posicao, ok:true, acao:"nenhuma", programacaoId: entry.existing && entry.existing.id});
+  if(entry.situacao==="MUDANCA_PAPEL"){
+    return withPermissionRetry(function(){
+      return state.db.doc("programacoes/"+entry.existing.id).update({ papel: entry.papel });
+    }).then(function(){ return {posicao:entry.posicao, ok:true, acao:"papel", programacaoId:entry.existing.id}; })
+      .catch(function(err){ return {posicao:entry.posicao, ok:false, erro: err&&err.message}; });
+  }
+  var novoId = baseAppGenerateProgramacaoId();
+  var now = new Date().toISOString();
+  var writes = entry.records.map(function(rec){
+    var doc = baseAppBuildFerramentaDoc(rec, novoId, now);
+    return withPermissionRetry(function(){
+      return state.db.collection("ferramentas").add(doc).then(function(){ return upsertNecessidadeDelta(doc, 1); });
+    });
+  });
+  return Promise.all(writes).then(function(){
+    return withPermissionRetry(function(){
+      return state.db.doc("programacoes/"+novoId).set({
+        programacaoId: novoId, data: entry.data, turno: entry.turno, papel: entry.papel, vigente: true,
+        substituiId: entry.existing ? entry.existing.id : null, substituidaPorId: null,
+        conteudoHash: entry.hash, origemBase: "BASE_APP", origemAba: entry.origem,
+        criadaEm: state.db.serverTimestamp(), criadaPor: { uid: state.user.uid, nome: state.user.nome },
+        substituidaEm: null, encerradaEm: null, encerradaPor: null, totais: entry.totais
+      });
+    });
+  }).then(function(){
+    if(!entry.existing) return Promise.resolve();
+    return withPermissionRetry(function(){
+      return state.db.doc("programacoes/"+entry.existing.id).update({
+        papel: "historica", vigente: false, substituidaPorId: novoId, substituidaEm: state.db.serverTimestamp()
+      });
+    });
+  }).then(function(){
+    return {posicao:entry.posicao, ok:true, acao: entry.situacao==="NOVA"?"nova":"nova_versao", programacaoId:novoId};
+  }).catch(function(err){
+    return {posicao:entry.posicao, ok:false, erro: err&&err.message, programacaoIdParcial:novoId};
+  });
+}
+function doConfirmBaseAppImport(){
+  var bi = state.baseAppImport;
+  if(!bi || bi.step!=="previa" || bi.busy || !state.db) return;
+  bi.busy = true; bi.error=""; render();
+  var entries = Object.keys(bi.plan).map(function(k){ return bi.plan[k]; });
+  Promise.all(entries.map(baseAppWritePosicao)).then(function(resultados){
+    bi.busy = false;
+    var falhas = resultados.filter(function(r){ return !r.ok; });
+    if(falhas.length){
+      bi.error = "Falha ao gravar " + falhas.map(function(f){ return f.posicao+" ("+(f.erro||"erro desconhecido")+")"; }).join("; ") + ". As posições que já foram gravadas com sucesso permanecem válidas; tente novamente para as que falharam.";
+      bi.resultados = resultados;
+      render();
+      return;
+    }
+    bi.step = "concluido";
+    bi.resultados = resultados;
+    state.toast = "BASE_APP importada com sucesso.";
+    render();
+  });
+}
+
 /* ================= SUBSCRIPTIONS ================= */
 function startSubs(){
   if(!state.db) return;
@@ -2750,6 +3363,18 @@ function startSubs(){
       state.statusByKey = map;
       render();
     }, function(err){ /* status is supplementary; keep going without it */ });
+  }
+  // Coleção programacoes (Etapa 3) — lida por PCP e Correção (os dois
+  // precisam de isRecordActive funcionando corretamente nos seus próprios
+  // filtros). Enquanto nenhum doc existir (estado de hoje), o mapa fica
+  // vazio e isRecordActive() é um no-op — comportamento idêntico à v1.2.
+  if(!state.unsubProgramacoes){
+    state.unsubProgramacoes = state.db.collection("programacoes").limit(500).onSnapshot(function(snap){
+      var map = {};
+      snap.docs.forEach(function(d){ map[d.id] = d.data(); });
+      state.programacoesByKey = map;
+      render();
+    }, function(err){ /* preparatório e informativo; nunca bloqueia o resto do app */ });
   }
   if(!state.unsubUrgencias){
     state.unsubUrgencias = state.db.collection("urgencias").limit(500).onSnapshot(function(snap){
