@@ -435,6 +435,16 @@ html.modal-open, body.modal-open{ overflow:hidden; overscroll-behavior:none; }
 }
 .prev-opt.selected{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
 
+/* ---------- Confirmação de mudança de status ---------- */
+.confirm-status-block{display:flex;flex-direction:column;gap:10px;padding:4px 0 8px;}
+.confirm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.confirm-row .lbl{font-size:12.5px;color:var(--text-muted);font-weight:600;}
+.confirm-row .val{font-size:15px;font-weight:700;}
+.confirm-batch-list{display:flex;flex-direction:column;gap:2px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 8px;margin-bottom:12px;}
+.confirm-batch-item{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:7px 2px;border-bottom:1px dashed var(--border);}
+.confirm-batch-item:last-child{border-bottom:none;}
+.confirm-arrow{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-faint);}
+
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);
   padding:11px 18px;border-radius:8px;font-size:13.5px;font-weight:600;z-index:80;box-shadow:var(--shadow);
@@ -770,7 +780,8 @@ var state = {
   necBusy: {},
   urgenciasByKey: {},
   unsubUrgencias: null,
-  urgentPulseUntil: {}
+  urgentPulseUntil: {},
+  confirmStatus: null
 };
 
 var app = document.getElementById("app");
@@ -1384,6 +1395,52 @@ function renderNecQuickActions(g, eff){
       ' data-action="quick-nec-status" data-key="'+key+'" data-value="'+esc(a.status)+'" onclick="event.stopPropagation()">'+esc(a.label)+'</button>';
   }).join("") + '</div>';
 }
+// Modal de confirmação antes de QUALQUER gravação de status (ação rápida
+// individual ou lote via "Salvar"). Puramente de exibição — não grava
+// nada; a gravação em si continua acontecendo pelas mesmas funções de
+// sempre (quickSetStatus / savePendingChanges), chamadas só depois do
+// clique em Confirmar.
+function renderConfirmStatusModal(){
+  var c = state.confirmStatus;
+  if(!c) return "";
+  var body = "";
+  if(c.kind==="quick"){
+    var mAtual = STATUS_META[c.statusAtual] || STATUS_META["Pendente"];
+    var mNovo = STATUS_META[c.statusNovo] || STATUS_META["Pendente"];
+    body += '<div class="confirm-status-block">' +
+      '<div class="confirm-row"><span class="lbl">Ferramenta</span><span class="val mono">'+esc(c.codigo)+'</span></div>' +
+      '<div class="confirm-row"><span class="lbl">Status atual</span><span class="status-badge sm" style="background:var(--st-'+mAtual.v+'-bg);color:var(--st-'+mAtual.v+');">'+esc(mAtual.label)+'</span></div>' +
+      '<div class="confirm-row"><span class="lbl">Novo status</span><span class="status-badge sm" style="background:var(--st-'+mNovo.v+'-bg);color:var(--st-'+mNovo.v+');">'+esc(mNovo.label)+'</span></div>' +
+    '</div>';
+    body += '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Cancelar</button>' +
+      '<button class="btn btn-primary" style="flex:1;" data-action="confirm-status-quick">Confirmar</button>' +
+    '</div>';
+  } else if(c.kind==="batch"){
+    body += '<div class="hint" style="margin-bottom:2px;">'+c.items.length+' alteração(ões) será(ão) realizada(s):</div>';
+    body += '<div class="confirm-batch-list">' + c.items.map(function(it){
+      var mAtual = STATUS_META[it.statusAtual] || STATUS_META["Pendente"];
+      var mNovo = STATUS_META[it.statusNovo] || STATUS_META["Pendente"];
+      return '<div class="confirm-batch-item">' +
+        '<span class="mono" style="font-weight:700;">'+esc(it.codigo)+'</span>' +
+        (it.statusChanged ?
+          '<span class="confirm-arrow"><span class="status-badge sm" style="background:var(--st-'+mAtual.v+'-bg);color:var(--st-'+mAtual.v+');">'+esc(mAtual.label)+'</span><span>→</span><span class="status-badge sm" style="background:var(--st-'+mNovo.v+'-bg);color:var(--st-'+mNovo.v+');">'+esc(mNovo.label)+'</span></span>'
+          : '<span class="hint">previsão/observação atualizada (status mantido: '+esc(mAtual.label)+')</span>') +
+      '</div>';
+    }).join("") + '</div>';
+    body += '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Cancelar</button>' +
+      '<button class="btn btn-primary" style="flex:1;" data-action="confirm-status-batch">Confirmar alterações</button>' +
+    '</div>';
+  }
+  return '' +
+  '<div class="modal-overlay" data-action="close-modal">' +
+    '<div class="modal" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>'+(c.kind==="batch"?"Confirmar alterações":"Confirmar alteração")+'</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      body +
+    '</div>' +
+  '</div>';
+}
 function renderNecPrevQuick(g, eff){
   var key = g.key;
   var busy = !!(state.necBusy && state.necBusy[key]);
@@ -1405,6 +1462,7 @@ function renderModal(){
   if(state.modal==="import") return renderImportModal();
   if(state.modal==="espelho") return renderEspelhoModal();
   if(state.modal==="audit") return renderAuditModal();
+  if(state.modal==="confirm-status") return renderConfirmStatusModal();
   return "";
 }
 function renderNewToolModal(){
@@ -1613,7 +1671,7 @@ function bindApp(){
   });
 
   app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
-    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; render(); });
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; render(); });
   });
 
   var openImportBtn = app.querySelector('[data-action="open-import"]');
@@ -1723,7 +1781,7 @@ function bindApp(){
     el.addEventListener("change", function(){ toggleNecOk(el.getAttribute("data-key")); });
   });
   app.querySelectorAll('[data-action="quick-nec-status"]').forEach(function(el){
-    el.addEventListener("click", function(){ quickSetStatus(el.getAttribute("data-key"), el.getAttribute("data-value")); });
+    el.addEventListener("click", function(){ requestQuickStatusConfirm(el.getAttribute("data-key"), el.getAttribute("data-value")); });
   });
   app.querySelectorAll('[data-action="quick-nec-prev"]').forEach(function(el){
     el.addEventListener("click", function(){ quickSetPrevisao(el.getAttribute("data-key"), parseInt(el.getAttribute("data-value"),10)); });
@@ -1749,9 +1807,13 @@ function bindApp(){
   var markAllBtn = app.querySelector('[data-action="mark-all-ok"]');
   if(markAllBtn) markAllBtn.addEventListener("click", markAllOk);
   var savePendingBtn = app.querySelector('[data-action="save-pending"]');
-  if(savePendingBtn) savePendingBtn.addEventListener("click", savePendingChanges);
+  if(savePendingBtn) savePendingBtn.addEventListener("click", requestBatchConfirm);
   var discardPendingBtn = app.querySelector('[data-action="discard-pending"]');
   if(discardPendingBtn) discardPendingBtn.addEventListener("click", function(){ state.necPending={}; render(); });
+  var confirmStatusQuickBtn = app.querySelector('[data-action="confirm-status-quick"]');
+  if(confirmStatusQuickBtn) confirmStatusQuickBtn.addEventListener("click", confirmQuickStatus);
+  var confirmStatusBatchBtn = app.querySelector('[data-action="confirm-status-batch"]');
+  if(confirmStatusBatchBtn) confirmStatusBatchBtn.addEventListener("click", confirmBatchStatus);
 }
 
 /* ================= CORREÇÃO: staged edits ================= */
@@ -1824,6 +1886,45 @@ function savePendingChanges(){
     state.toast = keys.length+" atualização(ões) salva(s).";
     render();
   }).catch(function(err){ state.toast="Erro ao salvar: "+(err&&err.message||""); render(); });
+}
+// Confirmação antes de gravar — abre o modal comparando status atual x
+// novo; a gravação em si só acontece em confirmQuickStatus/confirmBatchStatus,
+// chamando exatamente as mesmas funções de sempre (quickSetStatus/
+// savePendingChanges). Cancelar (ou fechar o modal) não altera nada.
+function requestQuickStatusConfirm(key, statusValue){
+  if(state.necBusy[key] || !state.db) return;
+  var g = findGroup(key);
+  if(!g) return;
+  var eff = effectiveNecStatus(key);
+  if(eff.status===statusValue) return; // já está nesse status; nada a confirmar
+  state.confirmStatus = { kind:"quick", key:key, codigo:g.codigo, statusAtual:eff.status, statusNovo:statusValue };
+  state.modal = "confirm-status";
+  render();
+}
+function confirmQuickStatus(){
+  var c = state.confirmStatus;
+  if(!c || c.kind!=="quick") return;
+  state.modal = null; state.confirmStatus = null;
+  quickSetStatus(c.key, c.statusNovo);
+}
+function requestBatchConfirm(){
+  var keys = Object.keys(state.necPending);
+  if(!keys.length || !state.db) return;
+  var items = keys.map(function(key){
+    var draft = state.necPending[key];
+    var existing = state.statusByKey[key];
+    var statusAtual = existing ? existing.status : "Pendente";
+    return { key:key, codigo:draft.codigo, statusAtual:statusAtual, statusNovo:draft.status, statusChanged: statusAtual!==draft.status };
+  });
+  state.confirmStatus = { kind:"batch", items:items };
+  state.modal = "confirm-status";
+  render();
+}
+function confirmBatchStatus(){
+  var c = state.confirmStatus;
+  if(!c || c.kind!=="batch") return;
+  state.modal = null; state.confirmStatus = null;
+  savePendingChanges();
 }
 function quickSetStatus(key, statusValue){
   if(state.necBusy[key] || !state.db) return; // evita gravação duplicada em duplo toque
