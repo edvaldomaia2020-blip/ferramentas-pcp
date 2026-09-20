@@ -40,6 +40,12 @@ npm run serve:pintura
 
 Acesse `http://localhost:4173`. Execute `npm test` para validar as regras.
 
+## Diagnóstico da importação B08
+
+O leitor XLSX está armazenado em `vendor/xlsx.full.min.js`, eliminando a dependência do CDN durante a importação. O importador procura o cabeçalho nas primeiras 100 linhas de todas as abas, identifica colunas pelos nomes normalizados e tolera acentos, espaços, pontuação, colunas adicionais, números como texto, células vazias e datas seriais do Excel.
+
+A seleção do arquivo apenas confirma seu nome. O processamento acontece ao pressionar **Processar fotografia diária**, com mensagens para arquivo selecionado, leitura, aba encontrada, linha do cabeçalho, registros lidos, válidos, ignorados, novos, conhecidos, atualizados e vinculados. Importações com zero registros reconhecidos são rejeitadas com o motivo, sem gravar uma falsa conclusão.
+
 ## Limitações desta validação
 
 O pareamento A/P usa provisoriamente `pedido + item + ferramenta + beneficiamento`, somente para demonstrar os cenários. Essa composição não é uma decisão de modelagem e não poderá ser levada ao Firebase sem validação com dados reais.

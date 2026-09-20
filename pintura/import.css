@@ -1,0 +1,21 @@
+.import-feedback {
+  margin: 10px 0;
+  padding: 11px 12px;
+  border-radius: 9px;
+  background: #eef6f5;
+  color: #0d7d79;
+  font-size: 12px;
+  font-weight: 700;
+}
+.import-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border-left: 3px solid #0d7d79;
+  background: #dff3f0;
+  font-size: 12px;
+}
+.import-detail span { color: #667b84; font-size: 10px; }
+.btn:disabled { opacity: .55; cursor: wait; }
