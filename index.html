@@ -191,6 +191,31 @@ img{max-width:100%;}
   border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
 }
 
+/* ---------- Central de notificações (Bloco 2) ---------- */
+.notif-bell{position:relative;font-size:15px;padding:8px 14px;}
+.notif-count{
+  position:absolute;top:-6px;right:-6px;background:var(--st-quebrada);color:#fff;
+  font-size:10.5px;font-weight:800;border-radius:20px;min-width:17px;height:17px;line-height:17px;
+  text-align:center;padding:0 3px;box-shadow:0 0 0 2px var(--surface);
+}
+.audio-arm-btn{font-size:13px;}
+.audio-arm-btn.armed{cursor:default;color:var(--st-ok);border-color:var(--st-ok);background:var(--st-ok-bg);}
+.notif-row{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px;cursor:pointer;}
+.notif-row.lida{cursor:default;opacity:.68;}
+.notif-row:last-child{border-bottom:none;}
+.notif-row:not(.lida):hover{background:var(--surface-2);}
+.notif-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.notif-tipo-tag{
+  font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-2);
+  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:20px;padding:2px 9px;white-space:nowrap;
+}
+.notif-tipo-tag.urgencia{color:var(--st-quebrada);border-color:var(--st-quebrada);background:var(--st-quebrada-bg);}
+.notif-status-tag{font-size:11px;font-weight:700;color:var(--text-faint);white-space:nowrap;}
+.notif-status-tag.nao-lida{color:var(--accent-2);}
+.notif-titulo{font-weight:700;font-size:13.5px;color:var(--text);}
+.notif-resumo{font-size:12.5px;color:var(--text-muted);line-height:1.4;}
+.notif-timestamp{font-size:11px;}
+
 .filterbar{
   position:sticky;top:57px;z-index:19;background:var(--bg);border-bottom:1px solid var(--border);
   padding:10px 16px;display:flex;flex-direction:column;gap:8px;
@@ -661,7 +686,7 @@ window.__FIREBASE_DB_PROMISE = new Promise(function(resolve){
 
 var STATUS_META = {
   "Pendente":        {v:"pendente",    label:"Pendente"},
-  "OK":              {v:"ok",          label:"OK"},
+  "OK":              {v:"ok",          label:"Programado"},
   "Soda / Limpeza":  {v:"limpeza",     label:"Soda / Limpeza"},
   "Nitretação":      {v:"nitretacao",  label:"Nitretação"},
   "Correção interna":{v:"int",         label:"Correção interna"},
@@ -922,7 +947,19 @@ var state = {
   // (PCP, somente leitura). Não é uma estrutura paralela — só consulta o
   // que já está carregado em programacoesByKey/ferramentas/statusByKey/
   // urgenciasByKey (as mesmas coleções de sempre).
-  historico: null
+  historico: null,
+  // Bloco 2 — Central de notificações (Correção). notificacoesByKey é o
+  // cache local (mesmo padrão de statusByKey/urgenciasByKey);
+  // _notifListenerReady/_prevNotifIds distinguem carga inicial de evento
+  // novo em tempo real (mesma técnica já usada em _prevUrgencias, para
+  // nunca tocar som numa notificação que já existia antes da sessão).
+  notificacoesByKey: {},
+  unsubNotificacoes: null,
+  _notifListenerReady: false,
+  _prevNotifIds: null,
+  notifPanelOpen: false,
+  audioCtx: null,
+  audioArmed: false
 };
 
 var app = document.getElementById("app");
@@ -1063,10 +1100,16 @@ function logout(){
   if(window.__AUTH_API) window.__AUTH_API.signOut();
   state.user=null; state.ferramentas=[]; state.dataLoaded=false; state.statusByKey={}; state.necessidadesByKey={}; state.necPending={};
   state.syncMeta=null; state.modal=null; state.urgenciasByKey={}; state.urgentPulseUntil={}; state._prevUrgencias=null;
+  // Bloco 2: zera o cache e o marcador de "carga inicial" — no próximo
+  // login, a primeira leitura de notificacoes deve ser tratada como carga
+  // inicial de novo (sem som), nunca reaproveitando o estado da sessão
+  // anterior (Teste H: logout/login não pode disparar som de eventos antigos).
+  state.notificacoesByKey={}; state._notifListenerReady=false; state._prevNotifIds=null; state.notifPanelOpen=false;
   if(state.unsub){ state.unsub(); state.unsub=null; }
   if(state.unsubNecessidades){ state.unsubNecessidades(); state.unsubNecessidades=null; }
   if(state.unsubStatus){ state.unsubStatus(); state.unsubStatus=null; }
   if(state.unsubUrgencias){ state.unsubUrgencias(); state.unsubUrgencias=null; }
+  if(state.unsubNotificacoes){ state.unsubNotificacoes(); state.unsubNotificacoes=null; }
   render();
 }
 
@@ -1085,6 +1128,8 @@ function renderTopBar(){
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-baseapp-import">Importar BASE_APP</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-audit">Auditoria</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-historico">Histórico de Programações</button>' : '') +
+      (state.user.perfil==="correcao" ? renderAudioArmButton() : '') +
+      (state.user.perfil==="correcao" ? renderNotifBell() : '') +
       '<button class="icon-btn" data-action="logout">Sair</button>' +
     '</div>' +
   '</div>';
@@ -1920,7 +1965,7 @@ function renderNecRowCompact(g){
   return html;
 }
 var NEC_QUICK_ACTIONS = [
-  { status:"OK", label:"✓ OK" },
+  { status:"OK", label:"✓ Programado" },
   { status:"Soda / Limpeza", label:"LIMPEZA" },
   { status:"Nitretação", label:"NITRETAÇÃO" },
   { status:"Correção interna", label:"CORREÇÃO" }
@@ -2110,6 +2155,7 @@ function renderModal(){
   if(state.modal==="confirm-status") return renderConfirmStatusModal();
   if(state.modal==="baseapp-import") return renderBaseAppImportModal();
   if(state.modal==="historico") return renderHistoricoModal();
+  if(state.modal==="notificacoes") return renderNotificacoesModal();
   return "";
 }
 function renderNewToolModal(){
@@ -2388,6 +2434,15 @@ function bindApp(){
     state.modal="historico"; state.historico={ step:"list", filtroData:"__all__", filtroTurno:"Todos", programacaoId:null, filtroPrensa:"Todas", filtroTipo:"Todas" };
     render();
   });
+  var openNotifBtn = app.querySelector('[data-action="open-notificacoes"]');
+  if(openNotifBtn) openNotifBtn.addEventListener("click", function(){ state.modal="notificacoes"; render(); });
+  app.querySelectorAll('[data-action="notif-marcar-lida"]').forEach(function(el){
+    el.addEventListener("click", function(){ marcarNotificacaoLida(el.getAttribute("data-id")); });
+  });
+  var notifMarcarTodasBtn = app.querySelector('[data-action="notif-marcar-todas"]');
+  if(notifMarcarTodasBtn) notifMarcarTodasBtn.addEventListener("click", marcarTodasNotificacoesLidas);
+  var armAudioBtn = app.querySelector('[data-action="arm-audio"]');
+  if(armAudioBtn) armAudioBtn.addEventListener("click", function(){ ensureAudioArmed(); render(); });
   app.querySelectorAll('[data-action="hist-filter"]').forEach(function(el){
     el.addEventListener("click", function(){
       state.historico[el.getAttribute("data-field")] = el.getAttribute("data-value");
@@ -2712,7 +2767,7 @@ function quickSetStatus(key, statusValue){
   var now = new Date().toISOString();
   return saveNecStatusWrite(key, draft, now).then(function(){
     state.necBusy[key] = false;
-    state.toast = g.codigo+": "+statusValue+" salvo.";
+    state.toast = g.codigo+": "+((STATUS_META[statusValue]||{}).label||statusValue)+" salvo.";
     render();
   }).catch(function(err){
     state.necBusy[key] = false;
@@ -2784,6 +2839,79 @@ function withPermissionRetry(fn){
     throw err;
   });
 }
+/* ================= NOTIFICAÇÕES PCP -> CORREÇÃO (Bloco 2) =================
+   Uma escrita por EVENTO (nunca por linha de planilha) — sempre via .set()
+   sobre um id determinístico (a própria chave anti-duplicidade de cada
+   evento, ver cada chamador), nunca .add(). Best-effort de propósito: uma
+   falha aqui nunca pode travar/reverter a ação principal do PCP (cadastrar
+   ferramenta, marcar urgente, publicar BASE_APP) — por isso o catch fica
+   aqui dentro, silencioso, e a função nunca é encadeada no fluxo principal
+   de erro dos chamadores. */
+function criarNotificacao(id, fields){
+  if(!state.db || !state.user) return Promise.resolve();
+  var body = Object.assign({
+    codigo: null, prensa: null, turno: null, data: null, programacaoId: null,
+    criadoEm: state.db.serverTimestamp(),
+    criadoPor: { uid: state.user.uid, nome: state.user.nome },
+    lida: false, lidaEm: null, lidaPor: null
+  }, fields);
+  return state.db.doc("notificacoes/"+id).set(body).catch(function(){ /* notificação nunca bloqueia a ação principal */ });
+}
+function marcarNotificacaoLida(id){
+  var n = state.notificacoesByKey[id];
+  if(!n || n.lida || !state.db || state.necBusy["notif_"+id]) return Promise.resolve();
+  state.necBusy["notif_"+id] = true;
+  render();
+  return withPermissionRetry(function(){
+    return state.db.doc("notificacoes/"+id).update({
+      lida: true, lidaEm: state.db.serverTimestamp(), lidaPor: { uid: state.user.uid, nome: state.user.nome }
+    });
+  }).then(function(){ state.necBusy["notif_"+id]=false; render(); })
+    .catch(function(){ state.necBusy["notif_"+id]=false; render(); });
+}
+function marcarTodasNotificacoesLidas(){
+  var ids = Object.keys(state.notificacoesByKey).filter(function(id){ return !state.notificacoesByKey[id].lida; });
+  return Promise.all(ids.map(marcarNotificacaoLida));
+}
+/* ================= SOM DAS NOTIFICAÇÕES (Bloco 2) =================
+   Sintetizado via Web Audio API — sem arquivo externo (reduz dependências,
+   nenhum asset novo pra publicar). Os navegadores só deixam o
+   AudioContext realmente tocar depois de um gesto do usuário na página;
+   ensureAudioArmed tenta destravar (chamado tanto pelo listener global de
+   clique/toque anexado uma vez na inicialização quanto pelo botão
+   🔇/🔊 explícito no cabeçalho da Correção) e é seguro chamar quantas
+   vezes for preciso — sai na hora se já estiver armado. */
+function ensureAudioArmed(){
+  if(state.audioArmed) return;
+  try{
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    if(!state.audioCtx) state.audioCtx = new Ctx();
+    if(state.audioCtx.state === "suspended") state.audioCtx.resume();
+    state.audioArmed = state.audioCtx.state === "running";
+  }catch(e){ /* sem suporte ou bloqueado pelo navegador -- som fica desligado, resto do app segue normal */ }
+}
+// Dois tons curtos (A5 -> D6), envelope suave -- ~280ms no total. Nunca
+// lança exceção pra fora: uma falha ao sintetizar não pode travar a UI.
+function playNotifSound(){
+  ensureAudioArmed();
+  if(!state.audioArmed || !state.audioCtx) return;
+  try{
+    var ctx = state.audioCtx;
+    var t0 = ctx.currentTime;
+    [[880, t0, 0.12], [1174.66, t0+0.11, 0.16]].forEach(function(nota){
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = nota[0];
+      gain.gain.setValueAtTime(0, nota[1]);
+      gain.gain.linearRampToValueAtTime(0.22, nota[1]+0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, nota[1]+nota[2]);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(nota[1]); osc.stop(nota[1]+nota[2]+0.02);
+    });
+  }catch(e){ /* falha ao sintetizar nunca pode travar a UI */ }
+}
 function upsertNecessidadeDelta(t, sign){
   if(!state.db) return Promise.resolve();
   var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
@@ -2795,7 +2923,25 @@ function upsertNecessidadeDelta(t, sign){
   };
   if(t.programacaoId) body.programacaoId = t.programacaoId;
   if(t.tipo==="Reserva") body.kgReserva = state.db.increment(kg); else body.kgProgramacao = state.db.increment(kg);
-  if(sign>0 && t.observacaoPCP) body.observacoes = state.db.arrayUnion(t.observacaoPCP);
+  if(sign>0 && t.observacaoPCP){
+    body.observacoes = state.db.arrayUnion(t.observacaoPCP);
+    // Bloco 2 — Evento 4: só notifica quando a observação é REALMENTE nova
+    // pra uma necessidade que a Correção JÁ enxergava antes desta escrita
+    // (a primeira linha de uma necessidade nova já gera sua própria
+    // notificação de programação/ferramenta — não duplica aqui) e o texto
+    // ainda não estava no array (abrir e salvar o mesmo conteúdo não
+    // dispara nada de novo).
+    var necExistente = state.necessidadesByKey[key];
+    var jaTinhaEssaObs = !!(necExistente && (necExistente.observacoes||[]).indexOf(t.observacaoPCP)>=0);
+    if(necExistente && !jaTinhaEssaObs){
+      criarNotificacao("obs_"+key+"_"+Date.now(), {
+        tipo: "observacao",
+        titulo: "NOVA OBSERVAÇÃO DO PCP",
+        resumo: "Ferramenta: "+t.codigo+" — \""+t.observacaoPCP.slice(0,120)+(t.observacaoPCP.length>120?"…":"")+"\"",
+        codigo: t.codigo, prensa: t.prensa, data: t.dataProgramacao, programacaoId: t.programacaoId||null
+      });
+    }
+  }
   // Cliente(s) — mesma técnica já usada para observacoes (arrayUnion, só
   // ao somar), para permitir a busca por cliente na Correção sem precisar
   // ler os registros brutos (que a Correção nem tem acesso).
@@ -2835,11 +2981,22 @@ function submitNewTool(){
   // na hora, porque isRecordActive já considera esse slot substituído.
   var progAtivaId = findActiveProgramacaoId(data, state.newTool.turno);
   if(progAtivaId) doc.programacaoId = progAtivaId;
+  var novoDocId = null;
   withPermissionRetry(function(){
-    return state.db.collection("ferramentas").add(doc).then(function(){
+    return state.db.collection("ferramentas").add(doc).then(function(ref){
+      novoDocId = ref.id;
       return upsertNecessidadeDelta(doc, 1);
     });
   }).then(function(){
+    // Bloco 2 — Evento 2: id da notificação = id do próprio registro criado
+    // em "ferramentas" — único por natureza (gerado pelo Firestore),
+    // garante 1 notificação por cadastro manual, nunca duplicada.
+    criarNotificacao("tool_"+novoDocId, {
+      tipo: "ferramenta",
+      titulo: "NOVA FERRAMENTA ADICIONADA",
+      resumo: "Ferramenta: "+codigo+" · Prensa: "+doc.prensa+" · Turno: "+doc.turno+" · "+fmtKg(kg)+" kg",
+      codigo: codigo, prensa: doc.prensa, turno: doc.turno, data: data, programacaoId: doc.programacaoId||null
+    });
     state.modal=null; state.toast="Ferramenta enviada para a Correção."; render();
   }).catch(function(err){ state.authError="Erro ao salvar: "+(err&&err.message||""); render(); });
 }
@@ -2876,8 +3033,25 @@ function marcarUrgente(codigo, prensa, data, programacaoId){
   if(programacaoId) body.programacaoId = programacaoId;
   return withPermissionRetry(function(){
     return state.db.doc("urgencias/"+key).set(body);
-  }).then(function(){ state.toast = codigo+": marcado como URGENTE para a Correção."; render(); })
-    .catch(function(err){ state.toast = "Erro ao marcar urgência: "+(err&&err.message||""); render(); });
+  }).then(function(){
+    // Bloco 2 — Evento 3: o doc em "urgencias" é SOBRESCRITO a cada
+    // marcarUrgente (mesma chave key sempre) — por isso o id da
+    // notificação leva um timestamp do cliente, garantindo uma nova
+    // notificação a cada reativação real (marcar -> retirar -> marcar de
+    // novo), sem depender de um contador/versão que a coleção não tem.
+    var linhaRef = state.ferramentas.find(function(t){
+      return t.codigo===codigo && t.prensa===prensa && t.dataProgramacao===data && (t.programacaoId||null)===(programacaoId||null);
+    });
+    var turnoRef = linhaRef ? linhaRef.turno : null;
+    var clienteRef = linhaRef ? linhaRef.cliente : null;
+    criarNotificacao("urg_"+key+"_"+Date.now(), {
+      tipo: "urgencia",
+      titulo: "URGÊNCIA RECEBIDA",
+      resumo: "Ferramenta: "+codigo+(clienteRef?" · Cliente: "+clienteRef:"")+" · Prensa: "+prensa+(turnoRef?" · Turno: "+turnoRef:""),
+      codigo: codigo, prensa: prensa, turno: turnoRef, data: data, programacaoId: programacaoId||null
+    });
+    state.toast = codigo+": marcado como URGENTE para a Correção."; render();
+  }).catch(function(err){ state.toast = "Erro ao marcar urgência: "+(err&&err.message||""); render(); });
 }
 // Botão único do PCP (card): decide ativar ou retirar a urgência conforme
 // o estado atual — sem duplicar lógica, delega inteiramente para
@@ -3416,6 +3590,66 @@ function renderHistoricoDetailRow(t){
     (t.observacaoPCP ? '<div class="hist-row-sub hint">PCP: '+esc(t.observacaoPCP)+'</div>' : '') +
     (info.observacaoCorrecao ? '<div class="hist-row-sub hint">Correção: '+esc(info.observacaoCorrecao)+'</div>' : '') +
     (info.previsaoLiberacao ? '<div class="hist-row-sub hint">Previsão registrada: '+esc(fmtDateBR(info.previsaoLiberacao))+'</div>' : '') +
+  '</div>';
+}
+
+/* ================= CENTRAL DE NOTIFICAÇÕES — UI (Bloco 2) =================
+   Só a Correção recebe (ver "QUEM RECEBE" no pedido) — o sino/painel só
+   aparece pra state.user.perfil==="correcao". Reaproveita o mesmo layout
+   modal-wide/audit-fixed/audit-scroll/audit-list já usado por
+   Auditoria/Histórico. */
+function unreadNotifCount(){
+  return Object.keys(state.notificacoesByKey).filter(function(id){ return !state.notificacoesByKey[id].lida; }).length;
+}
+function notifOrderTs(n){
+  var d = n.criadoEm;
+  if(!d) return 0;
+  var dt = (d && typeof d.toDate === "function") ? d.toDate() : new Date(d);
+  return (dt && !isNaN(dt.getTime())) ? dt.getTime() : 0;
+}
+function sortedNotificacoes(){
+  return Object.keys(state.notificacoesByKey).map(function(id){
+    return Object.assign({ id: id }, state.notificacoesByKey[id]);
+  }).sort(function(a,b){ return notifOrderTs(b) - notifOrderTs(a); });
+}
+var NOTIF_TIPO_LABEL = { programacao:"NOVA PROGRAMAÇÃO", ferramenta:"NOVA FERRAMENTA", urgencia:"URGÊNCIA", observacao:"OBSERVAÇÃO PCP" };
+function renderNotifBell(){
+  var n = unreadNotifCount();
+  return '<button type="button" class="icon-btn notif-bell" data-action="open-notificacoes">🔔'+(n>0?'<span class="notif-count">'+(n>99?"99+":n)+'</span>':'')+'</button>';
+}
+function renderAudioArmButton(){
+  if(state.audioArmed) return '<span class="icon-btn audio-arm-btn armed" title="Som das notificações ativado">🔊</span>';
+  return '<button type="button" class="icon-btn audio-arm-btn" data-action="arm-audio" title="Ativar som das notificações">🔇 Ativar som</button>';
+}
+function renderNotificacoesModal(){
+  var list = sortedNotificacoes();
+  var naoLidas = list.filter(function(n){ return !n.lida; }).length;
+  var fixedTop = '' +
+    '<div class="hint" style="margin-bottom:8px;">'+naoLidas+' não lida(s) de '+list.length+' notificação(ões).</div>' +
+    (naoLidas>0 ? '<button type="button" class="btn btn-ghost" data-action="notif-marcar-todas" style="align-self:flex-start;margin-bottom:8px;">Marcar todas como lidas</button>' : '');
+  var scrollBody = list.length
+    ? '<div class="audit-list">' + list.map(renderNotifRow).join("") + '</div>'
+    : emptyState("Nenhuma notificação ainda.");
+  return '' +
+  '<div class="modal-overlay" data-action="close-modal">' +
+    '<div class="modal modal-wide" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Central de Notificações</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      '<div class="audit-fixed">'+fixedTop+'</div><div class="audit-scroll">'+scrollBody+'</div>' +
+    '</div>' +
+  '</div>';
+}
+function renderNotifRow(n){
+  var tipoLabel = NOTIF_TIPO_LABEL[n.tipo] || n.tipo;
+  var isUrgencia = n.tipo==="urgencia";
+  var busy = !!(state.necBusy && state.necBusy["notif_"+n.id]);
+  return '<div class="notif-row '+(n.lida?"lida":"nao-lida")+(isUrgencia?" urgencia":"")+'" '+(n.lida?"":'data-action="notif-marcar-lida" data-id="'+esc(n.id)+'"')+'>' +
+    '<div class="notif-row-head">' +
+      '<span class="notif-tipo-tag'+(isUrgencia?" urgencia":"")+'">'+esc(tipoLabel)+'</span>' +
+      (n.lida ? '<span class="notif-status-tag">Lida</span>' : '<span class="notif-status-tag nao-lida">'+(busy?"Marcando…":"Não lida — toque para marcar como lida")+'</span>') +
+    '</div>' +
+    '<div class="notif-titulo">'+esc(n.titulo||"")+'</div>' +
+    (n.resumo ? '<div class="notif-resumo">'+esc(n.resumo)+'</div>' : '') +
+    '<div class="notif-timestamp hint">'+esc(fmtSyncUpdatedBR(n.criadoEm)||"—")+'</div>' +
   '</div>';
 }
 
@@ -3991,6 +4225,20 @@ function baseAppWritePosicao(entry){
       });
     });
   }).then(function(){
+    // Bloco 2 — Evento 1: UMA notificação por fatia/posição publicada
+    // (nunca por linha da planilha). O id da notificação É o novoId da
+    // programação — como cada publicação NOVA/NOVA_VERSAO sempre gera um
+    // programacaoId novo e único (baseAppGenerateProgramacaoId), isso já
+    // garante, de graça, que essa notificação nunca duplica.
+    var totaisP7 = (entry.totais && entry.totais.P7) || {n:0,kg:0};
+    var totaisP4 = (entry.totais && entry.totais.P4) || {n:0,kg:0};
+    var totalFerramentas = totaisP7.n + totaisP4.n;
+    criarNotificacao("prog_"+novoId, {
+      tipo: "programacao",
+      titulo: "NOVA PROGRAMAÇÃO RECEBIDA",
+      resumo: fmtDateBR(entry.data)+" — "+(entry.turno||"—")+" · "+totalFerramentas+" ferramenta(s) (P7: "+totaisP7.n+", P4: "+totaisP4.n+")",
+      data: entry.data, turno: entry.turno, programacaoId: novoId
+    });
     return {posicao:entry.posicao, ok:true, acao: entry.situacao==="NOVA"?"nova":"nova_versao", programacaoId:novoId};
   }).catch(function(err){
     return {posicao:entry.posicao, ok:false, erro: err&&err.message, programacaoIdParcial:novoId};
@@ -4112,6 +4360,38 @@ function startSubs(){
       if(anyNew) setTimeout(render, 3900);
     }, function(err){ /* urgência é informativa; nunca bloqueia o resto do app */ });
   }
+  // Bloco 2 — Central de notificações. Mesma técnica de "carga inicial x
+  // evento novo" já usada acima pra urgência: state._notifListenerReady só
+  // fica true DEPOIS do primeiro snapshot processado — enquanto for false,
+  // isso É a carga inicial (login, F5, reabrir o app) e nunca toca som,
+  // mesmo que existam dezenas de notificações não lidas de antes. Só toca
+  // som quando o profile é Correção (quem recebe, ver "QUEM RECEBE" no
+  // pedido) e existe pelo menos um id que não estava no snapshot anterior.
+  if(!state.unsubNotificacoes){
+    state.unsubNotificacoes = state.db.collection("notificacoes").limit(300).onSnapshot(function(snap){
+      var map = {};
+      snap.docs.forEach(function(d){ map[d.id] = d.data(); });
+      var isInitialLoad = !state._notifListenerReady;
+      if(notifSnapshotShouldPlaySound(map, state._prevNotifIds, isInitialLoad, state.user && state.user.perfil)){
+        playNotifSound();
+      }
+      var idsAgora = {};
+      Object.keys(map).forEach(function(id){ idsAgora[id] = true; });
+      state._prevNotifIds = idsAgora;
+      state._notifListenerReady = true;
+      state.notificacoesByKey = map;
+      render();
+    }, function(err){ /* notificação é informativa; nunca bloqueia o resto do app */ });
+  }
+}
+// Decisão isolada (pura, testável): toca som quando NÃO é carga inicial,
+// o usuário é da Correção (quem recebe), e existe pelo menos um id no
+// snapshot atual que não estava no anterior. Extraída do listener acima
+// de propósito — é a peça mais crítica de "não duplicar som" do Bloco 2.
+function notifSnapshotShouldPlaySound(map, prevIds, isInitialLoad, perfil){
+  if(isInitialLoad || perfil!=="correcao") return false;
+  var prev = prevIds || {};
+  return Object.keys(map).some(function(id){ return !prev[id]; });
 }
 
 /* ================= SETUP SCREEN (shown when Firebase isn't configured) ================= */
@@ -4123,6 +4403,14 @@ function renderSetupNotice(){
 }
 
 /* ================= INIT ================= */
+// Bloco 2: tenta destravar o áudio no primeiro gesto do usuário na página
+// (clique OU toque, o que vier primeiro) — cobre login, clicar em
+// qualquer botão etc., sem precisar de nenhuma ação explícita na maioria
+// das sessões. Anexado UMA vez só aqui (fora de bindApp, que roda a cada
+// render) — ensureAudioArmed já é seguro pra chamar repetidamente (sai
+// na hora se já estiver armado), então não precisa remover o listener.
+document.addEventListener("click", ensureAudioArmed);
+document.addEventListener("touchend", ensureAudioArmed);
 render();
 (window.__FIREBASE_DB_PROMISE || Promise.resolve(null)).then(function(result){
   if(!result){
