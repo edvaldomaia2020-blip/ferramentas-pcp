@@ -1,0 +1,9 @@
+{
+  "name": "extrutech-modulo-pintura-prototipo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test pintura/tests/*.test.mjs",
+    "serve:pintura": "python3 -m http.server 4173 --directory pintura"
+  }
+}
