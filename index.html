@@ -350,6 +350,15 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .status-badge.sm{font-size:9.5px;padding:3px 7px;}
 .tool-card .obs{padding:0 13px 12px;font-size:13px;color:var(--text-muted);line-height:1.4;}
 .tool-card .obs b{color:var(--text);font-weight:600;}
+/* ---------- Observação PCP editável (Bloco 2.1) ---------- */
+.obs-pcp-edit{padding:6px 13px 12px;border-top:1px dashed var(--border);cursor:default;}
+.obs-pcp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.obs-pcp-label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--text-faint);}
+.btn-obs-pcp{
+  border:1.5px solid var(--accent-2);background:var(--surface);color:var(--accent-2);
+  border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.obs-pcp-texto{margin-top:4px;font-size:13px;color:var(--text);line-height:1.4;white-space:pre-wrap;overflow-wrap:break-word;}
 .tool-card .foot{
   padding:8px 13px;border-top:1px solid var(--border);display:flex;justify-content:space-between;
   align-items:center;font-size:11.5px;color:var(--text-faint);background:var(--surface-2);
@@ -959,7 +968,10 @@ var state = {
   _prevNotifIds: null,
   notifPanelOpen: false,
   audioCtx: null,
-  audioArmed: false
+  audioArmed: false,
+  // Bloco 2.1: estado do modal de edição da Observação PCP (necessidade
+  // sendo editada no momento — null quando o modal está fechado).
+  editObsPcp: null
 };
 
 var app = document.getElementById("app");
@@ -1669,6 +1681,18 @@ function renderCard(t){
   if(sd && sd.observacaoCorrecao){
     card += '<div class="obs"><b>Correção:</b> '+esc(sd.observacaoCorrecao)+'</div>';
   }
+  // Bloco 2.1: Observação PCP EDITÁVEL, por necessidade (não por linha
+  // bruta) — nunca confundir com o "PCP:" acima (aquele é o texto de
+  // quando a linha foi importada/cadastrada, congelado; este é o campo
+  // vivo que o PCP pode adicionar/editar a qualquer momento depois).
+  var necCard = state.necessidadesByKey[key];
+  var obsPcpAtual = (necCard && necCard.observacaoPCPAtual) || "";
+  card += '<div class="obs-pcp-edit" onclick="event.stopPropagation()">' +
+    '<div class="obs-pcp-row"><span class="obs-pcp-label">Observação PCP</span>' +
+      '<button type="button" class="btn-obs-pcp" data-action="edit-obs-pcp" data-key="'+key+'" data-codigo="'+esc(t.codigo)+'">'+(obsPcpAtual?"✎ Editar":"+ Adicionar")+'</button>' +
+    '</div>' +
+    (obsPcpAtual ? '<div class="obs-pcp-texto">'+esc(obsPcpAtual)+'</div>' : '') +
+  '</div>';
   card += '<div class="foot"><span>Programado '+fmtDateBR(t.dataProgramacao)+' · '+esc(t.solicitadoPor.nome)+'</span>' +
     (sd && sd.previsaoLiberacao ? '<span class="prev" style="color:var(--st-int);">Previsão: '+relLabel(sd.previsaoLiberacao)+'</span>' : '') +
   '</div>';
@@ -2156,7 +2180,28 @@ function renderModal(){
   if(state.modal==="baseapp-import") return renderBaseAppImportModal();
   if(state.modal==="historico") return renderHistoricoModal();
   if(state.modal==="notificacoes") return renderNotificacoesModal();
+  if(state.modal==="edit-obs-pcp") return renderEditObsPcpModal();
   return "";
+}
+// Bloco 2.1: modal simples de adicionar/editar a Observação PCP de uma
+// necessidade já existente — Cancelar fecha sem gravar nada; Salvar só
+// grava (e só notifica) se o texto realmente mudou (ver salvarObservacaoPCP).
+function renderEditObsPcpModal(){
+  var e = state.editObsPcp;
+  if(!e) return "";
+  return '' +
+  '<div class="modal-overlay" data-action="close-modal">' +
+    '<div class="modal" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Observação PCP</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      '<div class="hint">Ferramenta: <b class="mono">'+esc(e.codigo)+'</b></div>' +
+      '<textarea id="obs-pcp-texto" placeholder="Observação para a Correção..." style="min-height:110px;">'+esc(e.texto||"")+'</textarea>' +
+      (state.authError ? '<div class="error-msg">'+esc(state.authError)+'</div>' : '') +
+      '<div style="display:flex;gap:8px;">' +
+        '<button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Cancelar</button>' +
+        '<button class="btn btn-primary" style="flex:1;" data-action="save-obs-pcp">Salvar</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
 }
 function renderNewToolModal(){
   var nt = state.newTool;
@@ -2385,7 +2430,7 @@ function bindApp(){
   });
 
   app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
-    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; state.baseAppImport=null; state.historico=null; render(); });
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; state.baseAppImport=null; state.historico=null; state.editObsPcp=null; state.authError=""; render(); });
   });
 
   app.querySelectorAll('[data-action="toggle-prog-secao"]').forEach(function(el){
@@ -2443,6 +2488,25 @@ function bindApp(){
   if(notifMarcarTodasBtn) notifMarcarTodasBtn.addEventListener("click", marcarTodasNotificacoesLidas);
   var armAudioBtn = app.querySelector('[data-action="arm-audio"]');
   if(armAudioBtn) armAudioBtn.addEventListener("click", function(){ ensureAudioArmed(); render(); });
+  app.querySelectorAll('[data-action="edit-obs-pcp"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      var key = el.getAttribute("data-key");
+      var nec = state.necessidadesByKey[key];
+      state.modal = "edit-obs-pcp";
+      state.authError = "";
+      state.editObsPcp = { key: key, codigo: el.getAttribute("data-codigo"), texto: (nec && nec.observacaoPCPAtual) || "" };
+      render();
+    });
+  });
+  var saveObsPcpBtn = app.querySelector('[data-action="save-obs-pcp"]');
+  if(saveObsPcpBtn) saveObsPcpBtn.addEventListener("click", function(){
+    var textoEl = document.getElementById("obs-pcp-texto");
+    var e = state.editObsPcp;
+    if(!e) return;
+    salvarObservacaoPCP(e.key, textoEl ? textoEl.value : "").then(function(){
+      state.modal = null; state.editObsPcp = null; render();
+    }).catch(function(err){ state.authError = "Erro ao salvar: "+(err&&err.message||""); render(); });
+  });
   app.querySelectorAll('[data-action="hist-filter"]').forEach(function(el){
     el.addEventListener("click", function(){
       state.historico[el.getAttribute("data-field")] = el.getAttribute("data-value");
@@ -2891,25 +2955,43 @@ function ensureAudioArmed(){
     state.audioArmed = state.audioCtx.state === "running";
   }catch(e){ /* sem suporte ou bloqueado pelo navegador -- som fica desligado, resto do app segue normal */ }
 }
-// Dois tons curtos (A5 -> D6), envelope suave -- ~280ms no total. Nunca
-// lança exceção pra fora: uma falha ao sintetizar não pode travar a UI.
-function playNotifSound(){
+// Toca UM pulso (oscilador senoidal + envelope attack/decay) começando em
+// startTime, por duracao segundos, com pico de ganho picoGain. Bloco de
+// baixo nível compartilhado pelos dois sons — nunca chamado diretamente
+// fora deste arquivo, só por playNotifSound.
+function tocarPulsoSom(ctx, freq, startTime, duracao, picoGain){
+  var osc = ctx.createOscillator();
+  var gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(picoGain, startTime+0.015);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime+duracao);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(startTime); osc.stop(startTime+duracao+0.02);
+}
+// Bloco 2.1 — dois níveis, claramente diferentes entre si (Objetivo 3):
+//   "normal" (programação/ferramenta manual/observação): 3 pulsos, ~1.2s
+//   no total, mais alto que a versão anterior do Bloco 2.
+//   "urgencia": 6 pulsos alternando 2 frequências (padrão de alarme),
+//   ~1.9s, ainda mais alto — inconfundível com o som normal. Nunca em
+//   loop: uma urgência = um ciclo do alarme, e pronto.
+// Nunca lança exceção pra fora: uma falha ao sintetizar não pode travar a UI.
+function playNotifSound(nivel){
   ensureAudioArmed();
   if(!state.audioArmed || !state.audioCtx) return;
   try{
     var ctx = state.audioCtx;
     var t0 = ctx.currentTime;
-    [[880, t0, 0.12], [1174.66, t0+0.11, 0.16]].forEach(function(nota){
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = nota[0];
-      gain.gain.setValueAtTime(0, nota[1]);
-      gain.gain.linearRampToValueAtTime(0.22, nota[1]+0.015);
-      gain.gain.exponentialRampToValueAtTime(0.001, nota[1]+nota[2]);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(nota[1]); osc.stop(nota[1]+nota[2]+0.02);
-    });
+    if(nivel==="urgencia"){
+      var freqsUrg = [1318.51, 987.77, 1318.51, 987.77, 1318.51, 987.77]; // E6/B5 alternando
+      var gapUrg = 0.32, durUrg = 0.22;
+      freqsUrg.forEach(function(freq, i){ tocarPulsoSom(ctx, freq, t0 + i*gapUrg, durUrg, 0.5); });
+    } else {
+      var freqsNorm = [880, 880, 1174.66]; // A5, A5, D6
+      var gapNorm = 0.55, durNorm = 0.22;
+      freqsNorm.forEach(function(freq, i){ tocarPulsoSom(ctx, freq, t0 + i*gapNorm, durNorm, 0.4); });
+    }
   }catch(e){ /* falha ao sintetizar nunca pode travar a UI */ }
 }
 function upsertNecessidadeDelta(t, sign){
@@ -3052,6 +3134,48 @@ function marcarUrgente(codigo, prensa, data, programacaoId){
     });
     state.toast = codigo+": marcado como URGENTE para a Correção."; render();
   }).catch(function(err){ state.toast = "Erro ao marcar urgência: "+(err&&err.message||""); render(); });
+}
+/* ================= OBSERVAÇÃO PCP (Bloco 2.1) =================
+   Campo dedicado e EDITÁVEL em necessidades/{key} — observacaoPCPAtual
+   (+ metadados de quem/quando editou). Não é a mesma coisa que
+   necessidades/{key}.observacoes (o log de textos vindos de cada linha
+   bruta importada, já existente desde antes — nunca tocado aqui) nem a
+   observação da Correção (status/{key}.observacaoCorrecao). Grava com
+   .set(..., {merge:true}) contendo SÓ esses 3 campos — o merge do
+   Firestore garante, por definição, que nada mais no documento (kg,
+   programacaoId, clientes, count etc.) é alterado. Não precisou de
+   nenhuma mudança em firestore.rules: necessidades/{key} já tem
+   "allow write: if isPCP()" sem whitelist de campos.
+   Só grava e só notifica quando o texto novo (aparado) é REALMENTE
+   diferente do atual — cancelar ou salvar o mesmo conteúdo não gera
+   nem escrita nem notificação. */
+function salvarObservacaoPCP(key, novoTexto){
+  if(!state.db) return Promise.resolve();
+  var nec = state.necessidadesByKey[key];
+  var atual = ((nec && nec.observacaoPCPAtual) || "").trim();
+  var novo = (novoTexto || "").trim();
+  if(novo === atual) return Promise.resolve(); // nada mudou -- nao grava, nao notifica
+  return withPermissionRetry(function(){
+    return state.db.doc("necessidades/"+key).set({
+      observacaoPCPAtual: novo,
+      observacaoPCPAtualizadaEm: state.db.serverTimestamp(),
+      observacaoPCPAtualizadaPor: { uid: state.user.uid, nome: state.user.nome }
+    }, {merge:true});
+  }).then(function(){
+    if(novo && nec){
+      var linhaRef = state.ferramentas.find(function(t){
+        return t.codigo===nec.codigo && t.prensa===nec.prensa && t.dataProgramacao===nec.data && (t.programacaoId||null)===(nec.programacaoId||null);
+      });
+      var turnoRef = linhaRef ? linhaRef.turno : null;
+      var clienteRef = (nec.clientes && nec.clientes[0]) || (linhaRef && linhaRef.cliente) || null;
+      criarNotificacao("obs_"+key+"_"+Date.now(), {
+        tipo: "observacao",
+        titulo: "OBSERVAÇÃO DO PCP",
+        resumo: "Ferramenta: "+nec.codigo+(clienteRef?" · Cliente: "+clienteRef:"")+" · Prensa: "+nec.prensa+(turnoRef?" · Turno: "+turnoRef:"")+" — \""+novo.slice(0,120)+(novo.length>120?"…":"")+"\"",
+        codigo: nec.codigo, prensa: nec.prensa, turno: turnoRef, data: nec.data, programacaoId: nec.programacaoId||null
+      });
+    }
+  });
 }
 // Botão único do PCP (card): decide ativar ou retirar a urgência conforme
 // o estado atual — sem duplicar lógica, delega inteiramente para
@@ -4300,7 +4424,12 @@ function startSubs(){
       render();
     });
   }
-  if(state.user.perfil==="correcao" && !state.unsubNecessidades){
+  // Bloco 2.1: antes só a Correção assinava "necessidades" (é o que ela
+  // enxerga). Agora o PCP também precisa — pra saber a Observação PCP
+  // ATUAL antes de editar (mostrar valor existente, comparar antes de
+  // salvar/notificar). Já tinha permissão de leitura nas regras (isPCP()
+  // || isCorrecao()); só faltava o listener do lado do PCP.
+  if(!state.unsubNecessidades){
     state.unsubNecessidades = state.db.collection("necessidades").limit(2000).onSnapshot(function(snap){
       var map = {};
       snap.docs.forEach(function(d){
@@ -4372,9 +4501,8 @@ function startSubs(){
       var map = {};
       snap.docs.forEach(function(d){ map[d.id] = d.data(); });
       var isInitialLoad = !state._notifListenerReady;
-      if(notifSnapshotShouldPlaySound(map, state._prevNotifIds, isInitialLoad, state.user && state.user.perfil)){
-        playNotifSound();
-      }
+      var nivelSom = notifSnapshotSoundLevel(map, state._prevNotifIds, isInitialLoad, state.user && state.user.perfil);
+      if(nivelSom) playNotifSound(nivelSom);
       var idsAgora = {};
       Object.keys(map).forEach(function(id){ idsAgora[id] = true; });
       state._prevNotifIds = idsAgora;
@@ -4384,14 +4512,22 @@ function startSubs(){
     }, function(err){ /* notificação é informativa; nunca bloqueia o resto do app */ });
   }
 }
-// Decisão isolada (pura, testável): toca som quando NÃO é carga inicial,
-// o usuário é da Correção (quem recebe), e existe pelo menos um id no
-// snapshot atual que não estava no anterior. Extraída do listener acima
-// de propósito — é a peça mais crítica de "não duplicar som" do Bloco 2.
-function notifSnapshotShouldPlaySound(map, prevIds, isInitialLoad, perfil){
-  if(isInitialLoad || perfil!=="correcao") return false;
+// Decisão isolada (pura, testável): null quando não deve tocar nada
+// (carga inicial, perfil que não é Correção, ou nenhum id novo desde o
+// snapshot anterior) — extraída do listener de propósito, é a peça mais
+// crítica de "não duplicar som" do Bloco 2/2.1. Quando deve tocar,
+// devolve o NÍVEL certo: "urgencia" se qualquer notificação nova nesta
+// leitura for tipo "urgencia" (som de alarme tem prioridade), senão
+// "normal" — mesmo que várias notificações novas cheguem juntas (ex.:
+// import BASE_APP + ferramenta manual quase ao mesmo tempo), toca UM som
+// só por leitura, nunca um por notificação.
+function notifSnapshotSoundLevel(map, prevIds, isInitialLoad, perfil){
+  if(isInitialLoad || perfil!=="correcao") return null;
   var prev = prevIds || {};
-  return Object.keys(map).some(function(id){ return !prev[id]; });
+  var novosIds = Object.keys(map).filter(function(id){ return !prev[id]; });
+  if(!novosIds.length) return null;
+  var temUrgencia = novosIds.some(function(id){ return map[id] && map[id].tipo==="urgencia"; });
+  return temUrgencia ? "urgencia" : "normal";
 }
 
 /* ================= SETUP SCREEN (shown when Firebase isn't configured) ================= */
