@@ -1,36 +1,45 @@
-# Módulo Pintura — validação B08 e fluxo macro
+# Módulo Pintura — validação funcional e visual
 
-Protótipo isolado, sem Firebase e sem integração com o PCP/Correção. Os dados ficam no armazenamento local do navegador.
+Protótipo totalmente isolado do PCP/Correção, sem Firebase, autenticação, Firestore ou serviços de produção. Todos os dados e importações ficam somente no `localStorage` do navegador.
 
-## Fluxo validado
+## Regras implementadas
 
-B08 → volumes disponíveis → formar lote → Recebido na Pintura → Início da montagem dos carrinhos (EM PROCESSO) → Embalagem finalizada (aguarda avaliação do PCP).
+- A B08 é tratada como fotografia diária: `VOLUME` é atualizado sem duplicação e cada mudança acrescenta uma entrada em `historicoB08`.
+- Apenas `BENEFICIADOR = 00153` entra no universo operacional. O arquivo original nunca é alterado.
+- `EQUIPE A` significa material destinado/disponível para Pintura; `EQUIPE P` é evidência posterior de material pintado e embalado.
+- A reconciliação distingue: finalizado no APP aguardando B08, finalizado e confirmado pelo ACESYS, e B08 P sem finalização no APP.
+- O volume continua sendo a unidade de rastreabilidade, mas a operação pode ser consolidada por cliente, pedido e cor.
+- Todo avanço acrescenta um evento com usuário, data/hora, peças, kg, perda, retrabalho, divergência e motivo. Eventos anteriores não são sobrescritos.
 
-O VOLUME é a unidade de rastreabilidade da Extrusão. Um lote pode conter um ou vários volumes do mesmo beneficiamento/cor. Cada volume mantém pedido, item, cliente, ferramenta, peças, kg, comprimento, data de embalagem e campos originais.
+## Interface
 
-## Importação B08
+Há painel em kg/toneladas, visão por cliente com expansão cliente → pedido → itens, fila por cor, fila B08, rastreamento, finalizados, divergências e reserva para consumo de tinta. O detalhe do lote mostra os 11 passos visuais, os volumes de origem e a linha do tempo.
 
-A tela Materiais B08 aceita CSV e Excel. Na reimportação, cada volume é classificado como NOVO, JÁ IMPORTADO, ATUALIZADO ou JÁ VINCULADO A LOTE. Volumes vinculados não são sobrescritos e não podem entrar em outro lote.
-
-## Rastreabilidade
-
-Cada marco cria um evento novo e imutável com usuário, data/hora, peças, kg e ocorrências. O lote preserva recebidoEm, inicioProcessoEm e finalizadoEm. Assim o sistema calcula espera antes do processo, tempo efetivo de processo e tempo total no setor.
+Em telas de até 700 px, o menu começa recolhido, abre sobre o conteúdo pelo botão no cabeçalho e fecha pelo botão, toque fora, seleção de rota ou tecla Escape. O desktop mantém navegação lateral fixa.
 
 ## Arquivos
 
-- index.html — entrada do protótipo e leitor Excel.
-- styles.css — interface responsiva.
-- js/b08-service.js — normalização, CSV e controle de duplicidade.
-- js/model.js — formação do lote, marcos, quantidades e tempos.
-- js/mock-data.js — B08 e lotes demonstrativos.
-- js/storage-service.js — persistência local.
-- js/app.js — telas e interações.
-- tests/model.test.mjs — testes das regras críticas.
+- `index.html`: entrada exclusiva do protótipo e leitor local de Excel.
+- `styles.css`: layout desktop/mobile e componentes responsivos.
+- `js/b08-service.js`: normalização, filtro 00153, Equipes A/P, histórico diário e prevenção de duplicidade.
+- `js/analytics.js`: reconciliação, indicadores, fila e agrupamentos.
+- `js/ui-state.js`: regras testáveis do menu mobile.
+- `js/model.js`: formação de lote, movimentações, quantidades e tempos.
+- `js/mock-data.js`: duas fotografias B08 e cenários completos de demonstração.
+- `js/storage-service.js`: persistência local.
+- `js/app.js`: telas, filtros e interações.
+- `tests/model.test.mjs`: testes automatizados das regras críticas.
 
-## Executar
+## Executar localmente
 
-Na raiz do repositório execute npm run serve:pintura e acesse http://localhost:4173. Para testar, execute npm test.
+Na raiz do repositório:
 
-## Limites desta etapa
+```bash
+npm run serve:pintura
+```
 
-Não há conexão automática com Planilha Master, ACESYS, Firebase, estoque de tinta ou faturamento. Embalagem finalizada significa apenas que a Pintura terminou e o lote aguarda avaliação do PCP.
+Acesse `http://localhost:4173`. Execute `npm test` para validar as regras.
+
+## Limitações desta validação
+
+O pareamento A/P usa a chave simulada `pedido + item + ferramenta + beneficiamento`. Um arquivo B08 real deverá confirmar nomes de colunas e a chave de negócio definitiva. Não há integração com ACESYS, Firebase, estoque, faturamento ou aplicativo principal. “Confirmado no ACESYS” é apenas a interpretação local da B08 importada.
