@@ -6,7 +6,7 @@ import{menuTransition,isMobileWidth}from'../js/ui-state.js';import{createMockDat
 const T={t0:'2026-09-20T07:00:00.000Z',rec:'2026-09-20T08:00:00.000Z',ini:'2026-09-20T08:15:00.000Z',fim:'2026-09-20T14:45:00.000Z'};
 const imported=()=>importarB08([],B08_ROWS,T.t0);const queue=()=>imported().volumes.filter(v=>v.equipe==='A');const formed=()=>formarLote(queue().slice(0,2),{numero:'PNT-T',prioridade:'Alta'},USERS.pcp,T.t0);
 test('normaliza e preserva volume B08',()=>assert.equal(normalizeB08Row(B08_ROWS[0]).volume,'A1001'));
-test('normaliza beneficiador 00153',()=>assert.equal(normalizeB08Row(B08_ROWS[0]).beneficiador,'00153'));
+test('normaliza beneficiador correto 001533 com seis dígitos',()=>assert.equal(normalizeB08Row(B08_ROWS[0]).beneficiador,'001533'));
 test('filtro aceita beneficiador da Pintura',()=>assert.equal(pertencePintura(normalizeB08Row(B08_ROWS[0])),true));
 test('filtro exclui beneficiador diferente',()=>assert.equal(pertencePintura(normalizeB08Row(B08_ROWS.at(-1))),false));
 test('Equipe A vira fila da Pintura',()=>assert.equal(interpretarEquipe({equipe:'A'}),'FILA_PINTURA'));
@@ -19,8 +19,9 @@ test('fotografia diária atualiza registro conhecido',()=>{const a=imported(),ch
 test('atualização preserva histórico B08',()=>{const a=imported(),b=importarB08(a.volumes,[{...B08_ROWS[0],PEÇAS:'145'}],T.rec);assert.equal(b.volumes.find(v=>v.volume==='A1001').historicoB08.length,2);});
 test('P confirma A pela chave material',()=>assert.equal(imported().volumes.find(v=>v.volume==='A1020').confirmadoAcesys,true));
 test('chave material independe do volume',()=>assert.equal(chaveMaterial(normalizeB08Row(B08_ROWS[4])),chaveMaterial(normalizeB08Row(B08_ROWS[5]))));
-test('parser CSV reconhece beneficiador',()=>{const [r]=parseCsv('VOLUME;BENEFICIADOR;EQUIPE;PESO LÍQUIDO\n1;00153;A;12,50');assert.equal(normalizeB08Row(r).pesoLiquido,12.5);});
-test('fila contém somente 00153 Equipe A não confirmado',()=>assert.ok(filaPintura(imported().volumes).every(v=>v.beneficiador==='00153'&&v.equipe==='A'&&!v.confirmadoAcesys)));
+test('parser CSV reconhece beneficiador 001533',()=>{const [r]=parseCsv('VOLUME;BENEFICIADOR;EQUIPE;PESO LÍQUIDO\n1;001533;A;12,50');assert.equal(normalizeB08Row(r).pesoLiquido,12.5);});
+test('código antigo 00153 não pertence à Pintura',()=>assert.equal(pertencePintura({beneficiador:'00153'}),false));
+test('fila contém somente 001533 Equipe A não confirmado',()=>assert.ok(filaPintura(imported().volumes).every(v=>v.beneficiador==='001533'&&v.equipe==='A'&&!v.confirmadoAcesys)));
 test('forma lote e preserva volumes individuais',()=>assert.equal(formed().lote.volumeIds.length,2));
 test('soma peças do lote',()=>assert.equal(formed().lote.pecasB08,256));
 test('soma kg do lote',()=>assert.equal(formed().lote.kgB08,638.5));
