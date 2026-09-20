@@ -1,46 +1,13 @@
-import { criarLote, avancarLote } from './model.js';
-import { ETAPAS } from './constants.js';
-
-const USERS = {
-  pcp: { uid: 'demo-pcp', nome: 'Edvaldo · PCP', perfil: 'pcp' },
-  recebimento: { uid: 'demo-rec', nome: 'Solimar · Recebimento', perfil: 'pintura' },
-  operador: { uid: 'demo-op', nome: 'Carlos · Pintura', perfil: 'pintura' },
-  embalagem: { uid: 'demo-emb', nome: 'Jéssica · Embalagem', perfil: 'pintura' }
-};
-
-const at = hoursAgo => new Date(Date.now() - hoursAgo * 3600000).toISOString();
-
-function build(input, targetIndex, issueAt = -1) {
-  const created = criarLote(input, USERS.pcp, at(70));
-  let lote = created.lote;
-  const eventos = [created.evento];
-  for (let i = 1; i <= targetIndex; i++) {
-    const issue = i === issueAt;
-    const entry = lote.pecasAtuais;
-    const perda = issue ? 2 : 0;
-    const retrabalho = issue ? 3 : 0;
-    const moved = avancarLote(lote, {
-      para: ETAPAS[i].id, pecasEntrada: entry, pecasAprovadas: entry - perda - retrabalho,
-      retrabalho, perda, divergenciaContagem: 0,
-      kg: Math.max(0, lote.kgAtual - perda * 0.62),
-      motivo: issue ? 'Duas peças com amassado e três para repintura.' : '',
-      observacao: issue ? 'Divergência segregada e identificada.' : ''
-    }, i > 7 ? USERS.embalagem : USERS.operador, at(70 - i * 6));
-    lote = moved.lote; eventos.push(moved.evento);
-  }
-  return { lote, eventos };
-}
-
-export function createMockData() {
-  const samples = [
-    build({ numero:'PNT-260901', cliente:'Prado', pedido:'PV-8431', perfil:'EIR-033', corte:'6200', cor:'Branco RAL 9003', pecas:180, kg:742.5, prioridade:'Urgente', origem:'Extrusão P7', observacao:'Prioridade para fechamento de carga.' }, 6, 4),
-    build({ numero:'PNT-260902', cliente:'Metalseg', pedido:'PV-8450', perfil:'MT-210', corte:'5800', cor:'Preto RAL 9005', pecas:96, kg:388.8, prioridade:'Alta', origem:'Extrusão P4' }, 3),
-    build({ numero:'PNT-260903', cliente:'Pereira Brito', pedido:'PV-8462', perfil:'PB-077', corte:'6000', cor:'Cinza RAL 7040', pecas:240, kg:921.4, prioridade:'Normal', origem:'Extrusão P7' }, 1),
-    build({ numero:'PNT-260899', cliente:'Quality', pedido:'PV-8388', perfil:'QL-114', corte:'6100', cor:'Bronze 1002', pecas:120, kg:510, prioridade:'Normal', origem:'Extrusão P4' }, 10, 8)
-  ];
-  return {
-    version: 1, actor: USERS.operador,
-    lotes: samples.map(s => s.lote), eventos: samples.flatMap(s => s.eventos),
-    consumos: [{ id:'CON-DEMO', loteId:samples[3].lote.id, tinta:'Poliéster Bronze 1002', loteTinta:'TT-9088', kg:18.4, usuario:USERS.operador, criadoEm:at(8) }]
-  };
-}
+import{importarB08}from'./b08-service.js';
+import{formarLote,registrarRecebimento,iniciarProcesso,finalizarEmbalagem}from'./model.js';
+export const USERS={pcp:{uid:'demo-pcp',nome:'Edvaldo · PCP',perfil:'pcp'},recebimento:{uid:'demo-rec',nome:'Carlos · Recebimento',perfil:'pintura'},operador:{uid:'demo-op',nome:'João · Pintura',perfil:'pintura'},embalagem:{uid:'demo-emb',nome:'Maria · Embalagem',perfil:'pintura'}};
+const at=h=>new Date(Date.now()-h*3600000).toISOString();
+export const B08_ROWS=[
+{VOLUME:'88221',PEDIDO:'PV-8431',ITEM:'10',CLIENTE:'Prado',DATA:'18/09/2026',EQUIPE:'B',FERRAMENTA:'EIR-033',AMARRA:'A1',PEÇAS:'144','PESO LÍQUIDO':'272,00',COMPRIMENTO:'6200',BENEFICIAMENTO:'Branco RAL 9003',ENTREGA:'25/09/2026'},
+{VOLUME:'88217',PEDIDO:'PV-8431',ITEM:'20',CLIENTE:'Prado',DATA:'18/09/2026',EQUIPE:'B',FERRAMENTA:'EIR-033',AMARRA:'A2',PEÇAS:'112','PESO LÍQUIDO':'366,50',COMPRIMENTO:'6200',BENEFICIAMENTO:'Branco RAL 9003',ENTREGA:'25/09/2026'},
+{VOLUME:'88218',PEDIDO:'PV-8431',ITEM:'30',CLIENTE:'Prado',DATA:'18/09/2026',EQUIPE:'B',FERRAMENTA:'EIR-033',AMARRA:'A3',PEÇAS:'176','PESO LÍQUIDO':'421,00',COMPRIMENTO:'6200',BENEFICIAMENTO:'Branco RAL 9003',ENTREGA:'25/09/2026'},
+{VOLUME:'88301',PEDIDO:'PV-8450',ITEM:'10',CLIENTE:'Metalseg',DATA:'19/09/2026',EQUIPE:'A',FERRAMENTA:'MT-210',AMARRA:'B1',PEÇAS:'96','PESO LÍQUIDO':'388,80',COMPRIMENTO:'5800',BENEFICIAMENTO:'Preto RAL 9005',ENTREGA:'27/09/2026'},
+{VOLUME:'88302',PEDIDO:'PV-8450',ITEM:'20',CLIENTE:'Metalseg',DATA:'19/09/2026',EQUIPE:'A',FERRAMENTA:'MT-210',AMARRA:'B2',PEÇAS:'84','PESO LÍQUIDO':'340,20',COMPRIMENTO:'5800',BENEFICIAMENTO:'Preto RAL 9005',ENTREGA:'27/09/2026'},
+{VOLUME:'88410',PEDIDO:'PV-8462',ITEM:'10',CLIENTE:'Pereira Brito',DATA:'20/09/2026',EQUIPE:'C',FERRAMENTA:'PB-077',AMARRA:'C1',PEÇAS:'120','PESO LÍQUIDO':'460,70',COMPRIMENTO:'6000',BENEFICIAMENTO:'Cinza RAL 7040',ENTREGA:'29/09/2026'},
+{VOLUME:'88411',PEDIDO:'PV-8463',ITEM:'10',CLIENTE:'Quality',DATA:'20/09/2026',EQUIPE:'C',FERRAMENTA:'QL-114',AMARRA:'D1',PEÇAS:'120','PESO LÍQUIDO':'510,00',COMPRIMENTO:'6100',BENEFICIAMENTO:'Bronze 1002',ENTREGA:'30/09/2026'}];
+export function createMockData(){let volumes=importarB08([],B08_ROWS,at(90)).volumes,lotes=[],eventos=[];const form=(ids,input,h)=>{const r=formarLote(volumes.filter(v=>ids.includes(v.volume)),input,USERS.pcp,at(h));volumes=volumes.map(v=>r.volumes.find(x=>x.id===v.id)||v);lotes.push(r.lote);eventos.push(r.evento);return r.lote;};const replace=r=>{lotes=lotes.map(l=>l.id===r.lote.id?r.lote:l);eventos.push(r.evento);return r.lote;};let a=form(['88221','88217','88218'],{numero:'PNT-260901',prioridade:'Urgente'},70);a=replace(registrarRecebimento(a,{quantidadeVolumes:3,pecas:432,kg:1059.5},USERS.recebimento,at(55)));a=replace(iniciarProcesso(a,{pecas:432,kg:1059.5},USERS.operador,at(50)));a=replace(finalizarEmbalagem(a,{pecasBoas:425,kg:1042,perda:4,retrabalho:3,divergencia:0,motivo:'Quatro peças amassadas e três separadas para repintura.'},USERS.embalagem,at(43.5)));let b=form(['88301','88302'],{numero:'PNT-260902',prioridade:'Alta'},28);b=replace(registrarRecebimento(b,{quantidadeVolumes:2,pecas:180,kg:729},USERS.recebimento,at(20)));b=replace(iniciarProcesso(b,{pecas:180,kg:729},USERS.operador,at(16)));let c=form(['88410'],{numero:'PNT-260903',prioridade:'Normal'},10);c=replace(registrarRecebimento(c,{quantidadeVolumes:1,pecas:120,kg:460.7},USERS.recebimento,at(5)));return{version:2,actor:USERS.operador,volumes,lotes,eventos,consumos:[],importacoes:[{id:'IMP-DEMO',criadoEm:at(90),arquivo:'B08_SIMULADA.csv',resultado:{novos:7,duplicados:0,atualizados:0,vinculados:0}}]};}

@@ -1,88 +1,47 @@
-import { ETAPAS, etapaIndex } from './constants.js';
-
-const round = value => Math.round(Number(value || 0) * 1000) / 1000;
-export const makeId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
-export function validateLote(input) {
-  const required = ['cliente', 'perfil', 'cor'];
-  const missing = required.filter(k => !String(input[k] || '').trim());
-  if (missing.length) throw new Error(`Preencha: ${missing.join(', ')}.`);
-  if (!(Number(input.pecas) > 0)) throw new Error('A quantidade de peças deve ser maior que zero.');
-  if (!(Number(input.kg) > 0)) throw new Error('O peso deve ser maior que zero.');
+import{etapaIndex}from'./constants.js';
+export const round=v=>Math.round(Number(v||0)*1000)/1000;
+export const makeId=p=>`${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+const positive=(v,l)=>{if(!(Number(v)>0))throw new Error(`${l} deve ser maior que zero.`);};
+const actor=a=>({uid:a.uid,nome:a.nome,perfil:a.perfil});
+const base=(l,t,a,n)=>({id:makeId('EVT'),loteId:l.id,tipo:t,usuario:actor(a),criadoEm:n});
+const reason=(issue,m)=>{if(issue&&!String(m||'').trim())throw new Error('Informe o motivo da divergência, perda ou retrabalho.');};
+export function formarLote(volumes,input,user,now=new Date().toISOString()){
+ if(!volumes.length)throw new Error('Selecione ao menos um volume da B08.');
+ if(volumes.some(v=>v.status!=='disponivel'||v.loteId))throw new Error('Um ou mais volumes já pertencem a outro lote.');
+ if(new Set(volumes.map(v=>(v.beneficiamento||'').trim().toLowerCase())).size>1)throw new Error('Selecione somente volumes com o mesmo beneficiamento/cor.');
+ const id=makeId('LOT'),pecas=volumes.reduce((s,v)=>s+Number(v.pecas||0),0),kg=round(volumes.reduce((s,v)=>s+Number(v.pesoLiquido||0),0));
+ positive(pecas,'O total de peças');positive(kg,'O total de kg');
+ const lote={id,numero:String(input.numero||'').trim()||id.toUpperCase(),volumeIds:volumes.map(v=>v.id),quantidadeVolumes:volumes.length,
+ cliente:[...new Set(volumes.map(v=>v.cliente).filter(Boolean))].join(' / '),pedido:[...new Set(volumes.map(v=>v.pedido).filter(Boolean))].join(' / '),
+ perfil:[...new Set(volumes.map(v=>v.ferramenta).filter(Boolean))].join(' / '),cor:volumes[0].beneficiamento||'',prioridade:input.prioridade||'Normal',
+ observacao:String(input.observacao||'').trim(),etapaAtual:'formado',pecasB08:pecas,kgB08:kg,pecasAtuais:pecas,kgAtual:kg,pecasBoas:null,
+ perdasAcumuladas:0,retrabalhoAcumulado:0,divergenciasAcumuladas:0,recebidoEm:null,inicioProcessoEm:null,finalizadoEm:null,
+ criadoEm:now,atualizadoEm:now,responsavelAtual:user.nome,status:'ativo',entrada:'b08'};
+ const evento={...base(lote,'formacao',user,now),de:null,para:'formado',volumeIds:[...lote.volumeIds],quantidadeVolumes:volumes.length,pecasReferencia:pecas,pecas,kg,perda:0,retrabalho:0,divergencia:0,motivo:'',observacao:lote.observacao};
+ return{lote,evento,volumes:volumes.map(v=>({...v,status:'vinculado',loteId:id,atualizadoEm:now}))};
 }
-
-export function criarLote(input, actor, now = new Date().toISOString()) {
-  validateLote(input);
-  const id = makeId('LOT');
-  const pecas = Number(input.pecas);
-  const kg = round(input.kg);
-  return {
-    lote: {
-      id,
-      numero: input.numero?.trim() || id.toUpperCase(),
-      cliente: input.cliente.trim(), pedido: input.pedido?.trim() || '',
-      perfil: input.perfil.trim().toUpperCase(), corte: input.corte?.trim() || '',
-      cor: input.cor.trim(), prioridade: input.prioridade || 'Normal',
-      origem: input.origem?.trim() || 'Extrusão', observacao: input.observacao?.trim() || '',
-      etapaAtual: 'aguardando', pecasIniciais: pecas, pecasAtuais: pecas,
-      kgInicial: kg, kgAtual: kg, retrabalhoAberto: 0, perdasAcumuladas: 0,
-      criadoEm: now, atualizadoEm: now, responsavelAtual: actor.nome,
-      status: 'ativo', consumoTintaKg: 0
-    },
-    evento: {
-      id: makeId('EVT'), loteId: id, tipo: 'criacao', de: null, para: 'aguardando',
-      pecasEntrada: pecas, pecasAprovadas: pecas, retrabalho: 0, perda: 0,
-      divergenciaContagem: 0, kg, motivo: '', observacao: input.observacao?.trim() || '',
-      usuario: actor, criadoEm: now
-    }
-  };
+export function registrarRecebimento(lote,input,user,now=new Date().toISOString()){
+ if(lote.etapaAtual!=='formado')throw new Error('O lote não está aguardando recebimento.');
+ const pecas=Number(input.pecas),kg=round(input.kg),qtd=Number(input.quantidadeVolumes);positive(pecas,'Peças recebidas');positive(kg,'Kg recebidos');positive(qtd,'Volumes recebidos');
+ const div=Math.abs(lote.pecasB08-pecas);reason(div>0||qtd!==lote.quantidadeVolumes||kg!==lote.kgB08,input.motivo);
+ const evento={...base(lote,'recebimento',user,now),de:'formado',para:'recebido',quantidadeVolumes:qtd,pecasReferencia:lote.pecasB08,pecas,kg,perda:0,retrabalho:0,divergencia:div,motivo:String(input.motivo||'').trim(),observacao:String(input.observacao||'').trim()};
+ return{lote:{...lote,etapaAtual:'recebido',pecasAtuais:pecas,kgAtual:kg,recebidoEm:now,atualizadoEm:now,responsavelAtual:user.nome,divergenciasAcumuladas:lote.divergenciasAcumuladas+div},evento};
 }
-
-export function validateMovimento(lote, input) {
-  if (!lote || lote.status === 'finalizado') throw new Error('Este lote não pode ser movimentado.');
-  const current = etapaIndex(lote.etapaAtual);
-  const next = etapaIndex(input.para);
-  if (current < 0 || next !== current + 1) throw new Error('O avanço deve respeitar a próxima etapa do fluxo.');
-  const entrada = Number(input.pecasEntrada);
-  const aprovadas = Number(input.pecasAprovadas);
-  const retrabalho = Number(input.retrabalho || 0);
-  const perda = Number(input.perda || 0);
-  const contagem = Number(input.divergenciaContagem || 0);
-  if ([entrada, aprovadas, retrabalho, perda, contagem].some(v => !Number.isFinite(v) || v < 0)) throw new Error('As quantidades não podem ser negativas.');
-  if (entrada !== lote.pecasAtuais) throw new Error(`A entrada deve ser igual ao saldo atual de ${lote.pecasAtuais} peças.`);
-  if (entrada !== aprovadas + retrabalho + perda + contagem) throw new Error('A conta deve fechar: entrada = aprovadas + retrabalho + perda + divergência.');
-  if ((retrabalho + perda + contagem) > 0 && !String(input.motivo || '').trim()) throw new Error('Informe o motivo da divergência, perda ou retrabalho.');
-  if (!(Number(input.kg) >= 0)) throw new Error('Informe um peso válido.');
+export function iniciarProcesso(lote,input,user,now=new Date().toISOString()){
+ if(lote.etapaAtual!=='recebido')throw new Error('O lote precisa estar recebido antes de entrar em processo.');
+ const pecas=Number(input.pecas),kg=round(input.kg),div=Math.abs(lote.pecasAtuais-pecas);positive(pecas,'Peças em processo');positive(kg,'Kg em processo');reason(div>0||kg!==lote.kgAtual,input.motivo);
+ const evento={...base(lote,'inicio_processo',user,now),de:'recebido',para:'processo',pecasReferencia:lote.pecasAtuais,pecas,kg,perda:0,retrabalho:0,divergencia:div,motivo:String(input.motivo||'').trim(),observacao:String(input.observacao||'').trim()};
+ return{lote:{...lote,etapaAtual:'processo',pecasAtuais:pecas,kgAtual:kg,inicioProcessoEm:now,atualizadoEm:now,responsavelAtual:user.nome,divergenciasAcumuladas:lote.divergenciasAcumuladas+div},evento};
 }
-
-export function avancarLote(lote, input, actor, now = new Date().toISOString()) {
-  validateMovimento(lote, input);
-  const evento = {
-    id: makeId('EVT'), loteId: lote.id, tipo: 'movimentacao', de: lote.etapaAtual, para: input.para,
-    pecasEntrada: Number(input.pecasEntrada), pecasAprovadas: Number(input.pecasAprovadas),
-    retrabalho: Number(input.retrabalho || 0), perda: Number(input.perda || 0),
-    divergenciaContagem: Number(input.divergenciaContagem || 0), kg: round(input.kg),
-    motivo: String(input.motivo || '').trim(), observacao: String(input.observacao || '').trim(),
-    usuario: actor, criadoEm: now
-  };
-  const finalizado = input.para === ETAPAS.at(-1).id;
-  const atualizado = {
-    ...lote, etapaAtual: input.para, pecasAtuais: evento.pecasAprovadas,
-    kgAtual: evento.kg, retrabalhoAberto: lote.retrabalhoAberto + evento.retrabalho,
-    perdasAcumuladas: lote.perdasAcumuladas + evento.perda,
-    atualizadoEm: now, responsavelAtual: actor.nome, status: finalizado ? 'finalizado' : 'ativo'
-  };
-  return { lote: atualizado, evento };
+export function finalizarEmbalagem(lote,input,user,now=new Date().toISOString()){
+ if(lote.etapaAtual!=='processo')throw new Error('O lote precisa estar em processo para finalizar.');
+ const boas=Number(input.pecasBoas),perda=Number(input.perda||0),retrabalho=Number(input.retrabalho||0),div=Number(input.divergencia||0),kg=round(input.kg);
+ if([boas,perda,retrabalho,div,kg].some(v=>!Number.isFinite(v)||v<0))throw new Error('Quantidades não podem ser negativas.');
+ if(lote.pecasAtuais!==boas+perda+retrabalho+div)throw new Error('A conta deve fechar: entrada = boas + perda + retrabalho + divergência.');
+ reason(perda+retrabalho+div>0,input.motivo);
+ const evento={...base(lote,'finalizacao',user,now),de:'processo',para:'finalizado',pecasReferencia:lote.pecasAtuais,pecas:boas,kg,perda,retrabalho,divergencia:div,motivo:String(input.motivo||'').trim(),observacao:String(input.observacao||'').trim()};
+ return{lote:{...lote,etapaAtual:'finalizado',pecasAtuais:boas,pecasBoas:boas,kgAtual:kg,finalizadoEm:now,atualizadoEm:now,responsavelAtual:user.nome,perdasAcumuladas:lote.perdasAcumuladas+perda,retrabalhoAcumulado:lote.retrabalhoAcumulado+retrabalho,divergenciasAcumuladas:lote.divergenciasAcumuladas+div,status:'finalizado'},evento};
 }
-
-export function progresso(lote) {
-  const idx = Math.max(0, etapaIndex(lote.etapaAtual));
-  return Math.round((idx / (ETAPAS.length - 1)) * 100);
-}
-
-export function tempoNaEtapa(lote, now = Date.now()) {
-  const ms = Math.max(0, now - new Date(lote.atualizadoEm).getTime());
-  const hours = Math.floor(ms / 3600000);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-}
+export function duracaoMs(i,f){if(!i||!f)return null;return Math.max(0,new Date(f)-new Date(i));}
+export function temposLote(l){return{esperaMs:duracaoMs(l.recebidoEm,l.inicioProcessoEm),processoMs:duracaoMs(l.inicioProcessoEm,l.finalizadoEm),totalSetorMs:duracaoMs(l.recebidoEm,l.finalizadoEm)};}
+export function progresso(l){return Math.max(0,Math.round(etapaIndex(l.etapaAtual)/3*100));}

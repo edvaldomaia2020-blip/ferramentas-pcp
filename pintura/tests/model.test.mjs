@@ -1,74 +1,34 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { criarLote, avancarLote, validateMovimento, progresso } from '../js/model.js';
-import { createMockData } from '../js/mock-data.js';
-
-const actor={uid:'u1',nome:'Operador Teste',perfil:'pintura'};
-const base={numero:'T-01',cliente:'Cliente',perfil:'ABC-001',cor:'Branco',pecas:100,kg:420,prioridade:'Normal'};
-
-test('cadastro cria lote e evento inicial sem apagar origem',()=>{
-  const {lote,evento}=criarLote(base,actor,'2026-09-20T10:00:00.000Z');
-  assert.equal(lote.pecasAtuais,100);
-  assert.equal(lote.etapaAtual,'aguardando');
-  assert.equal(evento.tipo,'criacao');
-  assert.equal(evento.pecasEntrada,100);
-});
-
-test('avanço preserva lote original e cria evento independente',()=>{
-  const {lote}=criarLote(base,actor);
-  const result=avancarLote(lote,{para:'recebido',pecasEntrada:100,pecasAprovadas:100,retrabalho:0,perda:0,divergenciaContagem:0,kg:420},actor);
-  assert.equal(lote.etapaAtual,'aguardando');
-  assert.equal(result.lote.etapaAtual,'recebido');
-  assert.equal(result.evento.de,'aguardando');
-  assert.equal(result.evento.para,'recebido');
-});
-
-test('bloqueia salto de etapa',()=>{
-  const {lote}=criarLote(base,actor);
-  assert.throws(()=>avancarLote(lote,{para:'tratamento',pecasEntrada:100,pecasAprovadas:100,kg:420},actor),/próxima etapa/);
-});
-
-test('bloqueia movimentação quando a conta das peças não fecha',()=>{
-  const {lote}=criarLote(base,actor);
-  assert.throws(()=>validateMovimento(lote,{para:'recebido',pecasEntrada:100,pecasAprovadas:98,retrabalho:0,perda:1,divergenciaContagem:0,kg:418}),/conta deve fechar/);
-});
-
-test('exige motivo para perda, retrabalho ou divergência',()=>{
-  const {lote}=criarLote(base,actor);
-  assert.throws(()=>validateMovimento(lote,{para:'recebido',pecasEntrada:100,pecasAprovadas:98,retrabalho:1,perda:1,divergenciaContagem:0,kg:418,motivo:''}),/Informe o motivo/);
-});
-
-test('registra perda e retrabalho no saldo e acumuladores',()=>{
-  const {lote}=criarLote(base,actor);
-  const result=avancarLote(lote,{para:'recebido',pecasEntrada:100,pecasAprovadas:95,retrabalho:3,perda:2,divergenciaContagem:0,kg:411,motivo:'Avaria identificada'},actor);
-  assert.equal(result.lote.pecasAtuais,95);
-  assert.equal(result.lote.perdasAcumuladas,2);
-  assert.equal(result.lote.retrabalhoAberto,3);
-  assert.equal(result.evento.motivo,'Avaria identificada');
-});
-
-test('progresso começa em zero',()=>{
-  const {lote}=criarLote(base,actor);
-  assert.equal(progresso(lote),0);
-});
-
-test('dados simulados demonstram todas as situações principais',()=>{
-  const db=createMockData();
-  assert.equal(db.lotes.length,4);
-  assert.ok(db.lotes.some(l=>l.status==='finalizado'));
-  assert.ok(db.lotes.some(l=>l.status==='ativo'));
-  assert.ok(db.eventos.some(e=>e.perda>0));
-  assert.ok(db.eventos.some(e=>e.retrabalho>0));
-  assert.ok(db.consumos.length>0);
-});
-
-test('histórico cresce sem substituir eventos anteriores',()=>{
-  const created=criarLote(base,actor,'2026-09-20T10:00:00.000Z');
-  const history=[created.evento];
-  const first=avancarLote(created.lote,{para:'recebido',pecasEntrada:100,pecasAprovadas:100,retrabalho:0,perda:0,divergenciaContagem:0,kg:420},actor,'2026-09-20T11:00:00.000Z');
-  history.push(first.evento);
-  const second=avancarLote(first.lote,{para:'gaiola',pecasEntrada:100,pecasAprovadas:100,retrabalho:0,perda:0,divergenciaContagem:0,kg:420},actor,'2026-09-20T12:00:00.000Z');
-  history.push(second.evento);
-  assert.deepEqual(history.map(e=>e.para),['aguardando','recebido','gaiola']);
-  assert.equal(new Set(history.map(e=>e.id)).size,3);
-});
+import test from'node:test';import assert from'node:assert/strict';
+import{normalizeB08Row,importarB08,parseCsv}from'../js/b08-service.js';
+import{formarLote,registrarRecebimento,iniciarProcesso,finalizarEmbalagem,temposLote}from'../js/model.js';
+import{createMockData,B08_ROWS,USERS}from'../js/mock-data.js';
+const T={t0:'2026-09-20T07:00:00.000Z',rec:'2026-09-20T08:00:00.000Z',ini:'2026-09-20T08:15:00.000Z',fim:'2026-09-20T14:45:00.000Z'};
+const imported=()=>importarB08([],B08_ROWS,T.t0).volumes;
+const formed=()=>formarLote(imported().slice(0,3),{numero:'PNT-T',prioridade:'Alta'},USERS.pcp,T.t0);
+test('normaliza e preserva volume B08',()=>assert.equal(normalizeB08Row(B08_ROWS[0]).volume,'88221'));
+test('preserva pedido, item, perfil, peças e peso',()=>{const v=normalizeB08Row(B08_ROWS[0]);assert.deepEqual([v.pedido,v.item,v.ferramenta,v.pecas,v.pesoLiquido],['PV-8431','10','EIR-033',144,272]);});
+test('importa novos volumes',()=>{const r=importarB08([],B08_ROWS);assert.equal(r.volumes.length,7);assert.ok(r.resultado.every(x=>x.situacao==='NOVO'));});
+test('não duplica volume reimportado',()=>{const a=imported(),r=importarB08(a,B08_ROWS);assert.equal(r.volumes.length,7);assert.ok(r.resultado.every(x=>x.situacao==='JÁ IMPORTADO'));});
+test('atualiza volume existente alterado',()=>{const a=imported(),row={...B08_ROWS[6],PEÇAS:'121'},r=importarB08(a,[row]);assert.equal(r.resultado[0].situacao,'ATUALIZADO');assert.equal(r.volumes.find(v=>v.volume==='88411').pecas,121);});
+test('não sobrescreve volume já vinculado',()=>{const a=imported();a[0]={...a[0],status:'vinculado',loteId:'LOT-X'};const r=importarB08(a,[{...B08_ROWS[0],PEÇAS:'999'}]);assert.equal(r.resultado[0].situacao,'JÁ VINCULADO A LOTE');assert.equal(r.volumes[0].pecas,144);});
+test('parser CSV reconhece cabeçalho e decimal brasileiro',()=>{const rows=parseCsv('VOLUME;PEÇAS;PESO LÍQUIDO\n1;10;12,50');const v=normalizeB08Row(rows[0]);assert.equal(v.pesoLiquido,12.5);});
+test('forma lote com múltiplos volumes',()=>assert.equal(formed().lote.quantidadeVolumes,3));
+test('soma peças dos volumes',()=>assert.equal(formed().lote.pecasB08,432));
+test('soma kg dos volumes',()=>assert.equal(formed().lote.kgB08,1059.5));
+test('preserva IDs individuais dos volumes',()=>assert.equal(formed().lote.volumeIds.length,3));
+test('marca volumes formadores como vinculados',()=>assert.ok(formed().volumes.every(v=>v.status==='vinculado')));
+test('bloqueia volume pertencente a outro lote',()=>{const vs=imported().slice(0,1);vs[0].loteId='OUTRO';vs[0].status='vinculado';assert.throws(()=>formarLote(vs,{},USERS.pcp),/outro lote/);});
+test('bloqueia mistura de beneficiamentos',()=>assert.throws(()=>formarLote([imported()[0],imported()[3]],{},USERS.pcp),/mesmo beneficiamento/));
+test('registra recebimento e timestamp',()=>{const f=formed(),r=registrarRecebimento(f.lote,{quantidadeVolumes:3,pecas:432,kg:1059.5},USERS.recebimento,T.rec);assert.equal(r.lote.etapaAtual,'recebido');assert.equal(r.lote.recebidoEm,T.rec);});
+test('recebimento divergente exige motivo',()=>assert.throws(()=>registrarRecebimento(formed().lote,{quantidadeVolumes:3,pecas:431,kg:1059.5},USERS.recebimento,T.rec),/motivo/));
+test('início registra hora e muda para processo',()=>{let l=registrarRecebimento(formed().lote,{quantidadeVolumes:3,pecas:432,kg:1059.5},USERS.recebimento,T.rec).lote;const r=iniciarProcesso(l,{pecas:432,kg:1059.5},USERS.operador,T.ini);assert.equal(r.lote.etapaAtual,'processo');assert.equal(r.lote.inicioProcessoEm,T.ini);});
+function processing(){let l=registrarRecebimento(formed().lote,{quantidadeVolumes:3,pecas:432,kg:1059.5},USERS.recebimento,T.rec).lote;return iniciarProcesso(l,{pecas:432,kg:1059.5},USERS.operador,T.ini).lote;}
+test('finalização registra timestamp e peças boas',()=>{const r=finalizarEmbalagem(processing(),{pecasBoas:425,kg:1042,perda:4,retrabalho:3,divergencia:0,motivo:'Ocorrências classificadas'},USERS.embalagem,T.fim);assert.equal(r.lote.finalizadoEm,T.fim);assert.equal(r.lote.pecasBoas,425);});
+test('bloqueia finalização quando a conta não fecha',()=>assert.throws(()=>finalizarEmbalagem(processing(),{pecasBoas:425,kg:1042,perda:4,retrabalho:1,divergencia:0,motivo:'x'},USERS.embalagem,T.fim),/conta deve fechar/));
+test('bloqueia diferença sem justificativa',()=>assert.throws(()=>finalizarEmbalagem(processing(),{pecasBoas:425,kg:1042,perda:4,retrabalho:3,divergencia:0,motivo:''},USERS.embalagem,T.fim),/motivo/));
+test('registra perdas e retrabalho',()=>{const r=finalizarEmbalagem(processing(),{pecasBoas:425,kg:1042,perda:4,retrabalho:3,divergencia:0,motivo:'x'},USERS.embalagem,T.fim);assert.deepEqual([r.lote.perdasAcumuladas,r.lote.retrabalhoAcumulado],[4,3]);});
+test('calcula tempo de processo 6h30min',()=>{const l={recebidoEm:T.rec,inicioProcessoEm:T.ini,finalizadoEm:T.fim};assert.equal(temposLote(l).processoMs,6.5*3600000);});
+test('calcula espera antes do processo',()=>{const l={recebidoEm:T.rec,inicioProcessoEm:T.ini,finalizadoEm:T.fim};assert.equal(temposLote(l).esperaMs,15*60000);});
+test('calcula tempo total no setor',()=>{const l={recebidoEm:T.rec,inicioProcessoEm:T.ini,finalizadoEm:T.fim};assert.equal(temposLote(l).totalSetorMs,6.75*3600000);});
+test('histórico cresce sem sobrescrever eventos',()=>{const f=formed();let hist=[f.evento],r=registrarRecebimento(f.lote,{quantidadeVolumes:3,pecas:432,kg:1059.5},USERS.recebimento,T.rec);hist.push(r.evento);r=iniciarProcesso(r.lote,{pecas:432,kg:1059.5},USERS.operador,T.ini);hist.push(r.evento);r=finalizarEmbalagem(r.lote,{pecasBoas:432,kg:1050,perda:0,retrabalho:0,divergencia:0},USERS.embalagem,T.fim);hist.push(r.evento);assert.deepEqual(hist.map(e=>e.tipo),['formacao','recebimento','inicio_processo','finalizacao']);assert.equal(new Set(hist.map(e=>e.id)).size,4);});
+test('dados simulados cobrem disponível, recebido, processo e finalizado',()=>{const db=createMockData();assert.ok(db.volumes.some(v=>v.status==='disponivel'));for(const s of['recebido','processo','finalizado'])assert.ok(db.lotes.some(l=>l.etapaAtual===s));});

@@ -1,60 +1,36 @@
-# Módulo Pintura — protótipo isolado
+# Módulo Pintura — validação B08 e fluxo macro
 
-Protótipo da Fase 1 do rastreamento da Pintura. Ele não importa o aplicativo PCP/Correção, não usa Firebase e não modifica `../index.html`.
+Protótipo isolado, sem Firebase e sem integração com o PCP/Correção. Os dados ficam no armazenamento local do navegador.
+
+## Fluxo validado
+
+B08 → volumes disponíveis → formar lote → Recebido na Pintura → Início da montagem dos carrinhos (EM PROCESSO) → Embalagem finalizada (aguarda avaliação do PCP).
+
+O VOLUME é a unidade de rastreabilidade da Extrusão. Um lote pode conter um ou vários volumes do mesmo beneficiamento/cor. Cada volume mantém pedido, item, cliente, ferramenta, peças, kg, comprimento, data de embalagem e campos originais.
+
+## Importação B08
+
+A tela Materiais B08 aceita CSV e Excel. Na reimportação, cada volume é classificado como NOVO, JÁ IMPORTADO, ATUALIZADO ou JÁ VINCULADO A LOTE. Volumes vinculados não são sobrescritos e não podem entrar em outro lote.
+
+## Rastreabilidade
+
+Cada marco cria um evento novo e imutável com usuário, data/hora, peças, kg e ocorrências. O lote preserva recebidoEm, inicioProcessoEm e finalizadoEm. Assim o sistema calcula espera antes do processo, tempo efetivo de processo e tempo total no setor.
+
+## Arquivos
+
+- index.html — entrada do protótipo e leitor Excel.
+- styles.css — interface responsiva.
+- js/b08-service.js — normalização, CSV e controle de duplicidade.
+- js/model.js — formação do lote, marcos, quantidades e tempos.
+- js/mock-data.js — B08 e lotes demonstrativos.
+- js/storage-service.js — persistência local.
+- js/app.js — telas e interações.
+- tests/model.test.mjs — testes das regras críticas.
 
 ## Executar
 
-Na raiz do repositório:
+Na raiz do repositório execute npm run serve:pintura e acesse http://localhost:4173. Para testar, execute npm test.
 
-```bash
-npm run serve:pintura
-```
+## Limites desta etapa
 
-Acesse `http://localhost:4173`. Os dados ficam somente no `localStorage` do navegador, na chave `extrutech.pintura.prototype.v1`. Uma janela anônima inicia outra base local.
-
-Testes das regras de negócio:
-
-```bash
-npm test
-```
-
-## Estrutura
-
-- `index.html`: ponto de entrada exclusivo do módulo.
-- `styles.css`: identidade visual responsiva para computador e celular.
-- `js/constants.js`: etapas, prioridades e tipos de divergência.
-- `js/model.js`: regras puras de cadastro, movimentação, saldo e validação.
-- `js/storage-service.js`: persistência local substituível por um serviço futuro.
-- `js/mock-data.js`: lotes e históricos simulados para demonstrar o fluxo.
-- `js/app.js`: renderização das telas, filtros e eventos de interface.
-- `tests/model.test.mjs`: testes automatizados das regras críticas.
-
-## Funcionamento
-
-O lote mantém somente seu estado atual para leitura rápida. Cada criação ou avanço produz também um novo evento. Eventos anteriores nunca são atualizados nem removidos pela aplicação. A linha do tempo é derivada dessa lista de eventos.
-
-O avanço é estritamente sequencial. A movimentação só é aceita quando:
-
-```text
-peças de entrada = aprovadas + retrabalho + perda + divergência de contagem
-```
-
-Quando qualquer valor de retrabalho, perda ou divergência for maior que zero, o motivo é obrigatório. O lote, o evento e os dados simulados são gravados localmente em um único snapshot, sem rede.
-
-## Decisões da Fase 1
-
-- Desenvolvimento em `feature/modulo-pintura` e em diretório próprio.
-- Nenhum link foi incluído no app atual.
-- Nenhum perfil, regra ou coleção Firebase foi criado.
-- O consumo de tinta tem modelo e tela consultiva, mas o apontamento ficou reservado para a Fase 2.
-- Usuários demonstrativos são selecionados na movimentação para comprovar autoria no histórico.
-
-## Aprovações necessárias para a Fase 2
-
-1. Forma de acesso ao módulo e eventual tela inicial compartilhada.
-2. Novo perfil `pintura` e matriz de permissões por etapa.
-3. Coleções Firebase e regras de segurança exclusivas da Pintura.
-4. Uso de transação atômica para atualizar lote e inserir evento juntos.
-5. Regras do consumo de tinta: unidade, estoque, tolerância, devolução e aprovadores.
-6. Tratamento do retrabalho: retorno para etapa anterior ou fila paralela.
-7. Integração com carteira/BASE_APP e critério de liberação para faturamento.
+Não há conexão automática com Planilha Master, ACESYS, Firebase, estoque de tinta ou faturamento. Embalagem finalizada significa apenas que a Pintura terminou e o lote aguarda avaliação do PCP.
