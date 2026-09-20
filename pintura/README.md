@@ -44,6 +44,10 @@ Acesse `http://localhost:4173`. Execute `npm test` para validar as regras.
 
 O leitor XLSX está armazenado em `vendor/xlsx.full.min.js`, eliminando a dependência do CDN durante a importação. O importador procura o cabeçalho nas primeiras 100 linhas de todas as abas, identifica colunas pelos nomes normalizados e tolera acentos, espaços, pontuação, colunas adicionais, números como texto, células vazias e datas seriais do Excel.
 
+O layout real validado possui a aba `AceManager`, 190 linhas, 52 colunas e cabeçalho na linha 3. O identificador do volume vem de `VOLUME_ID`. Pedido e ferramenta vêm de `PEDIDO_ID` e `FERRAMENTA_ID`. Os demais campos operacionais e todos os campos originais continuam preservados para auditoria.
+
+No arquivo real analisado, `BENEFICIADOR_ID` contém classificadores como `CL` e `FO`, enquanto o código numérico da StruColor aparece em `BENEFICIADOR` como `01533`. O importador mantém os dois valores originais separadamente, registra qual coluna forneceu o código e normaliza apenas a cópia usada na comparação com `001533`. Ele prefere `BENEFICIADOR_ID` quando essa coluna contém um código numérico; caso contrário, usa o código numérico de `BENEFICIADOR`. Essa decisão é auditável e evita confundir ou sobrescrever as duas colunas.
+
 A seleção do arquivo apenas confirma seu nome. O processamento acontece ao pressionar **Processar fotografia diária**, com mensagens para arquivo selecionado, leitura, aba encontrada, linha do cabeçalho, registros lidos, válidos, ignorados, novos, conhecidos, atualizados e vinculados. Importações com zero registros reconhecidos são rejeitadas com o motivo, sem gravar uma falsa conclusão.
 
 ## Limitações desta validação
