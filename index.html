@@ -507,6 +507,25 @@ html.modal-open, body.modal-open{ overflow:hidden; overscroll-behavior:none; }
 .modal-wide .audit-fixed{ flex:none; }
 .modal-wide .audit-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
 .audit-list{ border:1px solid var(--border); border-radius:8px; }
+
+/* ---------- Histórico de Programações (Bloco 1) ---------- */
+.hist-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px;}
+.hist-row{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;flex-direction:column;gap:2px;}
+.hist-row:last-child{border-bottom:none;}
+.hist-row:hover{background:var(--surface-2);}
+.hist-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.hist-row-sub{font-size:12px;color:var(--text-muted);}
+.hist-detail-row{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:2px;}
+.hist-detail-row:last-child{border-bottom:none;}
+.hist-archived-badge{
+  display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--text-faint);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:20px;padding:2px 9px;white-space:nowrap;
+}
+.hist-archived-badge.lg{font-size:12px;padding:4px 12px;color:var(--accent-2);border-color:var(--accent-2);background:var(--surface);}
+.hist-archived-banner{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface-2);border:1px dashed var(--border-strong);
+  border-radius:9px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:var(--text-muted);
+}
 .modal-wide .modal-head{ position:sticky; top:-18px; margin:-18px -18px 0; padding:18px 18px 10px; background:var(--surface); z-index:2; flex:none; }
 @media (min-width:900px){
   .modal.modal-wide{ max-width:min(1200px,94vw); max-height:90vh; }
@@ -898,7 +917,12 @@ var state = {
   programacoesByKey: {},
   unsubProgramacoes: null,
   correcaoSecaoRecolhida: {},
-  baseAppImport: null
+  baseAppImport: null,
+  // Bloco 1 — Objetivo 3: tela consultiva "Histórico de Programações"
+  // (PCP, somente leitura). Não é uma estrutura paralela — só consulta o
+  // que já está carregado em programacoesByKey/ferramentas/statusByKey/
+  // urgenciasByKey (as mesmas coleções de sempre).
+  historico: null
 };
 
 var app = document.getElementById("app");
@@ -1060,6 +1084,7 @@ function renderTopBar(){
     '<div style="display:flex;gap:8px;overflow-x:auto;">' +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-baseapp-import">Importar BASE_APP</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-audit">Auditoria</button>' : '') +
+      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-historico">Histórico de Programações</button>' : '') +
       '<button class="icon-btn" data-action="logout">Sair</button>' +
     '</div>' +
   '</div>';
@@ -1142,6 +1167,105 @@ function isRecordActive(programacaoId, data, turno){
     return false;
   }
   return true;
+}
+// Bloco 1 — Objetivo 1: encontra a programação vigente (BASE_APP) que já
+// cobre o slot data+turno de uma ferramenta prestes a ser cadastrada
+// manualmente pelo PCP. Usada só para ATRIBUIR o programacaoId correto no
+// momento da criação — sem isso, o registro nasce "legado" e some da
+// Correção assim que qualquer programação vigente existir para a mesma
+// data (ver isRecordActive acima), mesmo tendo acabado de ser criado.
+// Se não houver nenhuma programação vigente pra esse slot (situação
+// legado genuína, ex.: antes da primeira importação BASE_APP), devolve
+// null e o registro segue exatamente como sempre seguiu.
+function findActiveProgramacaoId(data, turno){
+  var keys = Object.keys(state.programacoesByKey);
+  for(var i=0;i<keys.length;i++){
+    var pr = state.programacoesByKey[keys[i]];
+    if(pr.vigente && pr.data===data && pr.turno===turno) return keys[i];
+  }
+  return null;
+}
+// Bloco 1 — Objetivo 2: uma urgência só deve contar como ATIVA (banner,
+// contador) se a programação por trás dela ainda estiver vigente. Reusa
+// isRecordActive (mesma função de sempre) em vez de duplicar a lógica de
+// slot — nunca apaga nem altera o documento em "urgencias" (preserva
+// histórico/auditoria); só deixa de contá-lo como ativo na programação
+// atual quando o slot que ele referenciava foi substituído/arquivado.
+function isUrgenciaEfetivamenteAtiva(u){
+  if(!u || !u.urgente) return false;
+  return isRecordActive(u.programacaoId||null, u.data, null);
+}
+
+/* ================= HISTÓRICO DE PROGRAMAÇÕES (Bloco 1 — Objetivo 3) =================
+   Tela consultiva do PCP. Reaproveita 100% a estrutura já existente
+   (programacoes/ferramentas/status/urgencias, já carregadas no cliente)
+   — nenhuma coleção nova, nenhum listener novo. "Arquivada" = mesmo
+   critério que isRecordActive já usa para decidir o que NÃO é mais
+   vigente (vigente:false), não uma segunda definição paralela. */
+// Timestamp usado só para ORDENAR (mais recente primeiro) — prioriza
+// encerradaEm/substituidaEm (o momento em que ela deixou de ser vigente,
+// mais relevante pra quem está procurando "o que saiu de vigor"), caindo
+// para criadaEm quando nenhum dos dois existir.
+function programacaoOrderTs(p){
+  var d = p.encerradaEm || p.substituidaEm || p.criadaEm;
+  if(!d) return 0;
+  var dt = (d && typeof d.toDate === "function") ? d.toDate() : new Date(d);
+  return (dt && !isNaN(dt.getTime())) ? dt.getTime() : 0;
+}
+// Lista de programações ARQUIVADAS (vigente:false), da mais recente pra
+// mais antiga. filtroData "" ou "__all__" = sem filtro; filtroTurno ""
+// ou "Todos" = sem filtro. Nunca inclui uma vigente — a tela é
+// exclusivamente de consulta ao que já saiu de vigor.
+function getArchivedProgramacoes(filtroData, filtroTurno, filtroPrensa){
+  var keys = Object.keys(state.programacoesByKey);
+  var list = keys.map(function(id){
+    var p = state.programacoesByKey[id];
+    return Object.assign({ id: id }, p);
+  }).filter(function(p){
+    if(p.vigente) return false;
+    if(filtroData && filtroData!=="__all__" && p.data!==filtroData) return false;
+    if(filtroTurno && filtroTurno!=="Todos" && p.turno!==filtroTurno) return false;
+    // totais.P7/P4 já vêm gravados no doc desde a importação BASE_APP —
+    // reaproveita em vez de varrer "ferramentas" só pra filtrar a lista.
+    if(filtroPrensa && filtroPrensa!=="Todas"){
+      var t = (p.totais && p.totais[filtroPrensa]) || {n:0};
+      if(!(t.n>0)) return false;
+    }
+    return true;
+  });
+  list.sort(function(a,b){ return programacaoOrderTs(b) - programacaoOrderTs(a); });
+  return list;
+}
+// Registros brutos (ferramentas) de UMA programação arquivada específica,
+// com os filtros de Prensa e Principal/Reserva já pedidos — os únicos
+// dois que fazem sentido dentro de uma programação já aberta (uma
+// programação cobre as duas prensas ao mesmo tempo, por isso prensa não
+// filtra QUAL programação aparece na lista, só os registros dela).
+function getFerramentasDaProgramacao(programacaoId, filtroPrensa, filtroTipo){
+  return state.ferramentas.filter(function(t){
+    if(t.programacaoId !== programacaoId) return false;
+    if(filtroPrensa && filtroPrensa!=="Todas" && t.prensa!==filtroPrensa) return false;
+    if(filtroTipo==="Principal" && t.tipo==="Reserva") return false;
+    if(filtroTipo==="Reserva" && t.tipo!=="Reserva") return false;
+    return true;
+  });
+}
+// Status/observação/urgência de um registro histórico — mesmas coleções
+// e mesma chave de sempre (necDocId), nunca uma leitura paralela.
+// "teveUrgencia" é fato histórico (existiu um doc de urgência pra essa
+// chave), não "está ativa agora" — uma programação arquivada nunca gera
+// urgência ativa na programação atual (ver isUrgenciaEfetivamenteAtiva).
+function historicoRowInfo(t){
+  var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
+  var sd = state.statusByKey[key];
+  var urg = state.urgenciasByKey[key];
+  return {
+    key: key,
+    status: sd ? sd.status : "Pendente",
+    previsaoLiberacao: (sd && sd.previsaoLiberacao) || null,
+    observacaoCorrecao: (sd && sd.observacaoCorrecao) || "",
+    teveUrgencia: !!urg
+  };
 }
 
 /* ================= DATA HELPERS ================= */
@@ -1573,7 +1697,13 @@ function getCorrecaoGroups(){
 // resultados — mas o banner avisa que elas existem, para não passarem
 // despercebidas. As que ESTÃO na lista visível aparecem nominalmente.
 function renderUrgentBanner(visibleGroups){
-  var activeKeys = Object.keys(state.urgenciasByKey).filter(function(k){ return state.urgenciasByKey[k].urgente; });
+  // Bloco 1 — Objetivo 2: só conta como urgência ATIVA se a programação
+  // por trás dela ainda estiver vigente (isUrgenciaEfetivamenteAtiva) —
+  // uma urgência de uma programação já substituída/arquivada não pode
+  // continuar aparecendo como "urgência ativa fora do filtro" para
+  // sempre, mesmo que ninguém tenha clicado em "retirar urgência"
+  // manualmente (o slot dela já não existe mais na programação atual).
+  var activeKeys = Object.keys(state.urgenciasByKey).filter(function(k){ return isUrgenciaEfetivamenteAtiva(state.urgenciasByKey[k]); });
   if(!activeKeys.length) return "";
   var visibleKeys = {};
   visibleGroups.forEach(function(g){ visibleKeys[g.key]=true; });
@@ -1979,6 +2109,7 @@ function renderModal(){
   if(state.modal==="audit") return renderAuditModal();
   if(state.modal==="confirm-status") return renderConfirmStatusModal();
   if(state.modal==="baseapp-import") return renderBaseAppImportModal();
+  if(state.modal==="historico") return renderHistoricoModal();
   return "";
 }
 function renderNewToolModal(){
@@ -2208,7 +2339,7 @@ function bindApp(){
   });
 
   app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
-    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; state.baseAppImport=null; render(); });
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; state.baseAppImport=null; state.historico=null; render(); });
   });
 
   app.querySelectorAll('[data-action="toggle-prog-secao"]').forEach(function(el){
@@ -2251,6 +2382,41 @@ function bindApp(){
   var auditFilterInput = document.getElementById("audit-filter-codigo");
   if(auditFilterInput) auditFilterInput.addEventListener("change", function(){
     state.audit.filterCodigo = auditFilterInput.value; render();
+  });
+  var openHistoricoBtn = app.querySelector('[data-action="open-historico"]');
+  if(openHistoricoBtn) openHistoricoBtn.addEventListener("click", function(){
+    state.modal="historico"; state.historico={ step:"list", filtroData:"__all__", filtroTurno:"Todos", programacaoId:null, filtroPrensa:"Todas", filtroTipo:"Todas" };
+    render();
+  });
+  app.querySelectorAll('[data-action="hist-filter"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      state.historico[el.getAttribute("data-field")] = el.getAttribute("data-value");
+      render();
+    });
+  });
+  var histDataInput = document.getElementById("hist-data");
+  if(histDataInput) histDataInput.addEventListener("change", function(){
+    state.historico.filtroData = histDataInput.value || "__all__";
+    render();
+  });
+  app.querySelectorAll('[data-action="hist-open"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      state.historico.step = "detail";
+      state.historico.programacaoId = el.getAttribute("data-id");
+      state.historico.filtroPrensa = "Todas"; state.historico.filtroTipo = "Todas";
+      render();
+    });
+  });
+  var histBackBtn = app.querySelector('[data-action="hist-back"]');
+  if(histBackBtn) histBackBtn.addEventListener("click", function(){
+    state.historico.step = "list"; state.historico.programacaoId = null;
+    render();
+  });
+  app.querySelectorAll('[data-action="hist-detail-filter"]').forEach(function(el){
+    el.addEventListener("click", function(){
+      state.historico[el.getAttribute("data-field")] = el.getAttribute("data-value");
+      render();
+    });
   });
   app.querySelectorAll('[data-action="toggle-audit-row"]').forEach(function(el){
     el.addEventListener("click", function(){
@@ -2663,6 +2829,12 @@ function submitNewTool(){
     solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
     criadoEm: new Date().toISOString()
   };
+  // Bloco 1 — Objetivo 1: se já existir uma programação BASE_APP vigente
+  // para essa mesma data+turno, o cadastro manual precisa nascer atrelado
+  // a ela (mesmo programacaoId) — senão nasce "legado" e some da Correção
+  // na hora, porque isRecordActive já considera esse slot substituído.
+  var progAtivaId = findActiveProgramacaoId(data, state.newTool.turno);
+  if(progAtivaId) doc.programacaoId = progAtivaId;
   withPermissionRetry(function(){
     return state.db.collection("ferramentas").add(doc).then(function(){
       return upsertNecessidadeDelta(doc, 1);
@@ -3142,6 +3314,109 @@ function renderAuditRow(row){
   }
   html += '</div>';
   return html;
+}
+
+/* ================= HISTÓRICO DE PROGRAMAÇÕES — UI (Bloco 1 — Objetivo 3) =================
+   Modal em 2 passos (lista -> detalhe), somente leitura, reaproveitando
+   o layout modal-wide/audit-fixed/audit-scroll já usado pela Auditoria —
+   mesmo comportamento de rolagem, sem CSS novo pra isso. */
+function renderHistoricoModal(){
+  var h = state.historico;
+  if(!h) return "";
+  var body = h.step==="detail" ? renderHistoricoDetail(h) : renderHistoricoList(h);
+  return '' +
+  '<div class="modal-overlay" data-action="close-modal">' +
+    '<div class="modal modal-wide" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><h2>Histórico de Programações</h2><button class="modal-close" data-action="close-modal">×</button></div>' +
+      body +
+    '</div>' +
+  '</div>';
+}
+var HIST_PAPEL_ANTES_LABEL = { atual:"Era a programação ATUAL", proxima:"Era a PRÓXIMA programação", futura:"Era a programação FUTURA", historica:"Já era histórica" };
+function renderHistoricoList(h){
+  var list = getArchivedProgramacoes(h.filtroData, h.filtroTurno, h.filtroPrensa);
+  var fixedTop = '' +
+    '<div class="hint" style="margin-bottom:8px;">Consulta somente leitura de programações já substituídas/encerradas. Não interfere na programação atual.</div>' +
+    '<div class="hist-filters">' +
+      '<div class="field"><label>Data</label><input id="hist-data" type="date" value="'+((h.filtroData&&h.filtroData!=="__all__")?h.filtroData:"")+'"></div>' +
+      '<div class="segmented">' +
+        '<button type="button" data-action="hist-filter" data-field="filtroData" data-value="__all__" class="'+((!h.filtroData||h.filtroData==="__all__")?"active":"")+'">Todas as datas</button>' +
+      '</div>' +
+      '<div class="segmented">' +
+        '<button type="button" data-action="hist-filter" data-field="filtroTurno" data-value="Todos" class="'+((!h.filtroTurno||h.filtroTurno==="Todos")?"active":"")+'">Todos</button>' +
+        '<button type="button" data-action="hist-filter" data-field="filtroTurno" data-value="Dia" class="'+(h.filtroTurno==="Dia"?"active":"")+'">☀ Dia</button>' +
+        '<button type="button" data-action="hist-filter" data-field="filtroTurno" data-value="Noite" class="'+(h.filtroTurno==="Noite"?"active":"")+'">☾ Noite</button>' +
+      '</div>' +
+      '<div class="segmented">' +
+        '<button type="button" data-action="hist-filter" data-field="filtroPrensa" data-value="Todas" class="'+((!h.filtroPrensa||h.filtroPrensa==="Todas")?"active":"")+'">Todas</button>' +
+        '<button type="button" data-action="hist-filter" data-field="filtroPrensa" data-value="P4" class="'+(h.filtroPrensa==="P4"?"active":"")+'">P4</button>' +
+        '<button type="button" data-action="hist-filter" data-field="filtroPrensa" data-value="P7" class="'+(h.filtroPrensa==="P7"?"active":"")+'">P7</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="hint">'+list.length+' programação(ões) arquivada(s) encontrada(s).</div>';
+  var scrollBody = list.length
+    ? '<div class="audit-list">' + list.map(renderHistoricoListRow).join("") + '</div>'
+    : emptyState("Nenhuma programação arquivada encontrada com esse filtro.");
+  return '<div class="audit-fixed">'+fixedTop+'</div><div class="audit-scroll">'+scrollBody+'</div>';
+}
+function renderHistoricoListRow(p){
+  var totais = p.totais || {};
+  var p7 = totais.P7 || {n:0,kg:0}, p4 = totais.P4 || {n:0,kg:0};
+  return '<div class="hist-row" data-action="hist-open" data-id="'+esc(p.id)+'">' +
+    '<div class="hist-row-head">' +
+      '<span class="mono" style="font-weight:700;">'+esc(fmtDateBR(p.data))+' — '+esc(p.turno||"—")+'</span>' +
+      '<span class="hist-archived-badge">ARQUIVADA</span>' +
+    '</div>' +
+    '<div class="hist-row-sub">P7: '+p7.n+' oc. / '+fmtKg(p7.kg)+' kg · P4: '+p4.n+' oc. / '+fmtKg(p4.kg)+' kg</div>' +
+    '<div class="hist-row-sub hint">'+esc(HIST_PAPEL_ANTES_LABEL[p.papel]||p.papel||"")+(p.substituidaPorId?" · substituída por versão mais nova":"")+(p.origemAba?" · "+esc(p.origemAba):"")+'</div>' +
+  '</div>';
+}
+function renderHistoricoDetail(h){
+  var prog = state.programacoesByKey[h.programacaoId];
+  if(!prog){
+    return '<div class="audit-fixed"><div class="warn-msg"><span>Esta programação não está mais disponível localmente.</span></div>' +
+      '<button class="btn btn-ghost" type="button" data-action="hist-back">← Voltar à lista</button></div>';
+  }
+  var rows = getFerramentasDaProgramacao(h.programacaoId, h.filtroPrensa, h.filtroTipo);
+  var fixedTop = '' +
+    '<button class="btn btn-ghost" type="button" data-action="hist-back" style="align-self:flex-start;margin-bottom:8px;">← Voltar à lista</button>' +
+    '<div class="hist-archived-banner">' +
+      '<span class="hist-archived-badge lg">PROGRAMAÇÃO ARQUIVADA</span>' +
+      '<span>'+esc(fmtDateBR(prog.data))+' — '+esc(prog.turno||"—")+' · consulta somente leitura, não é possível editar aqui</span>' +
+    '</div>' +
+    '<div class="segmented">' +
+      '<button type="button" data-action="hist-detail-filter" data-field="filtroPrensa" data-value="Todas" class="'+((!h.filtroPrensa||h.filtroPrensa==="Todas")?"active":"")+'">Todas</button>' +
+      '<button type="button" data-action="hist-detail-filter" data-field="filtroPrensa" data-value="P4" class="'+(h.filtroPrensa==="P4"?"active":"")+'">P4</button>' +
+      '<button type="button" data-action="hist-detail-filter" data-field="filtroPrensa" data-value="P7" class="'+(h.filtroPrensa==="P7"?"active":"")+'">P7</button>' +
+    '</div>' +
+    '<div class="segmented">' +
+      '<button type="button" data-action="hist-detail-filter" data-field="filtroTipo" data-value="Todas" class="'+((!h.filtroTipo||h.filtroTipo==="Todas")?"active":"")+'">Todas</button>' +
+      '<button type="button" data-action="hist-detail-filter" data-field="filtroTipo" data-value="Principal" class="'+(h.filtroTipo==="Principal"?"active":"")+'">Principal</button>' +
+      '<button type="button" data-action="hist-detail-filter" data-field="filtroTipo" data-value="Reserva" class="'+(h.filtroTipo==="Reserva"?"active":"")+'">Reserva</button>' +
+    '</div>' +
+    '<div class="hint">'+rows.length+' registro(s).</div>';
+  var scrollBody = rows.length
+    ? '<div class="audit-list">' + rows.map(renderHistoricoDetailRow).join("") + '</div>'
+    : emptyState("Nenhum registro encontrado com esse filtro.");
+  return '<div class="audit-fixed">'+fixedTop+'</div><div class="audit-scroll">'+scrollBody+'</div>';
+}
+function renderHistoricoDetailRow(t){
+  var info = historicoRowInfo(t);
+  var meta = STATUS_META[info.status] || STATUS_META["Pendente"];
+  return '<div class="hist-detail-row">' +
+    '<div class="hist-row-head">' +
+      '<span class="mono" style="font-weight:700;">'+esc(t.codigo)+'</span>' +
+      '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
+    '</div>' +
+    '<div class="hist-row-sub">' +
+      esc(t.prensa)+' · '+(t.turno==="Dia"?"☀ Dia":"☾ Noite")+' · '+fmtKg(t.quantidadeKg)+' kg · '+(t.tipo==="Reserva"?"Reserva":"Principal") +
+      (info.teveUrgencia ? ' · <span style="color:var(--st-quebrada);font-weight:700;">🚨 teve urgência</span>' : '') +
+    '</div>' +
+    (t.cliente ? '<div class="hist-row-sub hint">Cliente: '+esc(t.cliente)+'</div>' : '') +
+    (t.observacaoPCP ? '<div class="hist-row-sub hint">PCP: '+esc(t.observacaoPCP)+'</div>' : '') +
+    (info.observacaoCorrecao ? '<div class="hist-row-sub hint">Correção: '+esc(info.observacaoCorrecao)+'</div>' : '') +
+    (info.previsaoLiberacao ? '<div class="hist-row-sub hint">Previsão registrada: '+esc(fmtDateBR(info.previsaoLiberacao))+'</div>' : '') +
+  '</div>';
 }
 
 function renderEspelhoModal(){
