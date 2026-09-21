@@ -601,13 +601,23 @@ html.modal-open, body.modal-open{ overflow:hidden; overscroll-behavior:none; }
 .setup-wrap{max-width:520px;margin:40px auto;padding:0 20px;display:flex;flex-direction:column;gap:14px;}
 .setup-wrap .box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:var(--shadow);}
 
-/* ---------- Imprimir Espelho de Programação (Bloco 3) ----------
+/* ---------- Imprimir Espelho de Programação (Bloco 3 / 3.1) ----------
    Fora da impressão, a folha fica sempre oculta (display:none) — só
    existe pra ser usada por window.print(). Em @media print, o resto do
    app inteiro vira visibility:hidden e só #print-sheet-root (e seus
    filhos) volta a ficar visível, posicionado no topo da página — a
    folha nunca depende de estar "por cima" de um modal fixed, então
-   funciona mesmo com o modal de preparação ainda aberto por trás. */
+   funciona mesmo com o modal de preparação ainda aberto por trás.
+
+   Bloco 3.1: cada .print-folha (uma por combinação prensa+turno) força
+   quebra de página — isso é o que garante EXATAMENTE uma página por
+   folha operacional (nunca uma página por tabela/linha), corrigindo o
+   caso relatado de 23 registros virando 11 páginas. table-layout
+   permanece "auto" (padrão) de propósito: com poucas colunas numéricas
+   curtas (ORDEM/KG/TARUGO/LIGA) e CLIENTE com a maior largura sugerida
+   via <th>, o navegador expande CLIENTE naturalmente pra usar o espaço
+   sobrando, mantendo nowrap sem precisar de table-layout:fixed (que
+   cortaria nomes longos). */
 .print-sheet{ display:none; }
 @media print{
   body *{ visibility:hidden; }
@@ -616,16 +626,44 @@ html.modal-open, body.modal-open{ overflow:hidden; overscroll-behavior:none; }
     display:block !important; position:absolute; left:0; top:0; width:100%;
     background:#fff; color:#000; font-family:Arial,Helvetica,sans-serif;
   }
-  @page{ size:A4 landscape; margin:10mm; }
-  .print-header{ text-align:center; margin-bottom:6px; }
-  .print-empresa{ font-size:20px; font-weight:800; letter-spacing:.04em; }
-  .print-titulo{ font-size:13px; font-weight:600; color:#333; }
-  .print-meta{ display:flex; flex-wrap:wrap; gap:4px 18px; font-size:11px; margin:8px 0; border-top:1px solid #999; border-bottom:1px solid #999; padding:5px 0; }
-  .print-resumo{ font-size:12px; margin-bottom:8px; }
-  .print-table{ width:100%; border-collapse:collapse; font-size:10.5px; }
-  .print-table th, .print-table td{ border:1px solid #999; padding:3px 5px; text-align:left; }
-  .print-table th{ background:#eee; font-weight:700; }
+  @page{ size:A4 landscape; margin:7mm; }
+  .print-folha{ page-break-after:always; }
+  .print-folha:last-child{ page-break-after:auto; }
+  .print-header{ text-align:center; margin-bottom:4px; }
+  .print-empresa{ font-size:18px; font-weight:800; letter-spacing:.04em; }
+  .print-titulo{ font-size:11.5px; font-weight:600; color:#333; }
+  .print-folha-titulo{ font-size:15px; font-weight:800; margin-top:2px; }
+  .print-meta{ display:flex; flex-wrap:wrap; gap:4px 18px; font-size:10.5px; margin:6px 0; border-top:1px solid #999; border-bottom:1px solid #999; padding:4px 0; }
+  .print-resumo{ font-size:11.5px; font-weight:700; margin-bottom:6px; }
+  .print-quadro{ margin-bottom:8px; }
+  .print-quadro-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:11px; font-weight:700; background:#ddd; border:1px solid #999;
+    padding:3px 7px; text-transform:uppercase; letter-spacing:.02em;
+  }
+  .print-vazio{
+    border:1px solid #999; border-top:none; padding:9px; text-align:center;
+    font-size:10.5px; font-style:italic; color:#555;
+  }
+  .print-table{ width:100%; border-collapse:collapse; font-size:10px; }
+  .print-table th, .print-table td{ border:1px solid #999; padding:4px 5px; text-align:left; vertical-align:top; }
+  .print-table th{ background:#eee; font-weight:700; font-size:9.5px; }
   .print-table tr{ page-break-inside:avoid; }
+  .print-table .print-cliente{ white-space:nowrap; }
+  .print-table th.col-ordem, .print-table td:nth-child(1){ width:3%; }
+  .print-table th.col-ferramenta{ width:10%; }
+  .print-table th.col-cliente{ width:24%; }
+  .print-table th.col-kg{ width:6%; }
+  .print-table th.col-tarugo{ width:7%; }
+  .print-table th.col-liga{ width:7%; }
+  .print-table th.col-obs{ width:22%; }
+  .print-table th.col-status-op{ width:18%; }
+  /* Espaço físico suficiente pra caneta (Objetivo 13) — padding vertical
+     bem maior que as outras colunas, que força a linha inteira a ficar
+     mais alta sem precisar de min-height (pouco confiável em td). Ainda
+     assim compacto o bastante pra caber em 1 página (ver medição real
+     via Playwright registrada no relatório de entrega). */
+  .print-table td.print-status-op{ padding-top:11px; padding-bottom:11px; }
 }
 </style>
 </head>
@@ -1485,40 +1523,110 @@ function sortTools(list){
     return (a.codigo||"").localeCompare(b.codigo||"");
   });
 }
-/* ================= IMPRIMIR ESPELHO DE PROGRAMAÇÃO (Bloco 3) =================
-   Investigação do critério de ordenação (item 7 do pedido): a BASE_APP tem
-   uma coluna ORDEM_ORIGEM (parseada em rec.ordemOrigem, ver
-   baseAppPrepareImport), mas ela é excluída de propósito do que é gravado
-   em "ferramentas" — baseAppBuildFerramentaDoc NUNCA grava ordemOrigem nem
+/* ================= IMPRIMIR ESPELHO DE PROGRAMAÇÃO (Bloco 3 / 3.1) =================
+   Ordenação (Bloco 3, reconfirmado no 3.1): a BASE_APP tem uma coluna
+   ORDEM_ORIGEM (parseada em rec.ordemOrigem, ver baseAppPrepareImport),
+   mas ela é excluída de propósito do que é gravado em "ferramentas" —
+   baseAppBuildFerramentaDoc NUNCA grava ordemOrigem nem
    posicaoProgramacao no documento (mesmo raciocínio do comentário de
    computeConteudoHash: essas colunas descrevem de onde o dado veio na
    planilha, não o que o dado é) — e ordemOrigem não é usado em NENHUM
-   outro lugar do app para ordenar nada. Ou seja: não existe, hoje, uma
-   ordem operacional explícita e confiável persistida para reaproveitar.
-   Em vez de inventar uma ordenação nova, o espelho impresso reaproveita
-   sortTools() — a MESMA função que já decide a ordem padrão exibida pro
-   PCP na tela (cards e tabela compacta): prensa, depois turno (Dia antes
-   de Noite), depois código alfabético. Isso garante que a folha impressa
-   reflita exatamente a ordem que o PCP já vê na tela, sem introduzir um
-   critério novo e não documentado. */
-function printEspelhoFilteredRows(){
-  var e = state.printEspelho;
-  if(!e) return [];
+   outro lugar do app para ordenar nada. Não existe, hoje, uma ordem
+   operacional explícita e persistida pra reaproveitar — por isso cada
+   quadro continua ordenado por sortTools() (dentro de uma folha já fixa
+   em prensa+turno, isso equivale a ordenar por código).
+
+   Bloco 3.1 — "espelho como ORDEM DE PRODUÇÃO": só ferramentas
+   efetivamente PROGRAMADAS entram na folha. "Programada" reaproveita a
+   MESMA fonte de verdade que já alimenta o card/contador "Programadas"
+   da tela do PCP (ver necStatusGroup + statTile "Programadas" em
+   renderPCP): a necessidade consolidada (necDocId) tem um doc em
+   statusByKey com status==="OK" (internamente "OK", rotulado
+   "Programado" via STATUS_META — é a Correção quem grava esse status).
+   Sem esse doc, ou com qualquer outro status (Pendente/Soda-Limpeza/
+   Nitretação/Correção interna/Correção externa/Quebrada/Outro), a
+   ferramenta NUNCA aparece no espelho — nem como Principal, nem como
+   Reserva. Nenhuma lógica paralela foi criada: printEspelhoIsProgramada
+   só chama necStatusGroup, a mesma função já usada pelos indicadores.
+
+   "Todos" agora gera 4 folhas fixas (uma por combinação prensa+turno),
+   sempre nesta ordem: P7 Dia, P7 Noite, P4 Dia, P4 Noite. Cada folha
+   contém dois quadros (Principal e Reserva) — nunca linhas misturadas.
+   turnoOrigem CONTINUA não sendo usado pra filtrar/selecionar nada (só
+   t.turno/t.tipo, os campos reais) — ver Teste O, preservado do Bloco 3. */
+var PRINT_ESP_FOLHAS_ORDEM = [
+  { prensa:"P7", turno:"Dia" },
+  { prensa:"P7", turno:"Noite" },
+  { prensa:"P4", turno:"Dia" },
+  { prensa:"P4", turno:"Noite" }
+];
+function printEspelhoIsProgramada(t){
+  var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
+  var sd = state.statusByKey[key];
+  var status = sd ? sd.status : "Pendente";
+  return necStatusGroup(status)==="ok";
+}
+function printEspelhoFolhasSelecionadas(e){
+  return PRINT_ESP_FOLHAS_ORDEM.filter(function(f){
+    var okPrensa = (e.filtroPrensa==="Todas") || (e.filtroPrensa===f.prensa);
+    var okTurno = (e.filtroTurno==="Todos") || (e.filtroTurno===f.turno);
+    return okPrensa && okTurno;
+  });
+}
+// Linhas de UMA folha (prensa+turno fixos) já filtradas por data/vigência/
+// programada — inclui Principal e Reserva juntos; quem separa em quadros
+// é printEspelhoBuildFolhas. Nunca filtra por tipo aqui (isso é decidido
+// na exibição, não na seleção dos dados).
+function printEspelhoRowsForFolha(folha, filtroData){
   var list = state.ferramentas.filter(function(t){
-    if(e.filtroPrensa!=="Todas" && t.prensa!==e.filtroPrensa) return false;
-    if(e.filtroTurno!=="Todos" && t.turno!==e.filtroTurno) return false;
-    if(t.dataProgramacao!==e.filtroData) return false;
-    if(e.filtroTipo==="Reserva"){ if(t.tipo!=="Reserva") return false; }
-    else if(e.filtroTipo==="Principal"){ if(t.tipo==="Reserva") return false; }
-    // Objetivo 4: só a programação atualmente vigente entra no espelho —
-    // reaproveita isRecordActive tal como já validado em applyBaseFilters,
-    // nunca uma checagem paralela. t.turno (não t.turnoOrigem) é o campo
-    // usado tanto aqui quanto no filtro acima: turnoOrigem só descreve de
-    // onde uma Reserva de Noite veio, nunca o turno alvo do registro.
+    if(t.prensa!==folha.prensa) return false;
+    if(t.turno!==folha.turno) return false;
+    if(t.dataProgramacao!==filtroData) return false;
+    if(!printEspelhoIsProgramada(t)) return false;
     if(!isRecordActive(t.programacaoId, t.dataProgramacao, t.turno)) return false;
     return true;
   });
   return sortTools(list);
+}
+function printEspelhoBuildFolhas(e){
+  return printEspelhoFolhasSelecionadas(e).map(function(f){
+    var rows = printEspelhoRowsForFolha(f, e.filtroData);
+    return {
+      prensa: f.prensa, turno: f.turno,
+      principal: rows.filter(function(t){ return t.tipo!=="Reserva"; }),
+      reserva: rows.filter(function(t){ return t.tipo==="Reserva"; })
+    };
+  });
+}
+function printEspelhoFolhaTotals(folha, filtroTipo){
+  var rows = [];
+  if(filtroTipo!=="Reserva") rows = rows.concat(folha.principal);
+  if(filtroTipo!=="Principal") rows = rows.concat(folha.reserva);
+  var kg = 0; rows.forEach(function(t){ kg += (t.quantidadeKg||0); });
+  return { count: rows.length, kg: kg };
+}
+function printEspelhoGrandTotals(folhas, filtroTipo){
+  var count=0, kg=0;
+  folhas.forEach(function(f){
+    var t = printEspelhoFolhaTotals(f, filtroTipo);
+    count += t.count; kg += t.kg;
+  });
+  return { count: count, kg: kg };
+}
+// Visão achatada de tudo que será impresso (todas as folhas/quadros
+// selecionados, respeitando filtroTipo) — usada por telas/testes que
+// precisam conferir o conjunto total sem se preocupar com a divisão em
+// folhas (ex: "nenhuma ferramenta indisponível em lugar nenhum").
+function printEspelhoFilteredRows(){
+  var e = state.printEspelho;
+  if(!e) return [];
+  var folhas = printEspelhoBuildFolhas(e);
+  var out = [];
+  folhas.forEach(function(f){
+    if(e.filtroTipo!=="Reserva") out = out.concat(f.principal);
+    if(e.filtroTipo!=="Principal") out = out.concat(f.reserva);
+  });
+  return out;
 }
 function printEspelhoRowInfo(t){
   var key = necDocId(t.codigo, t.prensa, t.dataProgramacao, t.programacaoId);
@@ -1530,30 +1638,30 @@ function printEspelhoRowInfo(t){
     observacaoPCP: (nec && nec.observacaoPCPAtual) ? nec.observacaoPCPAtual : ""
   };
 }
-function printEspelhoTotals(rows){
-  var kg = 0;
-  rows.forEach(function(t){ kg += (t.quantidadeKg||0); });
-  return { count: rows.length, kg: kg };
-}
 function renderPrintEspelhoModal(){
   var e = state.printEspelho;
   if(!e) return "";
-  var rows = printEspelhoFilteredRows();
-  var totals = printEspelhoTotals(rows);
+  var folhas = printEspelhoBuildFolhas(e);
+  var grand = printEspelhoGrandTotals(folhas, e.filtroTipo);
   function chip(field,val,label){ return '<button type="button" class="chip '+(e[field]===val?"active":"")+'" data-action="print-filter" data-field="'+field+'" data-value="'+val+'">'+label+'</button>'; }
   var body = '' +
-    '<div class="hint" style="margin-bottom:8px;">Selecione os filtros e revise antes de imprimir. Somente a programação atualmente vigente é impressa.</div>' +
+    '<div class="hint" style="margin-bottom:8px;">Selecione os filtros e revise antes de imprimir. Somente ferramentas efetivamente PROGRAMADAS (status "Programado") da programação vigente entram no espelho.</div>' +
     '<div class="field"><label>Data programada</label><input id="print-esp-data" type="date" value="'+esc(e.filtroData)+'"></div>' +
     '<div class="segmented">' + chip("filtroPrensa","Todas","Todas") + chip("filtroPrensa","P4","P4") + chip("filtroPrensa","P7","P7") + '</div>' +
     '<div class="segmented">' + chip("filtroTurno","Todos","Todos") + chip("filtroTurno","Dia","☀ Dia") + chip("filtroTurno","Noite","☾ Noite") + '</div>' +
     '<div class="segmented">' + chip("filtroTipo","Todas","Todas") + chip("filtroTipo","Principal","Principal") + chip("filtroTipo","Reserva","Reserva") + '</div>';
-  if(rows.length===0){
+  if(grand.count===0){
     body += '<div class="warn-msg" style="margin-top:12px;"><span>Nenhuma ferramenta encontrada para os filtros selecionados.</span></div>';
     body += '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Fechar</button></div>';
   } else {
     body += '<div class="hint" style="margin-top:12px;">' +
       esc(fmtDateBR(e.filtroData))+' · '+esc(e.filtroPrensa)+' · '+esc(e.filtroTurno)+' · '+esc(e.filtroTipo)+
-      ' — <b>'+rows.length+'</b> ferramenta(s), <b>'+fmtKg(totals.kg)+' kg</b> no total.</div>';
+      ' — <b>'+grand.count+'</b> ferramenta(s) programada(s), <b>'+fmtKg(grand.kg)+' kg</b> no total.</div>';
+    body += '<div class="hint" style="margin-top:6px;">' + folhas.map(function(f){
+      var t = printEspelhoFolhaTotals(f, e.filtroTipo);
+      return esc(f.prensa)+' '+esc(f.turno)+': '+t.count+' fer. / '+fmtKg(t.kg)+' kg';
+    }).join(' &nbsp;·&nbsp; ') + '</div>';
+    body += '<div class="hint" style="margin-top:6px;">Serão geradas <b>'+folhas.length+'</b> folha(s) de impressão (uma por prensa+turno).</div>';
     body += '<div style="display:flex;gap:8px;margin-top:14px;">' +
       '<button class="btn btn-ghost" style="flex:1;" data-action="close-modal">Cancelar</button>' +
       '<button class="btn btn-primary" style="flex:1;" data-action="print-espelho-confirmar">Imprimir</button>' +
@@ -1566,53 +1674,73 @@ function renderPrintEspelhoModal(){
       body +
     '</div>' +
   '</div>' +
-  renderPrintSheet(rows, e, totals);
+  renderPrintSheet(folhas, e, grand);
 }
-// Folha impressa em si — fica FORA do modal-overlay de propósito (ver CSS
-// @media print: tudo mais vira visibility:hidden e só #print-sheet-root
-// aparece, então ela não pode depender do posicionamento fixed/overlay
-// do modal). Nunca grava nada no Firestore — só lê dados já carregados no
-// cliente. TARUGO não existe em nenhum registro hoje (não há esse campo
-// em "ferramentas"); a coluna existe porque o pedido pede, mas sempre
-// mostra "-" em vez de inventar um valor.
-function renderPrintSheet(rows, e, totals){
-  if(!rows.length) return "";
+// Folha(s) impressa(s) em si — ficam FORA do modal-overlay de propósito
+// (ver CSS @media print: tudo mais vira visibility:hidden e só
+// #print-sheet-root aparece). Nunca grava nada no Firestore — só lê
+// dados já carregados no cliente. TARUGO não existe em nenhum registro
+// hoje (não há esse campo em "ferramentas"); a coluna existe porque o
+// pedido pede, mas sempre mostra "-" em vez de inventar um valor.
+// STATUS ATUAL foi removido da tabela (Objetivo 12 do Bloco 3.1): como
+// só ferramentas PROGRAMADAS são impressas, essa coluna seria SEMPRE
+// "Programado" em toda linha impressa — zero variação, zero informação
+// nova pro operador — então a largura foi realocada pra CLIENTE/
+// OBSERVAÇÃO PCP/STATUS OPERADOR (ver relatório de entrega).
+function renderPrintSheet(folhas, e, grand){
+  if(!folhas.length || grand.count===0) return "";
   var agora = new Date();
   var pad2 = function(n){ return ("0"+n).slice(-2); };
   var horaImpressao = pad2(agora.getDate())+"/"+pad2(agora.getMonth()+1)+"/"+agora.getFullYear()+" "+pad2(agora.getHours())+":"+pad2(agora.getMinutes());
+  var paginas = folhas.map(function(folha){ return renderPrintFolha(folha, e, horaImpressao); }).join("");
+  return '<div id="print-sheet-root" class="print-sheet">' + paginas + '</div>';
+}
+function renderPrintFolha(folha, e, horaImpressao){
+  var totals = printEspelhoFolhaTotals(folha, e.filtroTipo);
+  var quadros = '';
+  if(e.filtroTipo!=="Reserva") quadros += renderPrintQuadro("PROGRAMAÇÃO PRINCIPAL", folha.principal);
+  if(e.filtroTipo!=="Principal") quadros += renderPrintQuadro("PROGRAMAÇÃO RESERVA", folha.reserva);
+  return '' +
+  '<div class="print-folha">' +
+    '<div class="print-header">' +
+      '<div class="print-empresa">EXTRUTECH</div>' +
+      '<div class="print-titulo">ESPELHO DE PROGRAMAÇÃO DE PRODUÇÃO</div>' +
+      '<div class="print-folha-titulo">'+esc(folha.prensa)+' — TURNO '+esc((folha.turno||"").toUpperCase())+'</div>' +
+    '</div>' +
+    '<div class="print-meta">' +
+      '<span>Data programada: <b>'+esc(fmtDateBR(e.filtroData))+'</b></span>' +
+      '<span>Impresso em: <b>'+esc(horaImpressao)+'</b></span>' +
+    '</div>' +
+    '<div class="print-resumo">TOTAL PROGRAMADO: <b>'+totals.count+'</b> ferramenta(s) &nbsp;·&nbsp; <b>'+fmtKg(totals.kg)+' kg</b></div>' +
+    quadros +
+  '</div>';
+}
+function renderPrintQuadro(titulo, rows){
+  var kg = 0; rows.forEach(function(t){ kg += (t.quantidadeKg||0); });
+  var head = '<div class="print-quadro-head"><span>'+esc(titulo)+'</span><span>'+rows.length+' ferramenta(s) &nbsp;·&nbsp; '+fmtKg(kg)+' kg</span></div>';
+  if(!rows.length){
+    return '<div class="print-quadro">' + head + '<div class="print-vazio">SEM FERRAMENTAS PROGRAMADAS</div></div>';
+  }
   var linhas = rows.map(function(t, i){
     var info = printEspelhoRowInfo(t);
     return '<tr>' +
       '<td>'+(i+1)+'</td>' +
       '<td>'+esc(t.codigo||"-")+'</td>' +
-      '<td>'+esc(t.cliente||"-")+'</td>' +
-      '<td>'+esc(t.prensa||"-")+'</td>' +
-      '<td>'+esc(t.turno||"-")+'</td>' +
-      '<td>'+(t.tipo==="Reserva"?"Reserva":"Principal")+'</td>' +
+      '<td class="print-cliente">'+esc(t.cliente||"-")+'</td>' +
       '<td>'+fmtKg(t.quantidadeKg)+'</td>' +
       '<td>-</td>' +
       '<td>'+esc(t.liga||"-")+'</td>' +
-      '<td>'+esc(info.statusLabel)+'</td>' +
       '<td>'+esc(info.observacaoPCP||"-")+'</td>' +
+      '<td class="print-status-op"></td>' +
     '</tr>';
   }).join("");
   return '' +
-  '<div id="print-sheet-root" class="print-sheet">' +
-    '<div class="print-header">' +
-      '<div class="print-empresa">EXTRUTECH</div>' +
-      '<div class="print-titulo">ESPELHO DE PROGRAMAÇÃO DE PRODUÇÃO</div>' +
-    '</div>' +
-    '<div class="print-meta">' +
-      '<span>Data programada: <b>'+esc(fmtDateBR(e.filtroData))+'</b></span>' +
-      '<span>Prensa: <b>'+esc(e.filtroPrensa)+'</b></span>' +
-      '<span>Turno: <b>'+esc(e.filtroTurno)+'</b></span>' +
-      '<span>Tipo: <b>'+esc(e.filtroTipo)+'</b></span>' +
-      '<span>Impresso em: <b>'+esc(horaImpressao)+'</b></span>' +
-    '</div>' +
-    '<div class="print-resumo">Total de ferramentas: <b>'+rows.length+'</b> &nbsp;·&nbsp; Total em kg: <b>'+fmtKg(totals.kg)+' kg</b></div>' +
+  '<div class="print-quadro">' + head +
     '<table class="print-table">' +
       '<thead><tr>' +
-        '<th>ORDEM</th><th>FERRAMENTA</th><th>CLIENTE</th><th>PRENSA</th><th>TURNO</th><th>TIPO</th><th>KG</th><th>TARUGO</th><th>LIGA</th><th>STATUS ATUAL</th><th>OBSERVAÇÃO PCP</th>' +
+        '<th class="col-ordem">ORDEM</th><th class="col-ferramenta">FERRAMENTA</th><th class="col-cliente">CLIENTE</th>' +
+        '<th class="col-kg">KG</th><th class="col-tarugo">TARUGO</th><th class="col-liga">LIGA</th>' +
+        '<th class="col-obs">OBSERVAÇÃO PCP</th><th class="col-status-op">STATUS OPERADOR</th>' +
       '</tr></thead>' +
       '<tbody>'+linhas+'</tbody>' +
     '</table>' +
