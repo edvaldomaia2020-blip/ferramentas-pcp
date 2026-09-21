@@ -23,6 +23,11 @@ export function importarB08(existing,rows,now=new Date().toISOString()){
  const volumes=[...map.values()];const pKeys=new Set(volumes.filter(v=>v.equipe==='P').map(chaveMaterialProvisoria));for(const v of volumes)if(v.equipe==='A'){v.possivelCorrespondenciaP=pKeys.has(chaveMaterialProvisoria(v));v.confirmadoAcesys=false;}
  return{volumes,resultado,stats,importacao:{id:`IMP-${Date.now()}`,criadoEm:now,stats,resultado}};
 }
+export function aplicarFotografiaReal(db,rows,now=new Date().toISOString()){
+ const substituirDemonstracao=db?.modoDados!=='real';
+ const resultado=importarB08(substituirDemonstracao?[]:(db.volumes||[]),rows,now);
+ return{...resultado,db:{...db,modoDados:'real',volumes:resultado.volumes,lotes:substituirDemonstracao?[]:(db.lotes||[]),eventos:substituirDemonstracao?[]:(db.eventos||[]),programacoes:substituirDemonstracao?[]:(db.programacoes||[]),importacoes:substituirDemonstracao?[]:(db.importacoes||[])}};
+}
 const knownHeaders=new Set(Object.values(aliases).flat().map(normHeader));
 const excelDate=value=>{if(!(typeof value==='number'&&value>0&&value<100000))return value;const d=new Date(Date.UTC(1899,11,30)+value*86400000);return Number.isNaN(d.getTime())?value:d.toISOString().slice(0,10);};
 const headerType=h=>Object.entries(aliases).find(([,names])=>names.some(n=>normHeader(n)===normHeader(h)))?.[0];
