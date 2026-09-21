@@ -7,7 +7,7 @@ const base=(l,t,a,n)=>({id:makeId('EVT'),loteId:l.id,tipo:t,usuario:actor(a),cri
 const reason=(issue,m)=>{if(issue&&!String(m||'').trim())throw new Error('Informe o motivo da divergência, perda ou retrabalho.');};
 export function formarLote(volumes,input,user,now=new Date().toISOString()){
  if(!volumes.length)throw new Error('Selecione ao menos um volume da B08.');
- if(volumes.some(v=>v.beneficiador!=='001533'||v.equipe!=='A'||v.confirmadoAcesys))throw new Error('Somente materiais BENEFICIADOR 001533 / EQUIPE A pendentes podem formar lote.');
+ if(volumes.some(v=>v.beneficiador!=='01533'||v.equipe!=='A'))throw new Error('Somente materiais BENEFICIADOR 01533 / EQUIPE A podem formar lote.');
  if(volumes.some(v=>v.status!=='disponivel'||v.loteId))throw new Error('Um ou mais volumes já pertencem a outro lote.');
  if(new Set(volumes.map(v=>(v.beneficiamento||'').trim().toLowerCase())).size>1)throw new Error('Selecione somente volumes com o mesmo beneficiamento/cor.');
  const id=makeId('LOT'),pecas=volumes.reduce((s,v)=>s+Number(v.pecas||0),0),kg=round(volumes.reduce((s,v)=>s+Number(v.pesoLiquido||0),0));

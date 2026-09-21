@@ -5,7 +5,7 @@ Protótipo totalmente isolado do PCP/Correção, sem Firebase, autenticação, F
 ## Regras implementadas
 
 - A B08 é tratada como fotografia diária: `VOLUME` é atualizado sem duplicação e cada mudança acrescenta uma entrada em `historicoB08`.
-- Apenas `BENEFICIADOR = 001533` (seis dígitos; `00 15 33`) entra no universo operacional da StruColor. O código anterior `00153` é inválido e não entra na fila. O arquivo original nunca é alterado.
+- Apenas o valor original `BENEFICIADOR = 01533` entra no universo operacional da StruColor. `BENEFICIADOR_ID` contém classificadores como `CL` e `FO` e não é utilizado como código numérico. O arquivo original nunca é alterado.
 - `EQUIPE A` significa material destinado/disponível para Pintura; `EQUIPE P` é evidência posterior de material pintado e embalado.
 - A reconciliação distingue: finalizado no APP aguardando B08, finalizado e confirmado pelo ACESYS, e B08 P sem finalização no APP.
 - O volume continua sendo a unidade de rastreabilidade, mas a operação pode ser consolidada por cliente, pedido e cor.
@@ -21,7 +21,8 @@ Em telas de até 700 px, o menu começa recolhido, abre sobre o conteúdo pelo b
 
 - `index.html`: entrada exclusiva do protótipo e leitor local de Excel.
 - `styles.css`: layout desktop/mobile e componentes responsivos.
-- `js/b08-service.js`: normalização, filtro 001533, Equipes A/P, histórico diário e prevenção de duplicidade.
+- `js/b08-service.js`: leitura, filtro literal `BENEFICIADOR = 01533`, Equipes A/P, histórico diário e prevenção de duplicidade.
+- `js/programming-service.js`: carteira, blocos cliente + cor, programação por data/turno, ordenação, indicadores e proteção do histórico executado.
 - `js/analytics.js`: reconciliação, indicadores, fila e agrupamentos.
 - `js/ui-state.js`: regras testáveis do menu mobile.
 - `js/model.js`: formação de lote, movimentações, quantidades e tempos.
@@ -46,7 +47,7 @@ O leitor XLSX está armazenado em `vendor/xlsx.full.min.js`, eliminando a depend
 
 O layout real validado possui a aba `AceManager`, 190 linhas, 52 colunas e cabeçalho na linha 3. O identificador do volume vem de `VOLUME_ID`. Pedido e ferramenta vêm de `PEDIDO_ID` e `FERRAMENTA_ID`. Os demais campos operacionais e todos os campos originais continuam preservados para auditoria.
 
-No arquivo real analisado, `BENEFICIADOR_ID` contém classificadores como `CL` e `FO`, enquanto o código numérico da StruColor aparece em `BENEFICIADOR` como `01533`. O importador mantém os dois valores originais separadamente, registra qual coluna forneceu o código e normaliza apenas a cópia usada na comparação com `001533`. Ele prefere `BENEFICIADOR_ID` quando essa coluna contém um código numérico; caso contrário, usa o código numérico de `BENEFICIADOR`. Essa decisão é auditável e evita confundir ou sobrescrever as duas colunas.
+No arquivo real analisado, `BENEFICIADOR_ID` contém classificadores como `CL` e `FO`, enquanto o código numérico da StruColor aparece em `BENEFICIADOR` como `01533`. O importador preserva os dois valores originais separadamente e compara literalmente `BENEFICIADOR` com `01533`, sem completar zeros ou usar `BENEFICIADOR_ID` como substituto.
 
 A seleção do arquivo apenas confirma seu nome. O processamento acontece ao pressionar **Processar fotografia diária**, com mensagens para arquivo selecionado, leitura, aba encontrada, linha do cabeçalho, registros lidos, válidos, ignorados, novos, conhecidos, atualizados e vinculados. Importações com zero registros reconhecidos são rejeitadas com o motivo, sem gravar uma falsa conclusão.
 
@@ -54,7 +55,14 @@ A seleção do arquivo apenas confirma seu nome. O processamento acontece ao pre
 
 O pareamento A/P usa provisoriamente `pedido + item + ferramenta + beneficiamento`, somente para demonstrar os cenários. Essa composição não é uma decisão de modelagem e não poderá ser levada ao Firebase sem validação com dados reais.
 
-Antes da Fase 2, uma B08 real deverá validar os nomes e formatos de colunas, `BENEFICIADOR = 001533`, Equipes A/P, repetições do mesmo pedido/item em datas diferentes, duplicidades, volumes, peças, kg, cliente, pedido, item, ferramenta/perfil e cor/beneficiamento. A análise deverá determinar se existe uma chave direta A → P ou se será necessária uma composição com volume, pedido, item, perfil, cor, data ou outro identificador do ACESYS.
+O confronto A → P continua propositalmente provisório. A combinação pedido + item + ferramenta + beneficiamento apenas marca uma possível correspondência e nunca retira automaticamente um registro A da carteira. A chave definitiva ainda deverá considerar os dados reais de volume, peças, kg, amarrados e datas antes da Fase 2.
+
+## Programação e visões
+
+- **Visão PCP:** carteira, clientes em cards, fila por cor, programação por data/turno e sequência de blocos `CLIENTE + COR`.
+- **Visão Líder:** sequência do mesmo turno, otimizada para celular, com destaque para Agora/Próximo e ações Receber, Iniciar montagem e Finalizar embalagem.
+- A ordem executada é preservada. Blocos recebidos, em processo ou finalizados não podem ser removidos nem reordenados.
+- Toda a persistência desta fase permanece em `localStorage`; não existe Firebase, autenticação real ou integração com o PCP/Correção.
 
 Não há integração com ACESYS, Firebase, estoque, faturamento ou aplicativo principal. “Confirmado no ACESYS” ainda é apenas uma interpretação local da B08 importada.
 
