@@ -2499,44 +2499,52 @@ var MONTAGEM_LANES = [
   {key:"P4_Dia",prensa:"P4",turno:"Dia",label:"P4 turno 1"},
   {key:"P4_Noite",prensa:"P4",turno:"Noite",label:"P4 turno 2"}
 ];
-var MONTAGEM_B03_COLS = ["PEDIDO_ID","ITEM","FERRAMENTA_ID","LIGA","COMPRIMENTO","PRENSA","STATUS_PCP","PROGRAMÁVEL AGORA?","SALDO A PRODUZIR KG (SD_KG)","CLIENTE (DA CENTRAL)"];
+var MONTAGEM_B03_COLS = ["PEDIDO_ID","ITEM","FERRAMENTA_ID","LIGA","COMPRIMENTO","PRENSA","STATUS_PCP","PROGRAMÁVEL AGORA?","SALDO A PRODUZIR KG (SD_KG)","KG A EXTRUDAR LÍQUIDO","CLIENTE (DA CENTRAL)"];
 function montagemParseB03(wb){
-  var sheet=wb.Sheets["B03_CART"];
-  if(!sheet) throw new Error("A aba B03_CART não foi encontrada.");
+  var sheet=wb.Sheets["B03 CART"] || wb.Sheets["B03_CART"];
+  if(!sheet) throw new Error("A aba B03 CART (ou B03_CART) não foi encontrada.");
   var grid=sheetToGrid(sheet),header=-1,map={};
   for(var i=0;i<Math.min(grid.length,15);i++){
     var cols={};(grid[i]||[]).forEach(function(v,j){cols[normalizeHeader(v)]=j;});
     if(MONTAGEM_B03_COLS.every(function(name){return cols[normalizeHeader(name)]!==undefined;})){header=i;map=cols;break;}
   }
-  if(header<0) throw new Error("Cabeçalhos obrigatórios da B03_CART ausentes. Confira a versão da Master.");
-  var candidates=[],seen={},excluded=0;
+  if(header<0) throw new Error("Cabeçalhos obrigatórios da B03 CART ausentes. Confira a versão da Master.");
+  var candidates=[],pending=[],seen={},excluded=0,gateCount=0,pressCount=0;
   function value(row,name){var j=map[normalizeHeader(name)];return row[j]==null?"":String(row[j]).trim();}
   for(var r=header+1;r<grid.length;r++){
     var row=grid[r]||[],status=value(row,"STATUS_PCP"),gate=baseAppReadNumCell(sheet,r,map[normalizeHeader("PROGRAMÁVEL AGORA?")]);
     if(status!=="LIBERADO P/ PCP" || gate!==1){excluded++;continue;}
+    gateCount++;
     var pedido=value(row,"PEDIDO_ID"),item=value(row,"ITEM"),codigo=value(row,"FERRAMENTA_ID"),
       cliente=value(row,"CLIENTE (DA CENTRAL)"),prensa=value(row,"PRENSA"),
-      saldo=baseAppReadNumCell(sheet,r,map[normalizeHeader("SALDO A PRODUZIR KG (SD_KG)")]);
-    if(!pedido||!item||!codigo||!cliente||!(saldo>0)||["P7","P4"].indexOf(prensa)<0){excluded++;continue;}
+      saldo=baseAppReadNumCell(sheet,r,map[normalizeHeader("SALDO A PRODUZIR KG (SD_KG)")]),
+      kg=baseAppReadNumCell(sheet,r,map[normalizeHeader("KG A EXTRUDAR LÍQUIDO")]);
+    if(["P7","P4"].indexOf(prensa)>=0)pressCount++;
+    if(!pedido||!item||!codigo||!cliente) throw new Error("Item liberado na linha "+(r+1)+" sem pedido, item, ferramenta ou cliente. Corrija a Master.");
     var id=pedido+"|"+item;
-    if(seen[id]) throw new Error("PEDIDO_ID + ITEM repetido na B03_CART: "+id+". A importação foi bloqueada.");
+    if(seen[id]) throw new Error("PEDIDO_ID + ITEM repetido na B03 CART: "+id+". A importação foi bloqueada.");
     seen[id]=true;
+    var reason=["P7","P4"].indexOf(prensa)<0 ? "Prensa ausente ou diferente de P4/P7" : !(kg>0) ? "BZ sem kg positivo" : "";
+    if(reason){pending.push({idNecessidade:id,pedido:pedido,item:item,codigo:codigo,cliente:cliente,
+      prensa:prensa,saldoKg:saldo,kgExtrudar:kg,reason:reason});continue;}
     candidates.push({origem:"B03_CART",idNecessidade:id,pedido:pedido,item:item,codigo:codigo,cliente:cliente,
-      saldoKg:saldo,prensasPermitidas:[prensa],liga:value(row,"LIGA"),corte:value(row,"COMPRIMENTO"),
+      saldoKg:saldo,kgExtrudar:kg,prensasPermitidas:[prensa],liga:value(row,"LIGA"),corte:value(row,"COMPRIMENTO"),
       statusPCP:status,programavelAgora:true});
   }
-  return {candidates:candidates,excluded:excluded};
+  return {candidates:candidates,pending:pending,excluded:excluded,gateCount:gateCount,pressCount:pressCount};
 }
 function montagemLoadB03(file){
   var m=state.montagem;if(!m||!file)return;
-  m.loading=true;m.error="";render();
+  m.loading=true;m.sourceValidated=false;m.candidates=[];m.pending=[];m.sourceName="";
+  m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};m.error="";render();
   ensureXLSX(function(){var reader=new FileReader();
     reader.onload=function(e){try{
       var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}),result=montagemParseB03(wb);
-      m.candidates=result.candidates;m.sourceValidated=result.candidates.length>0;m.sourceName=file.name;
-      m.excluded=result.excluded;m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};
-      if(!m.sourceValidated)m.error="Nenhuma necessidade autorizada e programável na B03_CART.";
-    }catch(err){m.candidates=[];m.sourceValidated=false;m.error=err&&err.message||"Erro ao ler B03_CART.";}
+      m.candidates=result.candidates;m.pending=result.pending;m.sourceValidated=result.candidates.length>0;m.sourceName=file.name;
+      m.excluded=result.excluded;m.gateCount=result.gateCount;m.pressCount=result.pressCount;
+      m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};
+      if(!m.sourceValidated)m.error="Nenhuma necessidade com BZ positivo e prensa válida na B03 CART.";
+    }catch(err){m.candidates=[];m.pending=[];m.sourceValidated=false;m.error=err&&err.message||"Erro ao ler B03 CART.";}
     m.loading=false;render();};
     reader.onerror=function(){m.loading=false;m.error="Erro ao ler arquivo.";render();};
     reader.readAsArrayBuffer(file);
@@ -2544,7 +2552,7 @@ function montagemLoadB03(file){
 }
 function montagemCandidateValid(c){
   return !!(c && c.origem==="B03_CART" && c.idNecessidade && c.pedido && c.item &&
-    c.codigo && c.cliente && Number.isFinite(Number(c.saldoKg)) && Number(c.saldoKg)>0 &&
+    c.codigo && c.cliente && Number.isFinite(Number(c.kgExtrudar)) && Number(c.kgExtrudar)>0 &&
     Array.isArray(c.prensasPermitidas) && c.prensasPermitidas.length &&
     c.prensasPermitidas.every(function(p){return p==="P7" || p==="P4";}) &&
     c.statusPCP==="LIBERADO P/ PCP" && c.programavelAgora===true);
@@ -2569,14 +2577,14 @@ function montagemMove(m,id,to,index){
 }
 function montagemStats(m,key){
   var ids=key ? m.columns[key] : MONTAGEM_LANES.reduce(function(a,l){return a.concat(m.columns[l.key]);},[]);
-  return {n:ids.length,kg:ids.reduce(function(sum,id){var c=montagemCandidate(m,id);return sum+(c?Number(c.saldoKg):0);},0)};
+  return {n:ids.length,kg:ids.reduce(function(sum,id){var c=montagemCandidate(m,id);return sum+(c?Number(c.kgExtrudar):0);},0)};
 }
 function montagemRecords(m,turno,posicao){
   return MONTAGEM_LANES.filter(function(l){return l.turno===turno;}).reduce(function(out,l){
     m.columns[l.key].forEach(function(id){var c=montagemCandidate(m,id); if(!c) return;
       out.push({_excelRow:out.length+1,posicao:posicao,origem:"MONTAGEM B03",dataProgramacao:m.data,
         turno:turno,turnoBruto:turno,prensa:l.prensa,ferramenta:c.codigo,cliente:c.cliente,
-        quantidadeKg:Number(c.saldoKg),corte:c.corte||"",liga:c.liga||"",observacao:c.observacao||"",
+        quantidadeKg:Number(c.kgExtrudar),saldoKgInformado:c.saldoKg,corte:c.corte||"",liga:c.liga||"",observacao:c.observacao||"",
         secao:m.tipo[id]==="RESERVA"?"RESERVA":"PRINCIPAL",ordemOrigem:out.length+1,
         chaveOrigem:c.idNecessidade,idNecessidade:c.idNecessidade,pedido:c.pedido,item:c.item});
     });return out;
@@ -2606,9 +2614,9 @@ function montagemPreview(m){
 function montagemCard(m,c){
   var loc=montagemLocation(m,c.idNecessidade),key=loc?loc.key:"queue",id=esc(c.idNecessidade);
   return '<div class="montagem-card" draggable="true" data-montagem-card="'+id+'">'+
-    '<strong>'+esc(c.codigo)+'</strong> · '+fmtKg(c.saldoKg)+' kg'+
+    '<strong>'+esc(c.codigo)+'</strong> · '+fmtKg(c.kgExtrudar)+' kg a extrudar'+
     '<div class="sub">'+esc(c.cliente)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+'</div>'+
-    '<div class="sub">'+esc(c.liga||"Liga não informada")+' · '+esc(c.prensasPermitidas.join("/"))+'</div>'+
+    '<div class="sub">'+esc(c.liga||"Liga não informada")+' · '+esc(c.prensasPermitidas.join("/"))+' · saldo BW: '+(Number.isFinite(c.saldoKg)?fmtKg(c.saldoKg):"não informado")+' kg</div>'+
     '<div class="montagem-card-actions"><select aria-label="Mover '+esc(c.codigo)+'" data-montagem-move="'+id+'"><option value="queue" '+(key==="queue"?"selected":"")+'>Fila</option>'+
       MONTAGEM_LANES.filter(function(l){return c.prensasPermitidas.indexOf(l.prensa)>=0;}).map(function(l){return '<option value="'+l.key+'" '+(key===l.key?"selected":"")+'>'+l.label+'</option>';}).join("")+'</select>'+
       (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer">↓</button><button type="button" data-action="montagem-type" data-id="'+id+'">'+(m.tipo[c.idNecessidade]==="RESERVA"?"Reserva":"Principal")+'</button>':"")+
@@ -2618,7 +2626,7 @@ function renderMontagemModal(){
   var m=state.montagem;if(!m)return "";
   var eligible=montagemEligible(m),total=montagemStats(m);
   var body='<div class="field"><label>Data da programação</label><input type="date" id="montagem-data" value="'+esc(m.data)+'"></div>'+
-    '<div class="montagem-total"><span>Total: '+total.n+' necessidade(s) · '+fmtKg(total.kg)+' kg</span><span class="hint">Dia (turno 1) → Noite (turno 2). Principal/Reserva por card.</span></div>';
+    '<div class="montagem-total"><span>Total: '+total.n+' necessidade(s) · '+fmtKg(total.kg)+' kg a extrudar (BZ)</span><span class="hint">Turno 1 = Dia '+esc(fmtDateBR(m.data))+'; turno 2 = Noite '+esc(fmtDateBR(m.data))+'. Depois: Dia e Noite do dia seguinte. Principal/Reserva pertence ao turno alvo do card.</span></div>';
   if(m.step==="previa"){
     body+='<div class="warn-msg">Revise a substituição por data e turno. O Histórico conserva as versões anteriores.</div>';
     Object.keys(m.plan).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' necessidade(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
@@ -2631,13 +2639,14 @@ function renderMontagemModal(){
   }else if(m.step==="concluido"){
     body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
   }else{
-    body+='<div class="montagem-queue" data-montagem-drop="queue"><b>Fila da B03_CART · '+(eligible.length-total.n)+' disponível(is)</b> '+
-      '<div class="field"><label>Carregar Master (.xlsx/.xlsm) com a aba B03_CART</label><input id="montagem-b03-file" type="file" accept=".xlsx,.xlsm,.xls"></div>'+
-      (m.sourceName?'<div class="hint">Fonte: '+esc(m.sourceName)+' · '+eligible.length+' autorizada(s) · '+m.excluded+' ignorada(s)</div>':'')+
+    body+='<div class="montagem-queue" data-montagem-drop="queue"><b>Fila da B03 CART · '+(eligible.length-total.n)+' disponível(is)</b> '+
+      '<div class="field"><label>Carregar Master (.xlsx/.xlsm) com a aba B03 CART ou B03_CART</label><input id="montagem-b03-file" type="file" accept=".xlsx,.xlsm,.xls"></div>'+
+      (m.sourceName?'<div class="hint">Fonte: '+esc(m.sourceName)+' · '+m.gateCount+' liberado(s) AZ/BX · '+m.pressCount+' com P4/P7 · '+eligible.length+' programável(is) com BZ positivo · '+(m.pending||[]).length+' pendência(s)</div>':'')+
       '<input id="montagem-busca" type="search" placeholder="Buscar ferramenta, cliente ou pedido…" value="'+esc(m.busca||"")+'" aria-label="Buscar candidatos da carteira">'+
-      (!m.sourceValidated?'<div class="warn-msg">Carregue a B03_CART para formar a fila. Sem candidatos válidos, a publicação fica bloqueada.</div>':'')+
+      (!m.sourceValidated?'<div class="warn-msg">Carregue a B03 CART para formar a fila. Sem candidatos válidos, a publicação fica bloqueada.</div>':'')+
+      (m.pending&&m.pending.length?'<div class="warn-msg">Pendências da Master (não podem ser programadas): '+m.pending.filter(function(c){return historicoMatches({codigo:c.codigo,cliente:c.cliente+' '+c.pedido+' '+c.item},m.busca);}).map(function(c){return '<div>'+esc(c.codigo)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+' · '+esc(c.reason)+' · BZ '+(c.kgExtrudar==null?'vazio':fmtKg(c.kgExtrudar))+' kg · saldo BW '+(c.saldoKg==null?'vazio':fmtKg(c.saldoKg))+' kg</div>';}).join('')+'</div>':'')+
       '<div class="montagem-queue-list">'+eligible.filter(function(c){return !montagemLocation(m,c.idNecessidade) && historicoMatches({codigo:c.codigo,cliente:c.cliente+' '+c.pedido+' '+c.item},m.busca);}).map(function(c){return montagemCard(m,c);}).join("")+'</div></div>';
-    body+='<div class="montagem-board">'+MONTAGEM_LANES.map(function(l){var s=montagemStats(m,l.key);return '<div class="montagem-lane" data-montagem-drop="'+l.key+'"><div class="montagem-lane-head">'+l.label+'<small>'+s.n+' ferramenta(s) · '+fmtKg(s.kg)+' kg</small></div>'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c):"";}).join("")+'</div>';}).join("")+'</div>'+
+    body+='<div class="montagem-board">'+MONTAGEM_LANES.map(function(l){var s=montagemStats(m,l.key);return '<div class="montagem-lane" data-montagem-drop="'+l.key+'"><div class="montagem-lane-head">'+l.label+' · '+esc(fmtDateBR(m.data))+'<small>'+s.n+' ferramenta(s) · '+fmtKg(s.kg)+' kg BZ</small></div>'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c):"";}).join("")+'</div>';}).join("")+'</div>'+
       '<div style="margin-top:10px;"><button type="button" class="btn btn-primary" data-action="montagem-preview" '+(!m.sourceValidated||!total.n?'disabled':'')+'>Revisar programação</button></div>';
   }
   if(m.error)body+='<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
@@ -4754,7 +4763,12 @@ function validateBaseAppRecords(records){
     if(datas.length>1) errors.push(pos+": DATA_PROGRAMACAO incoerente entre linhas da mesma posição ("+datas.join(", ")+").");
     if(turnos.length>1) errors.push(pos+": TURNO incoerente entre linhas da mesma posição ("+turnos.join(", ")+").");
     var origem = recs[0] && recs[0].origem;
-    if(origem){ if(!origemToPosicoes[origem]) origemToPosicoes[origem]=[]; origemToPosicoes[origem].push(pos); }
+    // Na montagem B03, ORIGEM identifica a planilha inteira; as duas posições
+    // usam essa fonte, mas cada PEDIDO_ID+ITEM aparece apenas uma vez no quadro.
+    if(origem && origem!=="MONTAGEM B03"){
+      if(!origemToPosicoes[origem]) origemToPosicoes[origem]=[];
+      origemToPosicoes[origem].push(pos);
+    }
   });
   Object.keys(origemToPosicoes).forEach(function(origem){
     var posicoes = baseAppUniq(origemToPosicoes[origem]);
@@ -4803,7 +4817,8 @@ function baseAppHashString(s){
 function computeConteudoHash(records){
   var linhas = records.map(function(r){
     return [r.prensa, r.ferramenta, r.cliente||"", r.quantidadeKg, r.corte||"", r.liga||"", r.observacao||"", r.secao,
-      r.origem==="MONTAGEM B03" ? r.chaveOrigem : "",r.origem==="MONTAGEM B03" ? r.ordemOrigem : ""].join("§");
+      r.origem==="MONTAGEM B03" ? r.chaveOrigem : "",r.origem==="MONTAGEM B03" ? r.ordemOrigem : "",
+      r.origem==="MONTAGEM B03" ? r.saldoKgInformado : ""].join("§");
   });
   linhas.sort();
   return baseAppHashString(linhas.join("¶"));
@@ -4943,7 +4958,9 @@ function baseAppBuildFerramentaDoc(rec, programacaoId, now){
     solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
     criadoEm: now, programacaoId: programacaoId, chaveOrigem: rec.chaveOrigem,
     origemBase: rec.origem==="MONTAGEM B03" ? "B03_CART" : rec.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP",
-    ...(rec.origem==="MONTAGEM B03" ? {idNecessidade:rec.idNecessidade,pedido:rec.pedido,item:rec.item,ordemProgramacao:rec.ordemOrigem} : {})
+    ...(rec.origem==="MONTAGEM B03" ? {idNecessidade:rec.idNecessidade,pedido:rec.pedido,item:rec.item,
+      ordemProgramacao:rec.ordemOrigem,saldoKgInformado:rec.saldoKgInformado,
+      ...(rec.secao==="RESERVA" && rec.turno==="Noite" ? {turnoOrigem:"Dia"} : {})} : {})
   };
 }
 // Gravação segura de UMA posição do plano. NOVA/NOVA_VERSAO: grava TODOS
