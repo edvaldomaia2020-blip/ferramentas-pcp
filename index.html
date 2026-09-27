@@ -494,21 +494,45 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .nec-compact-details .nec-compact-btn{min-height:36px;}
 .hist-search{width:100%;max-width:420px;min-height:40px;}
 @media (max-width:600px){.hist-search{max-width:none}.nec-list-compact .nec-compact-row{margin-bottom:2px;border-radius:3px}.nec-compact-summary{gap:4px}}
-.montagem-modal{max-width:min(1500px,98vw)!important;}
-.montagem-total{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:var(--surface-2);border-radius:8px;margin:9px 0;font-weight:700;}
-.montagem-queue{border:1px solid var(--border);border-radius:8px;padding:9px;margin:8px 0;}
-.montagem-queue-list{display:flex;gap:6px;overflow-x:auto;padding:6px 0;min-height:60px;}
-.montagem-board{display:grid;grid-template-columns:repeat(4,minmax(210px,1fr));gap:8px;overflow-x:auto;}
-.montagem-lane{min-height:230px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px;}
+#app.role-pcp.montagem-app{max-width:none;width:100%;}
+.montagem-page{width:100%;padding:14px clamp(10px,2vw,28px) 24px;}
+.montagem-page-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.montagem-page-head h1{font-size:30px;line-height:1;}
+.montagem-page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.montagem-upload{max-width:560px;margin:8vh auto;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);}
+.montagem-upload input[type=file]{width:100%;margin:12px 0;}
+.montagem-total{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:var(--surface-2);border-radius:8px;margin:9px 0;font-weight:700;}
+.montagem-total span{white-space:nowrap;}
+.montagem-pendencias{margin:8px 0;padding:8px 12px;border:1px solid var(--st-int);border-radius:7px;color:var(--st-int);font-size:12px;}
+.montagem-pendencias summary{cursor:pointer;font-weight:700;}
+.montagem-board-scroll{width:100%;overflow-x:auto;padding-bottom:5px;}
+.montagem-board{display:grid;grid-template-columns:minmax(220px,1.1fr) repeat(4,minmax(210px,1fr));gap:8px;min-width:1110px;}
+.montagem-lane{display:flex;flex-direction:column;height:max(390px,calc(100dvh - 255px));max-height:900px;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:7px;}
 .montagem-lane.drag-over{outline:3px solid var(--accent);}
-.montagem-lane-head{font-size:13px;font-weight:800;position:sticky;top:0;background:var(--surface-2);padding:5px 2px;z-index:1;}
-.montagem-lane-head small{display:block;color:var(--text-muted);font-weight:600;margin-top:3px;}
-.montagem-card{background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;padding:7px;margin:5px 0;max-width:300px;cursor:grab;font-size:11px;}
-.montagem-card strong{font-size:13px;}.montagem-card .sub{color:var(--text-muted);overflow-wrap:anywhere;}
+.montagem-lane-head{font-size:13px;font-weight:800;padding:5px 3px 7px;border-bottom:1px solid var(--border);}
+.montagem-lane-head small{display:block;color:var(--text-muted);font-weight:600;line-height:1.35;margin-top:3px;}
+.montagem-queue-controls{display:flex;gap:5px;padding:7px 0;}
+.montagem-queue-controls input{min-width:0;width:100%;}
+.montagem-queue-controls select{width:70px;flex:none;}
+.montagem-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:3px 3px 20px;}
+.montagem-card{background:var(--surface);border:1px solid var(--border-strong);border-radius:7px;padding:7px;margin:4px 0;cursor:grab;font-size:11px;line-height:1.35;overflow-wrap:anywhere;}
+.montagem-card.reserva{border-left:4px solid var(--st-int);background:var(--st-int-bg);}
+.montagem-card.principal{border-left:4px solid var(--st-ok);}
+.montagem-card.drop-before{border-top:3px solid var(--accent);}
+.montagem-card.drop-after{border-bottom:3px solid var(--accent);}
+.montagem-card strong{font-size:13px;}.montagem-card .sub{color:var(--text-muted);}
+.montagem-card .card-top{display:flex;align-items:center;justify-content:space-between;gap:5px;}
+.montagem-card .card-kg{font-weight:700;white-space:nowrap;}
+.montagem-card details{margin-top:3px;color:var(--text-muted);}
+.montagem-card summary{cursor:pointer;}
+.montagem-card .need-detail{border-top:1px solid var(--border);padding:3px 0;}
 .montagem-card select{font-size:11px;padding:3px;max-width:100%;}
-.montagem-card-actions{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px;}
-.montagem-card-actions button{padding:3px 6px;min-height:28px;font-size:11px;}
-@media(max-width:900px){.montagem-board{grid-template-columns:repeat(4,minmax(190px,1fr));}.montagem-modal{max-width:98vw!important;}}
+.montagem-card-actions{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:5px;}
+.montagem-card-actions button{padding:3px 6px;min-height:29px;font-size:11px;}
+.montagem-card-actions .reserva-on{background:var(--st-int);color:#fff;border-color:var(--st-int);}
+.montagem-card .separation{color:var(--st-int);font-size:10px;}
+.montagem-over{color:var(--danger)!important;font-weight:800!important;}
+@media(max-width:650px){.montagem-page-head h1{font-size:25px}.montagem-lane{height:max(350px,calc(100dvh - 275px))}.montagem-total span{white-space:normal}}
 
 /* ---------- Correção: header title / sync info / micro panel ---------- */
 .correcao-title{font-size:15px;color:var(--accent);letter-spacing:.03em;}
@@ -1090,6 +1114,10 @@ var authEpoch = 0;
 var LIVE_TEXT_INPUT_IDS = ["filter-busca","hist-search","montagem-busca"];
 function render(){
   var focusId = null, selStart = null, selEnd = null;
+  var montagemScroll={};
+  app.querySelectorAll('[data-montagem-scroll]').forEach(function(el){montagemScroll[el.getAttribute('data-montagem-scroll')]=el.scrollTop;});
+  var montagemX=app.querySelector('.montagem-board-scroll');
+  if(montagemX)montagemScroll.x=montagemX.scrollLeft;
   var active = document.activeElement;
   if(active && LIVE_TEXT_INPUT_IDS.indexOf(active.id)>=0){
     focusId = active.id; selStart = active.selectionStart; selEnd = active.selectionEnd;
@@ -1100,8 +1128,15 @@ function render(){
   document.documentElement.classList.toggle("modal-open", !!state.modal);
   document.body.classList.toggle("modal-open", !!state.modal);
   if(!state.user){ app.className=""; app.innerHTML = renderAuth(); bindAuth(); return; }
-  app.className = state.user.perfil==="pcp" ? "role-pcp" : "role-correcao";
+  app.className = state.user.perfil==="pcp" ? "role-pcp"+(state.montagem?" montagem-app":"") : "role-correcao";
   if(!state.dbReady){ app.innerHTML = '<div class="spinner-wrap">CARREGANDO…</div>'; return; }
+  if(state.montagem){
+    app.innerHTML=renderMontagemPage();bindApp();
+    app.querySelectorAll('[data-montagem-scroll]').forEach(function(el){el.scrollTop=montagemScroll[el.getAttribute('data-montagem-scroll')]||0;});
+    var boardScroll=app.querySelector('.montagem-board-scroll');if(boardScroll)boardScroll.scrollLeft=montagemScroll.x||0;
+    if(focusId){var search=document.getElementById(focusId);if(search){search.focus();try{search.setSelectionRange(selStart,selEnd);}catch(e){}}}
+    return;
+  }
   var filterBarHtml = state.user.perfil==="pcp" ? renderFilterBarPCP() : renderFilterBarCorrecao();
   var html = renderTopBar() + (state.notifWarning || state.notifReadError ? '<div class="error-msg" role="alert">'+esc([state.notifWarning,state.notifReadError].filter(Boolean).join(" "))+'</div>' : '') + filterBarHtml + '<div class="content">' +
     (state.user.perfil==="pcp" ? renderPCP() : renderCorrecao()) +
@@ -2533,18 +2568,71 @@ function montagemParseB03(wb){
   }
   return {candidates:candidates,pending:pending,excluded:excluded,gateCount:gateCount,pressCount:pressCount};
 }
+function montagemIsoDateCell(cell){
+  if(!cell || cell.v==null)return null;
+  if(cell.v instanceof Date)return cell.v.toISOString().slice(0,10);
+  if(typeof cell.v==="number" && XLSX.SSF && XLSX.SSF.parse_date_code){
+    var d=XLSX.SSF.parse_date_code(cell.v);
+    if(d)return d.y+"-"+("0"+d.m).slice(-2)+"-"+("0"+d.d).slice(-2);
+  }
+  var raw=String(cell.v),match=/^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if(match)return match[0];
+  match=/^(\d{2})\/(\d{2})\/(\d{4})/.exec(raw);
+  return match?match[3]+"-"+match[2]+"-"+match[1]:null;
+}
+function montagemParseCapacity(wb){
+  var param=wb.Sheets["0.PARAM"],cal=wb.Sheets["0.CALEND"];
+  if(!param || !cal)throw new Error("A Master precisa das abas 0.PARAM e 0.CALEND para calcular a capacidade por turno.");
+  var pgrid=sheetToGrid(param),labels={};
+  pgrid.forEach(function(row,r){var name=normalizeHeader(row[1]);if(name)labels[name]=r;});
+  function find(label){var r=labels[normalizeHeader(label)];return r===undefined?null:baseAppReadNumCell(param,r,2);}
+  function raw(label){var r=labels[normalizeHeader(label)];return r===undefined?null:param["C"+(r+1)];}
+  var hoursDay=find("Horas do turno do dia"),hoursNight=find("Horas do turno da noite"),
+    normal=find("Horas por dia útil — regime normal (10 h dia + 9 h noite)"),
+    reinforced=find("Horas por dia útil — regime reforçado (2 turnos × 12 h)"),
+    start=montagemIsoDateCell(raw("Reforço de turnos — primeiro dia")),
+    end=montagemIsoDateCell(raw("Reforço de turnos — último dia"));
+  var nightCell=raw("Turno da noite ativo? (SIM/NÃO)"),nightActive=nightCell&&normalizeHeader(nightCell.v)==="SIM";
+  if(!(hoursDay>0)||!(hoursNight>0)||!(normal>0)||!(reinforced>0)||!start||!end||!nightCell)
+    throw new Error("Parâmetros de horas/regime da aba 0.PARAM ausentes ou inválidos.");
+  var calendar={};
+  for(var r=5;r<Math.min(sheetToGrid(cal).length,400);r++){
+    var date=montagemIsoDateCell(cal["B"+(r+1)]);
+    if(!date)continue;
+    var p4=baseAppReadNumCell(cal,r,8),p7=baseAppReadNumCell(cal,r,9);
+    if(p4!=null && p7!=null)calendar[date]={P4:p4*1000,P7:p7*1000};
+  }
+  if(!Object.keys(calendar).length)throw new Error("Nenhuma capacidade diária válida encontrada em 0.CALEND.");
+  return {calendar:calendar,hoursDay:hoursDay,hoursNight:hoursNight,normal:normal,
+    reinforced:reinforced,start:start,end:end,nightActive:nightActive};
+}
+function montagemCapacity(m,prensa,turno){
+  var c=m.capacity,day=c&&c.calendar[m.data];
+  if(!day || !Number.isFinite(day[prensa]))return null;
+  var special=m.data>=c.start && m.data<=c.end;
+  var hours=special?c.reinforced/2:(turno==="Dia"?c.hoursDay:c.hoursNight);
+  if(turno==="Noite" && !c.nightActive)return 0;
+  return Math.round(day[prensa]*hours/(special?c.reinforced:c.normal)*100)/100;
+}
 function montagemLoadB03(file){
   var m=state.montagem;if(!m||!file)return;
   m.loading=true;m.sourceValidated=false;m.candidates=[];m.pending=[];m.sourceName="";
   m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};m.error="";render();
   ensureXLSX(function(){var reader=new FileReader();
     reader.onload=function(e){try{
-      var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}),result=montagemParseB03(wb);
-      m.candidates=result.candidates;m.pending=result.pending;m.sourceValidated=result.candidates.length>0;m.sourceName=file.name;
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}),result=montagemParseB03(wb),capacity=montagemParseCapacity(wb);
+      m.candidates=result.candidates;m.cards=montagemBuildCards(result.candidates);m.pending=result.pending;
+      m.sourceValidated=result.candidates.length>0;m.sourceName=file.name;
+      m.capacity=capacity;m.step="editar";
+      if(!capacity.calendar[m.data] || !(capacity.calendar[m.data].P4>0 || capacity.calendar[m.data].P7>0)){
+        var next=Object.keys(capacity.calendar).sort().find(function(d){return d>=m.data &&
+          (capacity.calendar[d].P4>0 || capacity.calendar[d].P7>0);});
+        if(next)m.data=next;
+      }
       m.excluded=result.excluded;m.gateCount=result.gateCount;m.pressCount=result.pressCount;
       m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};
       if(!m.sourceValidated)m.error="Nenhuma necessidade com BZ positivo e prensa válida na B03 CART.";
-    }catch(err){m.candidates=[];m.pending=[];m.sourceValidated=false;m.error=err&&err.message||"Erro ao ler B03 CART.";}
+    }catch(err){m.candidates=[];m.cards=[];m.pending=[];m.capacity=null;m.sourceValidated=false;m.step="carregar";m.error=err&&err.message||"Erro ao ler B03 CART.";}
     m.loading=false;render();};
     reader.onerror=function(){m.loading=false;m.error="Erro ao ler arquivo.";render();};
     reader.readAsArrayBuffer(file);
@@ -2564,35 +2652,57 @@ function montagemEligible(m){
     seen[c.idNecessidade]=true; return true;
   });
 }
-function montagemCandidate(m,id){ return montagemEligible(m).find(function(c){return c.idNecessidade===id;}); }
+function montagemBuildCards(candidates){
+  var groups=[],byKey={},variants={};
+  (candidates||[]).filter(montagemCandidateValid).forEach(function(c){
+    var press=c.prensasPermitidas[0],key=JSON.stringify([c.codigo,press,c.liga||"",c.corte||""]),group=byKey[key];
+    if(!group){group={id:"g:"+key,codigo:c.codigo,prensa:press,liga:c.liga||"",corte:c.corte||"",
+      prensasPermitidas:[press],needs:[],clientes:[],kgExtrudar:0};byKey[key]=group;groups.push(group);}
+    group.needs.push(c);group.kgExtrudar+=Number(c.kgExtrudar);
+    if(group.clientes.indexOf(c.cliente)<0)group.clientes.push(c.cliente);
+    variants[c.codigo]=(variants[c.codigo]||{});variants[c.codigo][key]=true;
+  });
+  groups.forEach(function(g){g.separate=Object.keys(variants[g.codigo]).length>1;});
+  return groups;
+}
+function montagemCards(m){return m.cards||montagemBuildCards(m.candidates);}
+function montagemCandidate(m,id){return montagemCards(m).find(function(c){return c.id===id;});}
 function montagemLane(key){return MONTAGEM_LANES.find(function(l){return l.key===key;});}
 function montagemLocation(m,id){return MONTAGEM_LANES.find(function(l){return m.columns[l.key].indexOf(id)>=0;});}
 function montagemMove(m,id,to,index){
   var c=montagemCandidate(m,id), lane=montagemLane(to);
   if(!c || (lane && c.prensasPermitidas.indexOf(lane.prensa)<0) || (to!=="queue" && !lane)) return false;
+  var from=montagemLocation(m,id),fromIndex=from?m.columns[from.key].indexOf(id):-1;
   MONTAGEM_LANES.forEach(function(l){m.columns[l.key]=m.columns[l.key].filter(function(x){return x!==id;});});
-  if(lane){var rows=m.columns[lane.key];rows.splice(Math.max(0,Math.min(index==null?rows.length:index,rows.length)),0,id);}
+  if(lane){var rows=m.columns[lane.key],at=index==null?rows.length:index;
+    if(from && from.key===lane.key && fromIndex<at)at--;
+    rows.splice(Math.max(0,Math.min(at,rows.length)),0,id);}
   m.step="editar"; m.error="";
   return true;
 }
 function montagemStats(m,key){
   var ids=key ? m.columns[key] : MONTAGEM_LANES.reduce(function(a,l){return a.concat(m.columns[l.key]);},[]);
-  return {n:ids.length,kg:ids.reduce(function(sum,id){var c=montagemCandidate(m,id);return sum+(c?Number(c.kgExtrudar):0);},0)};
+  return ids.reduce(function(s,id){var c=montagemCandidate(m,id);if(!c)return s;
+    s.n++;s.needs+=c.needs.length;
+    if(m.tipo[id]==="RESERVA")s.reserva+=c.kgExtrudar;else s.principal+=c.kgExtrudar;
+    s.kg+=c.kgExtrudar;return s;
+  },{n:0,needs:0,principal:0,reserva:0,kg:0});
 }
 function montagemRecords(m,turno,posicao){
   return MONTAGEM_LANES.filter(function(l){return l.turno===turno;}).reduce(function(out,l){
-    m.columns[l.key].forEach(function(id){var c=montagemCandidate(m,id); if(!c) return;
-      out.push({_excelRow:out.length+1,posicao:posicao,origem:"MONTAGEM B03",dataProgramacao:m.data,
+    m.columns[l.key].forEach(function(id){var card=montagemCandidate(m,id); if(!card) return;
+      card.needs.forEach(function(c){out.push({_excelRow:out.length+1,posicao:posicao,origem:"MONTAGEM B03",dataProgramacao:m.data,
         turno:turno,turnoBruto:turno,prensa:l.prensa,ferramenta:c.codigo,cliente:c.cliente,
         quantidadeKg:Number(c.kgExtrudar),saldoKgInformado:c.saldoKg,corte:c.corte||"",liga:c.liga||"",observacao:c.observacao||"",
         secao:m.tipo[id]==="RESERVA"?"RESERVA":"PRINCIPAL",ordemOrigem:out.length+1,
-        chaveOrigem:c.idNecessidade,idNecessidade:c.idNecessidade,pedido:c.pedido,item:c.item});
+        chaveOrigem:c.idNecessidade,idNecessidade:c.idNecessidade,pedido:c.pedido,item:c.item});});
     });return out;
   },[]);
 }
 function montagemPreview(m){
   if(!m.sourceValidated || !montagemEligible(m).length){m.error="Sem candidatos validados da B03_CART. A publicação está bloqueada até validar a planilha real.";render();return;}
   if(!m.data){m.error="Escolha a data.";render();return;}
+  if(!m.capacity || !m.capacity.calendar[m.data]){m.error="Data fora do calendário de capacidade da Master.";render();return;}
   var records=montagemRecords(m,"Dia","ATUAL").concat(montagemRecords(m,"Noite","PROXIMA"));
   if(!records.length){m.error="Arraste ao menos uma necessidade autorizada para o quadro.";render();return;}
   var check=validateBaseAppRecords(records);
@@ -2612,21 +2722,43 @@ function montagemPreview(m){
   m.ciente=false;m.step="previa";m.error="";render();
 }
 function montagemCard(m,c){
-  var loc=montagemLocation(m,c.idNecessidade),key=loc?loc.key:"queue",id=esc(c.idNecessidade);
-  return '<div class="montagem-card" draggable="true" data-montagem-card="'+id+'">'+
-    '<strong>'+esc(c.codigo)+'</strong> · '+fmtKg(c.kgExtrudar)+' kg a extrudar'+
-    '<div class="sub">'+esc(c.cliente)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+'</div>'+
-    '<div class="sub">'+esc(c.liga||"Liga não informada")+' · '+esc(c.prensasPermitidas.join("/"))+' · saldo BW: '+(Number.isFinite(c.saldoKg)?fmtKg(c.saldoKg):"não informado")+' kg</div>'+
-    '<div class="montagem-card-actions"><select aria-label="Mover '+esc(c.codigo)+'" data-montagem-move="'+id+'"><option value="queue" '+(key==="queue"?"selected":"")+'>Fila</option>'+
+  var loc=montagemLocation(m,c.id),key=loc?loc.key:"queue",id=esc(c.id),reserva=m.tipo[c.id]==="RESERVA";
+  var others=montagemCards(m).filter(function(x){return x.codigo===c.codigo && x.id!==c.id;});
+  var reasons=[];
+  if(others.some(function(x){return x.prensa!==c.prensa;}))reasons.push("prensa");
+  if(others.some(function(x){return x.liga!==c.liga;}))reasons.push("liga");
+  if(others.some(function(x){return x.corte!==c.corte;}))reasons.push("corte");
+  return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+'" draggable="true" data-montagem-card="'+id+'">'+
+    '<div class="card-top"><strong>'+esc(c.codigo)+'</strong><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span></div>'+
+    '<div class="sub" title="'+esc(c.clientes.join(', '))+'">'+esc(c.clientes.join(' · '))+'</div>'+
+    '<div class="sub">Liga '+esc(c.liga||"—")+' · '+esc(c.prensa)+'</div>'+
+    (reasons.length?'<div class="separation">Separada por '+esc(reasons.join('/'))+' diferente</div>':'')+
+    '<details><summary>'+c.needs.length+' pedido/item'+(c.needs.length>1?'s':'')+' · ver origem</summary>'+
+      c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+'</details>'+
+    '<div class="montagem-card-actions"><select aria-label="Mover '+esc(c.codigo)+'" data-montagem-move="'+id+'"><option value="queue" '+(key==="queue"?"selected":"")+'>Disponíveis</option>'+
       MONTAGEM_LANES.filter(function(l){return c.prensasPermitidas.indexOf(l.prensa)>=0;}).map(function(l){return '<option value="'+l.key+'" '+(key===l.key?"selected":"")+'>'+l.label+'</option>';}).join("")+'</select>'+
-      (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer">↓</button><button type="button" data-action="montagem-type" data-id="'+id+'">'+(m.tipo[c.idNecessidade]==="RESERVA"?"Reserva":"Principal")+'</button>':"")+
+      (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer">↓</button><button type="button" class="'+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" aria-pressed="'+reserva+'">Reserva '+(reserva?'ligada':'desligada')+'</button>':"")+
     '</div></div>';
 }
-function renderMontagemModal(){
+function renderMontagemPage(){
   var m=state.montagem;if(!m)return "";
-  var eligible=montagemEligible(m),total=montagemStats(m);
-  var body='<div class="field"><label>Data da programação</label><input type="date" id="montagem-data" value="'+esc(m.data)+'"></div>'+
-    '<div class="montagem-total"><span>Total: '+total.n+' necessidade(s) · '+fmtKg(total.kg)+' kg a extrudar (BZ)</span><span class="hint">Turno 1 = Dia '+esc(fmtDateBR(m.data))+'; turno 2 = Noite '+esc(fmtDateBR(m.data))+'. Depois: Dia e Noite do dia seguinte. Principal/Reserva pertence ao turno alvo do card.</span></div>';
+  var cards=montagemCards(m),total=montagemStats(m),body='';
+  var head='<div class="montagem-page-head"><div><h1>Montar programação</h1><div class="hint">'+
+    (m.sourceName?'Master: '+esc(m.sourceName):'Carregue a Master para iniciar')+'</div></div><div class="montagem-page-actions">'+
+    '<button type="button" class="btn btn-ghost" data-action="montagem-close">Voltar ao painel</button></div></div>';
+  if(m.step==="carregar"){
+    body='<div class="montagem-upload"><h2>Carregar Master</h2><p>Selecione a planilha com B03 CART ou B03_CART, 0.PARAM e 0.CALEND.</p>'+
+      '<input id="montagem-b03-file" type="file" accept=".xlsx,.xlsm,.xls" aria-label="Carregar Master">'+
+      (m.loading?'<div class="hint">Lendo planilha e capacidades…</div>':'')+
+      (m.error?'<div class="error-msg" role="alert">'+esc(m.error)+'</div>':'')+'</div>';
+    return '<main class="montagem-page">'+head+body+'</main>';
+  }
+  body='<div class="montagem-page-actions"><label>Data <input type="date" id="montagem-data" value="'+esc(m.data)+'" '+(m.step==="editar"?'':'disabled')+'></label>'+
+    (m.step==="editar"?'<button type="button" class="btn btn-ghost" data-action="montagem-reload">Trocar Master</button>':'')+'</div>'+
+    '<div class="montagem-total"><span>'+total.n+' ferramenta(s) · '+total.needs+' pedido/item · '+fmtKg(total.kg)+' kg BZ</span>'+
+    '<span>Principal: '+fmtKg(total.principal)+' kg</span><span>Reserva: '+fmtKg(total.reserva)+' kg</span></div>'+
+    '<div class="hint">Turno 1 = Dia '+esc(fmtDateBR(m.data))+'; turno 2 = Noite '+esc(fmtDateBR(m.data))+
+      '. Sequência seguinte: Dia e Noite do próximo dia. Reserva é do turno alvo; reserva da Noite tem origem no Dia.</div>';
   if(m.step==="previa"){
     body+='<div class="warn-msg">Revise a substituição por data e turno. O Histórico conserva as versões anteriores.</div>';
     Object.keys(m.plan).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' necessidade(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
@@ -2639,19 +2771,23 @@ function renderMontagemModal(){
   }else if(m.step==="concluido"){
     body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
   }else{
-    body+='<div class="montagem-queue" data-montagem-drop="queue"><b>Fila da B03 CART · '+(eligible.length-total.n)+' disponível(is)</b> '+
-      '<div class="field"><label>Carregar Master (.xlsx/.xlsm) com a aba B03 CART ou B03_CART</label><input id="montagem-b03-file" type="file" accept=".xlsx,.xlsm,.xls"></div>'+
-      (m.sourceName?'<div class="hint">Fonte: '+esc(m.sourceName)+' · '+m.gateCount+' liberado(s) AZ/BX · '+m.pressCount+' com P4/P7 · '+eligible.length+' programável(is) com BZ positivo · '+(m.pending||[]).length+' pendência(s)</div>':'')+
-      '<input id="montagem-busca" type="search" placeholder="Buscar ferramenta, cliente ou pedido…" value="'+esc(m.busca||"")+'" aria-label="Buscar candidatos da carteira">'+
-      (!m.sourceValidated?'<div class="warn-msg">Carregue a B03 CART para formar a fila. Sem candidatos válidos, a publicação fica bloqueada.</div>':'')+
-      (m.pending&&m.pending.length?'<div class="warn-msg">Pendências da Master (não podem ser programadas): '+m.pending.filter(function(c){return historicoMatches({codigo:c.codigo,cliente:c.cliente+' '+c.pedido+' '+c.item},m.busca);}).map(function(c){return '<div>'+esc(c.codigo)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+' · '+esc(c.reason)+' · BZ '+(c.kgExtrudar==null?'vazio':fmtKg(c.kgExtrudar))+' kg · saldo BW '+(c.saldoKg==null?'vazio':fmtKg(c.saldoKg))+' kg</div>';}).join('')+'</div>':'')+
-      '<div class="montagem-queue-list">'+eligible.filter(function(c){return !montagemLocation(m,c.idNecessidade) && historicoMatches({codigo:c.codigo,cliente:c.cliente+' '+c.pedido+' '+c.item},m.busca);}).map(function(c){return montagemCard(m,c);}).join("")+'</div></div>';
-    body+='<div class="montagem-board">'+MONTAGEM_LANES.map(function(l){var s=montagemStats(m,l.key);return '<div class="montagem-lane" data-montagem-drop="'+l.key+'"><div class="montagem-lane-head">'+l.label+' · '+esc(fmtDateBR(m.data))+'<small>'+s.n+' ferramenta(s) · '+fmtKg(s.kg)+' kg BZ</small></div>'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c):"";}).join("")+'</div>';}).join("")+'</div>'+
-      '<div style="margin-top:10px;"><button type="button" class="btn btn-primary" data-action="montagem-preview" '+(!m.sourceValidated||!total.n?'disabled':'')+'>Revisar programação</button></div>';
+    body+='<div class="hint">'+m.gateCount+' liberados AZ/BX · '+m.pressCount+' com P4/P7 · '+m.candidates.length+' necessidades programáveis · '+(m.pending||[]).length+' pendências</div>'+
+      (m.pending&&m.pending.length?'<details class="montagem-pendencias"><summary>'+m.pending.length+' pendência(s) da Master fora da fila</summary>'+m.pending.map(function(c){return '<div>'+esc(c.codigo)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+' · '+esc(c.reason)+' · BZ '+(c.kgExtrudar==null?'vazio':fmtKg(c.kgExtrudar))+' kg</div>';}).join('')+'</details>':'');
+    var queue=cards.filter(function(c){return !montagemLocation(m,c.id) && (m.filtroPrensa==="Todas"||m.filtroPrensa===c.prensa) &&
+      historicoMatches({codigo:c.codigo,cliente:c.clientes.join(' ')+' '+c.needs.map(function(n){return n.pedido+' '+n.item;}).join(' ')},m.busca);});
+    body+='<div class="montagem-board-scroll"><div class="montagem-board">'+
+      '<section class="montagem-lane"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' ferramenta(s) na fila</small></div>'+
+      '<div class="montagem-queue-controls"><input id="montagem-busca" type="search" placeholder="Ferramenta, cliente, pedido…" value="'+esc(m.busca||'')+'" aria-label="Buscar disponíveis">'+
+      '<select id="montagem-prensa" aria-label="Filtrar prensa">'+['Todas','P7','P4'].map(function(p){return '<option '+(m.filtroPrensa===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
+      '<div class="montagem-list" data-montagem-scroll="queue" data-montagem-drop="queue">'+queue.map(function(c){return montagemCard(m,c);}).join('')+'</div></section>'+
+      MONTAGEM_LANES.map(function(l){var s=montagemStats(m,l.key),cap=montagemCapacity(m,l.prensa,l.turno),over=cap!=null&&s.principal>cap;
+        return '<section class="montagem-lane"><div class="montagem-lane-head">'+l.label+' · '+esc(fmtDateBR(m.data))+'<small>'+s.n+' ferramenta(s) · Principal '+fmtKg(s.principal)+' kg · Reserva '+fmtKg(s.reserva)+' kg</small><small class="'+(over?'montagem-over':'')+'">Capacidade '+(cap==null?'indisponível':fmtKg(cap)+' kg')+(over?' · Principal excede em '+fmtKg(s.principal-cap)+' kg':'')+'</small></div>'+
+          '<div class="montagem-list" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c):'';}).join('')+'</div></section>';}).join('')+
+      '</div></div><div style="margin-top:10px;"><button type="button" class="btn btn-primary" data-action="montagem-preview" '+(!m.sourceValidated||!total.n||!m.capacity.calendar[m.data]?'disabled':'')+'>Revisar programação</button></div>';
+    if(!m.capacity.calendar[m.data])body+='<div class="warn-msg">Data fora do calendário da Master: escolha uma data com capacidade em 0.CALEND para publicar.</div>';
   }
   if(m.error)body+='<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
-  return '<div class="modal-overlay"><div class="modal modal-wide montagem-modal" onclick="event.stopPropagation()">'+
-    '<div class="modal-head"><h2>Montar programação</h2><button class="modal-close" data-action="close-modal" '+(m.busy?'disabled':'')+'>×</button></div>'+body+'</div></div>';
+  return '<main class="montagem-page">'+head+body+'</main>';
 }
 function montagemPublish(){
   var m=state.montagem;
@@ -2697,7 +2833,6 @@ function renderModal(){
   if(state.modal==="audit") return renderAuditModal();
   if(state.modal==="confirm-status") return renderConfirmStatusModal();
   if(state.modal==="baseapp-import") return renderBaseAppImportModal();
-  if(state.modal==="montagem") return renderMontagemModal();
   if(state.modal==="historico") return renderHistoricoModal();
   if(state.modal==="notificacoes") return renderNotificacoesModal();
   if(state.modal==="edit-obs-pcp") return renderEditObsPcpModal();
@@ -2968,25 +3103,39 @@ function bindApp(){
   });
   var openMontagem = app.querySelector('[data-action="open-montagem"]');
   if(openMontagem) openMontagem.addEventListener("click", function(){
-    state.montagem={step:"editar",data:todayStr(),busca:"",columns:{P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]},tipo:{},
-      candidates:[],sourceValidated:false,error:"",busy:false};
-    state.modal="montagem"; render();
+    state.montagem={step:"carregar",data:todayStr(),busca:"",filtroPrensa:"Todas",columns:{P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]},tipo:{},
+      candidates:[],cards:[],sourceValidated:false,error:"",busy:false};render();
   });
   var montagemData=document.getElementById("montagem-data");
   if(montagemData) montagemData.addEventListener("change",function(){state.montagem.data=montagemData.value;render();});
   var montagemBusca=document.getElementById("montagem-busca");
   if(montagemBusca) montagemBusca.addEventListener("input",function(){state.montagem.busca=montagemBusca.value;render();});
+  var montagemPrensa=document.getElementById("montagem-prensa");
+  if(montagemPrensa) montagemPrensa.addEventListener("change",function(){state.montagem.filtroPrensa=montagemPrensa.value;render();});
   var montagemFile=document.getElementById("montagem-b03-file");
   if(montagemFile) montagemFile.addEventListener("change",function(){if(montagemFile.files&&montagemFile.files[0])montagemLoadB03(montagemFile.files[0]);});
   function montagemClick(action,fn){var el=app.querySelector('[data-action="'+action+'"]'); if(el) el.addEventListener("click",fn);}
-  app.querySelectorAll('[data-montagem-card]').forEach(function(el){el.addEventListener("dragstart",function(e){e.dataTransfer.setData("text/plain",el.getAttribute("data-montagem-card"));e.dataTransfer.effectAllowed="move";});});
+  montagemClick("montagem-close",function(){if(state.montagem.busy)return;state.montagem=null;render();});
+  montagemClick("montagem-reload",function(){state.montagem.step="carregar";state.montagem.sourceValidated=false;state.montagem.candidates=[];state.montagem.cards=[];state.montagem.capacity=null;render();});
+  app.querySelectorAll('[data-montagem-card]').forEach(function(el){
+    el.addEventListener("dragstart",function(e){var id=el.getAttribute("data-montagem-card");state.montagem.draggingId=id;e.dataTransfer.setData("text/plain",id);e.dataTransfer.effectAllowed="move";});
+    el.addEventListener("dragend",function(){state.montagem.draggingId=null;app.querySelectorAll('.drag-over,.drop-before,.drop-after').forEach(function(x){x.classList.remove('drag-over','drop-before','drop-after');});});
+  });
   app.querySelectorAll('[data-montagem-drop]').forEach(function(el){
-    el.addEventListener("dragover",function(e){e.preventDefault();el.classList.add("drag-over");});
-    el.addEventListener("dragleave",function(){el.classList.remove("drag-over");});
+    el.addEventListener("dragover",function(e){var id=state.montagem.draggingId,c=montagemCandidate(state.montagem,id),to=el.getAttribute("data-montagem-drop"),lane=montagemLane(to);
+      if(!c || (lane && c.prensasPermitidas.indexOf(lane.prensa)<0))return;
+      e.preventDefault();el.classList.add("drag-over");
+      app.querySelectorAll('.drop-before,.drop-after').forEach(function(x){x.classList.remove('drop-before','drop-after');});
+      var target=e.target.closest('[data-montagem-card]');
+      if(target && el.contains(target) && target.getAttribute('data-montagem-card')!==id)target.classList.add(e.clientY<target.getBoundingClientRect().top+target.offsetHeight/2?'drop-before':'drop-after');
+    });
+    el.addEventListener("dragleave",function(e){if(!el.contains(e.relatedTarget))el.classList.remove("drag-over");});
     el.addEventListener("drop",function(e){e.preventDefault();el.classList.remove("drag-over");
       var id=e.dataTransfer.getData("text/plain"),to=el.getAttribute("data-montagem-drop");
       var target=e.target.closest('[data-montagem-card]'),rows=to==="queue"?[]:state.montagem.columns[to];
-      var index=target&&rows?rows.indexOf(target.getAttribute("data-montagem-card")):-1;
+      var index=target&&el.contains(target)&&rows?rows.indexOf(target.getAttribute("data-montagem-card")):-1;
+      if(index>=0 && e.clientY>=target.getBoundingClientRect().top+target.offsetHeight/2)index++;
+      state.montagem.draggingId=null;
       if(montagemMove(state.montagem,id,to,index<0?null:index))render();
     });
   });
