@@ -484,6 +484,21 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .nec-compact-btn.active{border-width:2px;font-weight:800;}
 .nec-compact-btn[disabled]{opacity:.5;cursor:default;}
 @media (max-width:420px){ .nec-compact-btn{flex-basis:calc(25% - 4px);} }
+.nec-compact-summary{display:flex;align-items:center;gap:5px;padding:6px 8px;flex-wrap:wrap;}
+.nec-compact-summary .codigo{font-family:"IBM Plex Mono";font-weight:800;font-size:15px;}
+.nec-compact-summary .status-badge{margin-left:auto;}
+.nec-compact-obs{padding:0 8px 5px;font-size:11.5px;line-height:1.25;overflow-wrap:anywhere;color:var(--st-int);}
+.nec-compact-details{padding:0 8px 6px;}
+.nec-compact-details summary{cursor:pointer;font-size:11px;font-weight:700;color:var(--accent);padding:5px 0;}
+.nec-compact-details .nec-compact-actions{padding:3px 0;}
+.nec-compact-details .nec-compact-btn{min-height:36px;}
+.hist-search{width:100%;max-width:420px;min-height:40px;}
+@media (max-width:600px){.hist-search{max-width:none}.nec-list-compact .nec-compact-row{margin-bottom:2px;border-radius:3px}.nec-compact-summary{gap:4px}}
+.montagem-row{border:1px solid var(--border);border-radius:8px;padding:9px;margin:7px 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;}
+.montagem-row label{font-size:11px;color:var(--text-muted);font-weight:700;}
+.montagem-row input,.montagem-row select{width:100%;min-width:0;}
+.montagem-row .wide{grid-column:span 2;}
+@media(max-width:600px){.montagem-row{grid-template-columns:repeat(2,minmax(0,1fr))}.montagem-row .wide{grid-column:span 2}}
 
 /* ---------- Correção: header title / sync info / micro panel ---------- */
 .correcao-title{font-size:15px;color:var(--accent);letter-spacing:.03em;}
@@ -993,7 +1008,7 @@ var state = {
   sortColumn: null,
   sortDirection: "asc",
   pcpView: (function(){ try{ return localStorage.getItem("pcpView")==="compacta" ? "compacta" : "macro"; }catch(e){ return "macro"; } })(),
-  correcaoView: (function(){ try{ return localStorage.getItem("correcaoView")==="compacta" ? "compacta" : "normal"; }catch(e){ return "normal"; } })(),
+  correcaoView: (function(){ try{ return localStorage.getItem("correcaoView")==="normal" ? "normal" : "compacta"; }catch(e){ return "compacta"; } })(),
   syncMeta: null,
   expanded: {},
   modal: null,
@@ -1051,7 +1066,8 @@ var state = {
   // fechar o modal) — null quando o modal está fechado. filtroData é
   // sempre uma data específica (a impressão representa um turno/dia
   // operacional, nunca "todas as datas").
-  printEspelho: null
+  printEspelho: null,
+  montagem: null
 };
 
 var app = document.getElementById("app");
@@ -1060,7 +1076,7 @@ var authEpoch = 0;
 // Campos de texto que filtram em tempo real (a cada tecla) precisam
 // preservar foco/posição do cursor através do re-render por innerHTML —
 // sem isso, cada tecla digitada "pula" o cursor pro fim do campo.
-var LIVE_TEXT_INPUT_IDS = ["filter-busca"];
+var LIVE_TEXT_INPUT_IDS = ["filter-busca","hist-search"];
 function render(){
   var focusId = null, selStart = null, selEnd = null;
   var active = document.activeElement;
@@ -1179,7 +1195,7 @@ function clearSessionState(){
   state.pendingNotifFailures={};
   state.modal=null; state.modal_id=null; state.toast=null; state.import=null; state.espelhoSync=null;
   state.baseAppImport=null; state.historico=null; state.audit=null; state.editObsPcp=null;
-  state.confirmStatus=null; state.printEspelho=null; state.correcaoSecaoRecolhida={};
+  state.confirmStatus=null; state.printEspelho=null; state.montagem=null; state.correcaoSecaoRecolhida={};
   state.newTool={ prensa:"P7", turno:"Dia", tipo:"Programação" }; state.correcaoPrensa="P7";
   state.filters={ data:todayStr(), prensa:"Todas", turno:"Todos", tipo:"Todas", onlyPend:false, indicador:"", busca:"" };
   state.sortColumn=null; state.sortDirection="asc";
@@ -1204,6 +1220,7 @@ function renderTopBar(){
     '</div>' +
     '<div style="display:flex;gap:8px;overflow-x:auto;">' +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-baseapp-import">Importar BASE_APP</button>' : '') +
+      (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-montagem">Montar programação</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-audit">Auditoria</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-historico">Histórico de Programações</button>' : '') +
       (state.user.perfil==="pcp" ? '<button class="icon-btn" data-action="open-print-espelho">🖨 Imprimir Espelho</button>' : '') +
@@ -1373,6 +1390,10 @@ function getFerramentasDaProgramacao(programacaoId, filtroPrensa, filtroTipo){
     if(filtroTipo==="Reserva" && t.tipo!=="Reserva") return false;
     return true;
   });
+}
+function historicoMatches(t, busca){
+  var q = normalizeHeader(busca||"");
+  return !q || normalizeHeader(t.codigo).indexOf(q)>=0 || normalizeHeader(t.cliente).indexOf(q)>=0;
 }
 // Status/observação/urgência de um registro histórico — mesmas coleções
 // e mesma chave de sempre (necDocId), nunca uma leitura paralela.
@@ -2258,16 +2279,21 @@ function renderNecRowCompact(g){
   var rowClass = "nec-compact-row" + (pending ? " pending" : "");
   if(isUrgent) rowClass += " " + (urg.reconhecida ? "urgent-rec" : "urgent-nr") + (isPulsing ? " urgent-pulse" : "");
   var html = '<div class="'+rowClass+'">';
-  html += '<div class="nec-compact-main">' +
+  var prog = g.programacaoId && state.programacoesByKey[g.programacaoId];
+  var turnoLabel = prog && prog.turno ? prog.turno : "turno não registrado";
+  var papelLabel = {atual:"Atual",proxima:"Próxima",futura:"Futura",legado:"Legado"}[g.papel] || "Programação";
+  var tipoLabel = g.kgProgramacao && g.kgReserva ? "Principal + Reserva" : g.kgReserva ? "Reserva" : "Principal";
+  html += '<div class="nec-compact-summary">' +
     '<span class="codigo mono">'+esc(g.codigo)+(isUrgent ? ' <span class="urgent-tag">🚨</span>' : '')+'</span>' +
     '<span class="tag">'+esc(g.prensa)+'</span>' +
-    '<span class="nec-compact-kg">'+fmtKg(g.kgTotal)+' kg</span>' +
+    '<span class="hint">'+esc(papelLabel)+' · '+esc(fmtDateBR(g.data))+' · '+esc(turnoLabel)+' · '+esc(tipoLabel)+' · '+fmtKg(g.kgTotal)+' kg</span>' +
     '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
     (pending ? '<span class="pending-chip" title="Selecionado, ainda não gravado">pendente</span>' : '') +
   '</div>';
   var obsPcpCompacta = g.temObservacaoPCPAtual ? g.observacaoPCPAtual : g.observacoes.join(" · ");
-  if(obsPcpCompacta) html += '<div class="nec-obs" style="padding:0 9px 6px;">⚠ PCP: '+esc(obsPcpCompacta)+'</div>';
-  html += '<div class="nec-compact-actions">' +
+  if(obsPcpCompacta) html += '<div class="nec-compact-obs">PCP: '+esc(obsPcpCompacta)+'</div>';
+  if(isUrgent && !urg.reconhecida) html += '<button type="button" class="btn-ciente" data-action="reconhecer-urgente" data-key="'+key+'" data-codigo="'+esc(g.codigo)+'">👁 Ciente da urgência</button>';
+  html += '<details class="nec-compact-details"><summary>Ações de status e previsão</summary><div class="nec-compact-actions">' +
     NEC_QUICK_ACTIONS_COMPACT.map(function(a){
       var m = STATUS_META[a.status];
       var active = eff.status===a.status;
@@ -2281,7 +2307,7 @@ function renderNecRowCompact(g){
       return '<button type="button" class="nec-compact-btn '+(active?"active":"")+'" '+(busy?"disabled":"")+
         ' data-action="quick-nec-prev" data-key="'+key+'" data-value="'+o.days+'">'+o.label+'</button>';
     }).join("") +
-  '</div>';
+  '</div></details>';
   html += '</div>';
   return html;
 }
@@ -2454,6 +2480,101 @@ function renderBaseAppImportModal(){
     '</div>' +
   '</div>';
 }
+/* Montagem manual de um slot, usando o mesmo plano, versionamento e histórico
+   da BASE_APP. A Master continua decidindo quais itens são programáveis. */
+function montagemEmptyRow(){ return {ferramenta:"",cliente:"",quantidadeKg:"",prensa:"P7",secao:"PRINCIPAL",corte:"",liga:"",observacao:""}; }
+function montagemRecords(m){
+  return m.rows.map(function(row,i){ return {
+    _excelRow:i+1, posicao:m.posicao, origem:"MONTAGEM APP", dataProgramacao:m.data, turno:m.turno,
+    turnoBruto:m.turno, prensa:row.prensa, ferramenta:(row.ferramenta||"").trim().toUpperCase(),
+    cliente:(row.cliente||"").trim(), quantidadeKg:parseKg(row.quantidadeKg), corte:(row.corte||"").trim(),
+    liga:(row.liga||"").trim(), observacao:(row.observacao||"").trim(), secao:row.secao,
+    ordemOrigem:i+1, chaveOrigem:"APP:"+m.draftId+":"+(i+1)
+  }; });
+}
+function montagemPreview(m){
+  var records = montagemRecords(m);
+  var check = validateBaseAppRecords(records);
+  if(!m.data || !/^\d{4}-\d{2}-\d{2}$/.test(m.data)) check.errors.push("Informe uma data de programação válida.");
+  if(records.length>100) check.errors.push("Limite de 100 linhas por montagem.");
+  if(check.errors.length){ m.error=check.errors.join(" "); render(); return; }
+  m.plan = baseAppBuildPlan(baseAppGroupByPosicao(records))[m.posicao];
+  m.existingId = m.plan.existing ? m.plan.existing.id : null;
+  m.displaced = Object.keys(state.programacoesByKey).filter(function(id){
+    var p=state.programacoesByKey[id];
+    return p.vigente && p.papel===m.plan.papel && id!==m.existingId;
+  });
+  m.ciente=false; m.step="previa"; m.error=""; render();
+}
+function montagemLoadCurrent(m){
+  var existing = baseAppFindVigenteParaSlot(m.data,m.turno);
+  if(!existing){ m.error="Não há programação vigente neste dia e turno."; render(); return; }
+  if(m.rows.some(function(r){return r.ferramenta;} ) && !confirm("Substituir o rascunho pelas linhas vigentes deste turno?")) return;
+  m.rows = state.ferramentas.filter(function(t){ return t.programacaoId===existing.id; }).map(function(t){
+    return { ferramenta:t.codigo, cliente:t.cliente||"", quantidadeKg:t.quantidadeKg, prensa:t.prensa,
+      secao:t.tipo==="Reserva"?"RESERVA":"PRINCIPAL", corte:t.corte||"", liga:t.liga||"", observacao:t.observacaoPCP||"" };
+  });
+  if(!m.rows.length) m.rows=[montagemEmptyRow()];
+  m.error=""; render();
+}
+function renderMontagemModal(){
+  var m=state.montagem; if(!m) return "";
+  var body='<div class="hint">Monte um dia/turno por vez. Revise os itens autorizados na Master antes de publicar. Esta montagem não sincroniza a carteira.</div>';
+  if(m.step==="editar"){
+    body += '<div class="hist-filters">'+
+      '<div class="field"><label>Posição</label><select data-montagem-head="posicao">'+BASE_APP_POSICOES.map(function(p){return '<option '+(m.posicao===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
+      '<div class="field"><label>Data</label><input type="date" data-montagem-head="data" value="'+esc(m.data)+'"></div>'+
+      '<div class="field"><label>Turno</label><select data-montagem-head="turno"><option '+(m.turno==="Dia"?'selected':'')+'>Dia</option><option '+(m.turno==="Noite"?'selected':'')+'>Noite</option></select></div>'+
+      '<button type="button" class="btn btn-ghost" data-action="montagem-load">Carregar programação vigente</button></div>';
+    body += '<div class="hint">Principal e Reserva pertencem ao turno selecionado. A Correção consolida ferramenta + prensa + data.</div>';
+    body += m.rows.map(function(r,i){
+      function field(name,label,wide){return '<label class="'+(wide?'wide':'')+'">'+label+'<input data-montagem-row="'+i+'" data-field="'+name+'" value="'+esc(r[name]||'')+'"></label>';}
+      return '<div class="montagem-row">'+field('ferramenta','Ferramenta')+field('cliente','Cliente')+
+        '<label>Kg<input type="number" min="0.01" step="0.01" data-montagem-row="'+i+'" data-field="quantidadeKg" value="'+esc(r.quantidadeKg||'')+'"></label>'+
+        '<label>Prensa<select data-montagem-row="'+i+'" data-field="prensa"><option '+(r.prensa==='P7'?'selected':'')+'>P7</option><option '+(r.prensa==='P4'?'selected':'')+'>P4</option></select></label>'+
+        '<label>Tipo<select data-montagem-row="'+i+'" data-field="secao"><option '+(r.secao==='PRINCIPAL'?'selected':'')+'>PRINCIPAL</option><option '+(r.secao==='RESERVA'?'selected':'')+'>RESERVA</option></select></label>'+
+        field('corte','Corte')+field('liga','Liga')+field('observacao','Observação PCP',true)+
+        '<button type="button" class="btn btn-ghost" data-action="montagem-remove" data-index="'+i+'">Remover</button></div>';
+    }).join('');
+    body += '<button type="button" class="btn btn-ghost" data-action="montagem-add">+ Linha</button> '+
+      '<button type="button" class="btn btn-primary" data-action="montagem-preview">Revisar programação</button>';
+  } else if(m.step==="previa"){
+    var p=m.plan, t=p.totais;
+    body += '<div class="warn-msg"><b>'+esc(m.posicao)+' · '+esc(fmtDateBR(m.data))+' · '+esc(m.turno)+'</b><br>'+t.P7.n+' P7 ('+fmtKg(t.P7.kg)+' kg) · '+t.P4.n+' P4 ('+fmtKg(t.P4.kg)+' kg) · '+p.secaoCount.PRINCIPAL+' Principal · '+p.secaoCount.RESERVA+' Reserva.<br>'+
+      (p.situacao==="SEM_ALTERACAO" ? 'Conteúdo idêntico ao vigente; nenhuma versão nova será criada.' : p.situacao==="MUDANCA_PAPEL" ? 'Conteúdo idêntico; a posição da programação vigente será atualizada.' : p.existing ? 'Uma versão nova arquiva a versão vigente deste turno. Linhas omitidas deixam de estar ativas.' : 'Será criada uma programação nova para este turno.')+
+      (m.displaced.length?' '+m.displaced.length+' programação(ões) vigente(s) da mesma posição em outros turnos serão encerradas e preservadas no histórico.':'')+'</div>'+
+      '<div class="audit-list">'+p.records.map(function(r){return '<div class="hist-detail-row">'+esc(r.ferramenta)+' · '+esc(r.cliente||'sem cliente')+' · '+esc(r.prensa)+' · '+esc(r.secao)+' · '+fmtKg(r.quantidadeKg)+' kg'+(r.observacao?' · PCP: '+esc(r.observacao):'')+'</div>';}).join('')+'</div>'+
+      (p.existing||m.displaced.length?'<label><input type="checkbox" data-action="montagem-ciente" '+(m.ciente?'checked':'')+'> Conferi as linhas e os encerramentos indicados.</label>':'')+
+      '<div><button type="button" class="btn btn-ghost" data-action="montagem-back">Editar</button> <button type="button" class="btn btn-primary" data-action="montagem-publish" '+((p.existing||m.displaced.length)&&!m.ciente||m.busy?'disabled':'')+'>Publicar programação</button></div>';
+  } else {
+    body += '<div class="hint">Programação '+esc(m.result||'')+' publicada. Acompanhe na tela do PCP e da Correção.</div>';
+  }
+  if(m.error) body += '<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
+  return '<div class="modal-overlay"><div class="modal modal-wide" onclick="event.stopPropagation()">'+
+    '<div class="modal-head"><h2>Montar programação</h2><button class="modal-close" data-action="close-modal" '+(m.busy?'disabled':'')+'>×</button></div>'+body+'</div></div>';
+}
+function montagemPublish(){
+  var m=state.montagem;
+  if(!m || m.step!=="previa" || m.busy || ((m.plan.existing||m.displaced.length) && !m.ciente)) return;
+  var current=baseAppFindVigenteParaSlot(m.data,m.turno);
+  var displacedNow=Object.keys(state.programacoesByKey).filter(function(id){var p=state.programacoesByKey[id];return p.vigente && p.papel===m.plan.papel && id!==m.existingId;});
+  if((current?current.id:null)!==m.existingId || displacedNow.sort().join('|')!==m.displaced.slice().sort().join('|')){
+    m.error="A programação vigente mudou. Revise novamente antes de publicar."; m.step="editar"; render(); return;
+  }
+  m.busy=true; m.error=""; render();
+  return baseAppWritePosicao(m.plan).then(function(result){
+    m.busy=false;
+    if(!result.ok){ m.error="Falha: "+(result.erro||"erro desconhecido")+(result.programacaoIdParcial?". Verifique a Auditoria antes de tentar novamente.":""); render(); return; }
+    m.step="concluido"; m.result=result.programacaoId;
+    return Promise.all(m.displaced.map(function(id){return baseAppEncerrarOrfa({id:id});})).then(function(closed){
+      var failed=closed.filter(function(x){return !x.ok;});
+      if(failed.length) m.error="Programação publicada, mas não foi possível encerrar: "+failed.map(function(x){return x.id;}).join(', ')+". Verifique a Auditoria.";
+      return withPermissionRetry(function(){return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({
+      __meta__:true, ultimaAtualizacaoProgramacao:state.db.serverTimestamp(), atualizadoPor:{uid:state.user.uid,nome:state.user.nome}, origem:"montagem_app"
+      },{merge:true});}).catch(function(){m.error += " Horário de atualização não registrado.";}).then(function(){render();});
+    });
+  });
+}
 function renderNecPrevQuick(g, eff){
   var key = g.key;
   var busy = !!(state.necBusy && state.necBusy[key]);
@@ -2477,6 +2598,7 @@ function renderModal(){
   if(state.modal==="audit") return renderAuditModal();
   if(state.modal==="confirm-status") return renderConfirmStatusModal();
   if(state.modal==="baseapp-import") return renderBaseAppImportModal();
+  if(state.modal==="montagem") return renderMontagemModal();
   if(state.modal==="historico") return renderHistoricoModal();
   if(state.modal==="notificacoes") return renderNotificacoesModal();
   if(state.modal==="edit-obs-pcp") return renderEditObsPcpModal();
@@ -2730,7 +2852,7 @@ function bindApp(){
   });
 
   app.querySelectorAll('[data-action="close-modal"]').forEach(function(el){
-    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; state.baseAppImport=null; state.historico=null; state.editObsPcp=null; state.printEspelho=null; state.authError=""; render(); });
+    el.addEventListener("click", function(){ state.modal=null; state.modal_id=null; state.import=null; state.espelhoSync=null; state.audit=null; state.confirmStatus=null; state.baseAppImport=null; state.historico=null; state.editObsPcp=null; state.printEspelho=null; state.montagem=null; state.authError=""; render(); });
   });
 
   app.querySelectorAll('[data-action="toggle-prog-secao"]').forEach(function(el){
@@ -2745,6 +2867,22 @@ function bindApp(){
     state.modal="baseapp-import"; state.baseAppImport={ step:"pick" };
     render();
   });
+  var openMontagem = app.querySelector('[data-action="open-montagem"]');
+  if(openMontagem) openMontagem.addEventListener("click", function(){
+    state.montagem={step:"editar",posicao:"ATUAL",data:todayStr(),turno:"Dia",rows:[montagemEmptyRow()],draftId:Date.now().toString(36),error:"",busy:false};
+    state.modal="montagem"; render();
+  });
+  app.querySelectorAll('[data-montagem-head]').forEach(function(el){el.addEventListener("change",function(){state.montagem[el.getAttribute("data-montagem-head")]=el.value;});});
+  app.querySelectorAll('[data-montagem-row]').forEach(function(el){el.addEventListener("input",function(){state.montagem.rows[+el.getAttribute("data-montagem-row")][el.getAttribute("data-field")]=el.value;});});
+  function montagemClick(action,fn){var el=app.querySelector('[data-action="'+action+'"]'); if(el) el.addEventListener("click",fn);}
+  montagemClick("montagem-add",function(){if(state.montagem.rows.length>=100){state.montagem.error="Limite de 100 linhas.";}else state.montagem.rows.push(montagemEmptyRow());render();});
+  app.querySelectorAll('[data-action="montagem-remove"]').forEach(function(el){el.addEventListener("click",function(){state.montagem.rows.splice(+el.getAttribute("data-index"),1);render();});});
+  montagemClick("montagem-load",function(){montagemLoadCurrent(state.montagem);});
+  montagemClick("montagem-preview",function(){montagemPreview(state.montagem);});
+  montagemClick("montagem-back",function(){state.montagem.step="editar";render();});
+  var montagemCiente=app.querySelector('[data-action="montagem-ciente"]');
+  if(montagemCiente) montagemCiente.addEventListener("change",function(){state.montagem.ciente=montagemCiente.checked;render();});
+  montagemClick("montagem-publish",montagemPublish);
   var baseAppFile = document.getElementById("baseapp-file");
   if(baseAppFile) baseAppFile.addEventListener("change", function(){ if(baseAppFile.files && baseAppFile.files[0]) handleBaseAppFile(baseAppFile.files[0]); });
   var baseAppCienteChk = app.querySelector('[data-action="baseapp-ciente-toggle"]');
@@ -2776,7 +2914,7 @@ function bindApp(){
   });
   var openHistoricoBtn = app.querySelector('[data-action="open-historico"]');
   if(openHistoricoBtn) openHistoricoBtn.addEventListener("click", function(){
-    state.modal="historico"; state.historico={ step:"list", filtroData:"__all__", filtroTurno:"Todos", programacaoId:null, filtroPrensa:"Todas", filtroTipo:"Todas" };
+    state.modal="historico"; state.historico={ step:"list", filtroData:"__all__", filtroTurno:"Todos", programacaoId:null, filtroPrensa:"Todas", filtroTipo:"Todas", busca:"" };
     render();
   });
   // Bloco 3 — abre a preparação do espelho já pré-preenchida com os
@@ -2853,6 +2991,8 @@ function bindApp(){
     state.historico.filtroData = histDataInput.value || "__all__";
     render();
   });
+  var histSearch = document.getElementById("hist-search");
+  if(histSearch) histSearch.addEventListener("input", function(){ state.historico.busca=histSearch.value; render(); });
   app.querySelectorAll('[data-action="hist-open"]').forEach(function(el){
     el.addEventListener("click", function(){
       state.historico.step = "detail";
@@ -4010,10 +4150,13 @@ function renderHistoricoModal(){
 }
 var HIST_PAPEL_ANTES_LABEL = { atual:"Era a programação ATUAL", proxima:"Era a PRÓXIMA programação", futura:"Era a programação FUTURA", historica:"Já era histórica" };
 function renderHistoricoList(h){
-  var list = getArchivedProgramacoes(h.filtroData, h.filtroTurno, h.filtroPrensa);
+  var list = getArchivedProgramacoes(h.filtroData, h.filtroTurno, h.filtroPrensa).filter(function(p){
+    return !h.busca || getFerramentasDaProgramacao(p.id, h.filtroPrensa, h.filtroTipo).some(function(t){ return historicoMatches(t, h.busca); });
+  });
   var fixedTop = '' +
     '<div class="hint" style="margin-bottom:8px;">Consulta somente leitura de programações já substituídas/encerradas. Não interfere na programação atual.</div>' +
     '<div class="hist-filters">' +
+      '<input id="hist-search" class="hist-search" type="search" aria-label="Buscar ferramenta ou cliente no histórico" placeholder="Buscar ferramenta ou cliente…" value="'+esc(h.busca||"")+'" autocomplete="off">' +
       '<div class="field"><label>Data</label><input id="hist-data" type="date" value="'+((h.filtroData&&h.filtroData!=="__all__")?h.filtroData:"")+'"></div>' +
       '<div class="segmented">' +
         '<button type="button" data-action="hist-filter" data-field="filtroData" data-value="__all__" class="'+((!h.filtroData||h.filtroData==="__all__")?"active":"")+'">Todas as datas</button>' +
@@ -4053,13 +4196,14 @@ function renderHistoricoDetail(h){
     return '<div class="audit-fixed"><div class="warn-msg"><span>Esta programação não está mais disponível localmente.</span></div>' +
       '<button class="btn btn-ghost" type="button" data-action="hist-back">← Voltar à lista</button></div>';
   }
-  var rows = getFerramentasDaProgramacao(h.programacaoId, h.filtroPrensa, h.filtroTipo);
+  var rows = getFerramentasDaProgramacao(h.programacaoId, h.filtroPrensa, h.filtroTipo).filter(function(t){ return historicoMatches(t, h.busca); });
   var fixedTop = '' +
     '<button class="btn btn-ghost" type="button" data-action="hist-back" style="align-self:flex-start;margin-bottom:8px;">← Voltar à lista</button>' +
     '<div class="hist-archived-banner">' +
       '<span class="hist-archived-badge lg">PROGRAMAÇÃO ARQUIVADA</span>' +
       '<span>'+esc(fmtDateBR(prog.data))+' — '+esc(prog.turno||"—")+' · consulta somente leitura, não é possível editar aqui</span>' +
     '</div>' +
+    '<input id="hist-search" class="hist-search" type="search" aria-label="Buscar ferramenta ou cliente no histórico" placeholder="Buscar ferramenta ou cliente…" value="'+esc(h.busca||"")+'" autocomplete="off">' +
     '<div class="segmented">' +
       '<button type="button" data-action="hist-detail-filter" data-field="filtroPrensa" data-value="Todas" class="'+((!h.filtroPrensa||h.filtroPrensa==="Todas")?"active":"")+'">Todas</button>' +
       '<button type="button" data-action="hist-detail-filter" data-field="filtroPrensa" data-value="P4" class="'+(h.filtroPrensa==="P4"?"active":"")+'">P4</button>' +
@@ -4681,7 +4825,7 @@ function baseAppBuildFerramentaDoc(rec, programacaoId, now){
     prensa: rec.prensa, turno: rec.turno, dataProgramacao: rec.dataProgramacao,
     observacaoPCP: rec.observacao||"",
     solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
-    criadoEm: now, programacaoId: programacaoId, chaveOrigem: rec.chaveOrigem, origemBase: "BASE_APP"
+    criadoEm: now, programacaoId: programacaoId, chaveOrigem: rec.chaveOrigem, origemBase: rec.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP"
   };
 }
 // Gravação segura de UMA posição do plano. NOVA/NOVA_VERSAO: grava TODOS
@@ -4714,7 +4858,7 @@ function baseAppWritePosicao(entry){
       return state.db.doc("programacoes/"+novoId).set({
         programacaoId: novoId, data: entry.data, turno: entry.turno, papel: entry.papel, vigente: true,
         substituiId: entry.existing ? entry.existing.id : null, substituidaPorId: null,
-        conteudoHash: entry.hash, origemBase: "BASE_APP", origemAba: entry.origem,
+        conteudoHash: entry.hash, origemBase: entry.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP", origemAba: entry.origem,
         criadaEm: state.db.serverTimestamp(), criadaPor: { uid: state.user.uid, nome: state.user.nome },
         substituidaEm: null, encerradaEm: null, encerradaPor: null, totais: entry.totais
       });
