@@ -494,11 +494,21 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .nec-compact-details .nec-compact-btn{min-height:36px;}
 .hist-search{width:100%;max-width:420px;min-height:40px;}
 @media (max-width:600px){.hist-search{max-width:none}.nec-list-compact .nec-compact-row{margin-bottom:2px;border-radius:3px}.nec-compact-summary{gap:4px}}
-.montagem-row{border:1px solid var(--border);border-radius:8px;padding:9px;margin:7px 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;}
-.montagem-row label{font-size:11px;color:var(--text-muted);font-weight:700;}
-.montagem-row input,.montagem-row select{width:100%;min-width:0;}
-.montagem-row .wide{grid-column:span 2;}
-@media(max-width:600px){.montagem-row{grid-template-columns:repeat(2,minmax(0,1fr))}.montagem-row .wide{grid-column:span 2}}
+.montagem-modal{max-width:min(1500px,98vw)!important;}
+.montagem-total{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:var(--surface-2);border-radius:8px;margin:9px 0;font-weight:700;}
+.montagem-queue{border:1px solid var(--border);border-radius:8px;padding:9px;margin:8px 0;}
+.montagem-queue-list{display:flex;gap:6px;overflow-x:auto;padding:6px 0;min-height:60px;}
+.montagem-board{display:grid;grid-template-columns:repeat(4,minmax(210px,1fr));gap:8px;overflow-x:auto;}
+.montagem-lane{min-height:230px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px;}
+.montagem-lane.drag-over{outline:3px solid var(--accent);}
+.montagem-lane-head{font-size:13px;font-weight:800;position:sticky;top:0;background:var(--surface-2);padding:5px 2px;z-index:1;}
+.montagem-lane-head small{display:block;color:var(--text-muted);font-weight:600;margin-top:3px;}
+.montagem-card{background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;padding:7px;margin:5px 0;max-width:300px;cursor:grab;font-size:11px;}
+.montagem-card strong{font-size:13px;}.montagem-card .sub{color:var(--text-muted);overflow-wrap:anywhere;}
+.montagem-card select{font-size:11px;padding:3px;max-width:100%;}
+.montagem-card-actions{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px;}
+.montagem-card-actions button{padding:3px 6px;min-height:28px;font-size:11px;}
+@media(max-width:900px){.montagem-board{grid-template-columns:repeat(4,minmax(190px,1fr));}.montagem-modal{max-width:98vw!important;}}
 
 /* ---------- Correção: header title / sync info / micro panel ---------- */
 .correcao-title{font-size:15px;color:var(--accent);letter-spacing:.03em;}
@@ -689,7 +699,7 @@ html.modal-open, body.modal-open{ overflow:hidden; overscroll-behavior:none; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc,
-  collection, onSnapshot, query, limit, orderBy, getDocs, increment, arrayUnion, serverTimestamp, writeBatch
+  collection, onSnapshot, query, limit, orderBy, where, getDocs, increment, arrayUnion, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import {
   getAuth, signInWithEmailAndPassword,
@@ -741,6 +751,7 @@ window.__FIREBASE_DB_PROMISE = new Promise(function(resolve){
         path: path,
         doc: function(id){ return docRef(path+"/"+(id||doc(ref).id)); },
         add: function(data){ return addDoc(ref, data).then(function(r){ return docRef(path+"/"+r.id); }); },
+        where: function(field,op,value){ return {get:function(){return getDocs(query(ref,where(field,op,value))).then(wrapQuerySnap);}}; },
         limit: function(n, sortField, direction){
           var q = sortField ? query(ref, orderBy(sortField, direction||"desc"), limit(n)) : query(ref, limit(n));
           return {
@@ -1076,7 +1087,7 @@ var authEpoch = 0;
 // Campos de texto que filtram em tempo real (a cada tecla) precisam
 // preservar foco/posição do cursor através do re-render por innerHTML —
 // sem isso, cada tecla digitada "pula" o cursor pro fim do campo.
-var LIVE_TEXT_INPUT_IDS = ["filter-busca","hist-search"];
+var LIVE_TEXT_INPUT_IDS = ["filter-busca","hist-search","montagem-busca"];
 function render(){
   var focusId = null, selStart = null, selEnd = null;
   var active = document.activeElement;
@@ -2480,100 +2491,179 @@ function renderBaseAppImportModal(){
     '</div>' +
   '</div>';
 }
-/* Montagem manual de um slot, usando o mesmo plano, versionamento e histórico
-   da BASE_APP. A Master continua decidindo quais itens são programáveis. */
-function montagemEmptyRow(){ return {ferramenta:"",cliente:"",quantidadeKg:"",prensa:"P7",secao:"PRINCIPAL",corte:"",liga:"",observacao:""}; }
-function montagemRecords(m){
-  return m.rows.map(function(row,i){ return {
-    _excelRow:i+1, posicao:m.posicao, origem:"MONTAGEM APP", dataProgramacao:m.data, turno:m.turno,
-    turnoBruto:m.turno, prensa:row.prensa, ferramenta:(row.ferramenta||"").trim().toUpperCase(),
-    cliente:(row.cliente||"").trim(), quantidadeKg:parseKg(row.quantidadeKg), corte:(row.corte||"").trim(),
-    liga:(row.liga||"").trim(), observacao:(row.observacao||"").trim(), secao:row.secao,
-    ordemOrigem:i+1, chaveOrigem:"APP:"+m.draftId+":"+(i+1)
-  }; });
+/* Kanban da programação. A fila só pode vir de um adaptador B03_CART validado.
+   Não existe fallback para cadastro manual, ferramentas já publicadas ou dados de exemplo. */
+var MONTAGEM_LANES = [
+  {key:"P7_Dia",prensa:"P7",turno:"Dia",label:"P7 turno 1"},
+  {key:"P7_Noite",prensa:"P7",turno:"Noite",label:"P7 turno 2"},
+  {key:"P4_Dia",prensa:"P4",turno:"Dia",label:"P4 turno 1"},
+  {key:"P4_Noite",prensa:"P4",turno:"Noite",label:"P4 turno 2"}
+];
+var MONTAGEM_B03_COLS = ["PEDIDO_ID","ITEM","FERRAMENTA_ID","LIGA","COMPRIMENTO","PRENSA","STATUS_PCP","PROGRAMÁVEL AGORA?","SALDO A PRODUZIR KG (SD_KG)","CLIENTE (DA CENTRAL)"];
+function montagemParseB03(wb){
+  var sheet=wb.Sheets["B03_CART"];
+  if(!sheet) throw new Error("A aba B03_CART não foi encontrada.");
+  var grid=sheetToGrid(sheet),header=-1,map={};
+  for(var i=0;i<Math.min(grid.length,15);i++){
+    var cols={};(grid[i]||[]).forEach(function(v,j){cols[normalizeHeader(v)]=j;});
+    if(MONTAGEM_B03_COLS.every(function(name){return cols[normalizeHeader(name)]!==undefined;})){header=i;map=cols;break;}
+  }
+  if(header<0) throw new Error("Cabeçalhos obrigatórios da B03_CART ausentes. Confira a versão da Master.");
+  var candidates=[],seen={},excluded=0;
+  function value(row,name){var j=map[normalizeHeader(name)];return row[j]==null?"":String(row[j]).trim();}
+  for(var r=header+1;r<grid.length;r++){
+    var row=grid[r]||[],status=value(row,"STATUS_PCP"),gate=baseAppReadNumCell(sheet,r,map[normalizeHeader("PROGRAMÁVEL AGORA?")]);
+    if(status!=="LIBERADO P/ PCP" || gate!==1){excluded++;continue;}
+    var pedido=value(row,"PEDIDO_ID"),item=value(row,"ITEM"),codigo=value(row,"FERRAMENTA_ID"),
+      cliente=value(row,"CLIENTE (DA CENTRAL)"),prensa=value(row,"PRENSA"),
+      saldo=baseAppReadNumCell(sheet,r,map[normalizeHeader("SALDO A PRODUZIR KG (SD_KG)")]);
+    if(!pedido||!item||!codigo||!cliente||!(saldo>0)||["P7","P4"].indexOf(prensa)<0){excluded++;continue;}
+    var id=pedido+"|"+item;
+    if(seen[id]) throw new Error("PEDIDO_ID + ITEM repetido na B03_CART: "+id+". A importação foi bloqueada.");
+    seen[id]=true;
+    candidates.push({origem:"B03_CART",idNecessidade:id,pedido:pedido,item:item,codigo:codigo,cliente:cliente,
+      saldoKg:saldo,prensasPermitidas:[prensa],liga:value(row,"LIGA"),corte:value(row,"COMPRIMENTO"),
+      statusPCP:status,programavelAgora:true});
+  }
+  return {candidates:candidates,excluded:excluded};
+}
+function montagemLoadB03(file){
+  var m=state.montagem;if(!m||!file)return;
+  m.loading=true;m.error="";render();
+  ensureXLSX(function(){var reader=new FileReader();
+    reader.onload=function(e){try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}),result=montagemParseB03(wb);
+      m.candidates=result.candidates;m.sourceValidated=result.candidates.length>0;m.sourceName=file.name;
+      m.excluded=result.excluded;m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};
+      if(!m.sourceValidated)m.error="Nenhuma necessidade autorizada e programável na B03_CART.";
+    }catch(err){m.candidates=[];m.sourceValidated=false;m.error=err&&err.message||"Erro ao ler B03_CART.";}
+    m.loading=false;render();};
+    reader.onerror=function(){m.loading=false;m.error="Erro ao ler arquivo.";render();};
+    reader.readAsArrayBuffer(file);
+  });
+}
+function montagemCandidateValid(c){
+  return !!(c && c.origem==="B03_CART" && c.idNecessidade && c.pedido && c.item &&
+    c.codigo && c.cliente && Number.isFinite(Number(c.saldoKg)) && Number(c.saldoKg)>0 &&
+    Array.isArray(c.prensasPermitidas) && c.prensasPermitidas.length &&
+    c.prensasPermitidas.every(function(p){return p==="P7" || p==="P4";}) &&
+    c.statusPCP==="LIBERADO P/ PCP" && c.programavelAgora===true);
+}
+function montagemEligible(m){
+  var seen={};
+  return (m.candidates||[]).filter(function(c){
+    if(!montagemCandidateValid(c) || seen[c.idNecessidade]) return false;
+    seen[c.idNecessidade]=true; return true;
+  });
+}
+function montagemCandidate(m,id){ return montagemEligible(m).find(function(c){return c.idNecessidade===id;}); }
+function montagemLane(key){return MONTAGEM_LANES.find(function(l){return l.key===key;});}
+function montagemLocation(m,id){return MONTAGEM_LANES.find(function(l){return m.columns[l.key].indexOf(id)>=0;});}
+function montagemMove(m,id,to,index){
+  var c=montagemCandidate(m,id), lane=montagemLane(to);
+  if(!c || (lane && c.prensasPermitidas.indexOf(lane.prensa)<0) || (to!=="queue" && !lane)) return false;
+  MONTAGEM_LANES.forEach(function(l){m.columns[l.key]=m.columns[l.key].filter(function(x){return x!==id;});});
+  if(lane){var rows=m.columns[lane.key];rows.splice(Math.max(0,Math.min(index==null?rows.length:index,rows.length)),0,id);}
+  m.step="editar"; m.error="";
+  return true;
+}
+function montagemStats(m,key){
+  var ids=key ? m.columns[key] : MONTAGEM_LANES.reduce(function(a,l){return a.concat(m.columns[l.key]);},[]);
+  return {n:ids.length,kg:ids.reduce(function(sum,id){var c=montagemCandidate(m,id);return sum+(c?Number(c.saldoKg):0);},0)};
+}
+function montagemRecords(m,turno,posicao){
+  return MONTAGEM_LANES.filter(function(l){return l.turno===turno;}).reduce(function(out,l){
+    m.columns[l.key].forEach(function(id){var c=montagemCandidate(m,id); if(!c) return;
+      out.push({_excelRow:out.length+1,posicao:posicao,origem:"MONTAGEM B03",dataProgramacao:m.data,
+        turno:turno,turnoBruto:turno,prensa:l.prensa,ferramenta:c.codigo,cliente:c.cliente,
+        quantidadeKg:Number(c.saldoKg),corte:c.corte||"",liga:c.liga||"",observacao:c.observacao||"",
+        secao:m.tipo[id]==="RESERVA"?"RESERVA":"PRINCIPAL",ordemOrigem:out.length+1,
+        chaveOrigem:c.idNecessidade,idNecessidade:c.idNecessidade,pedido:c.pedido,item:c.item});
+    });return out;
+  },[]);
 }
 function montagemPreview(m){
-  var records = montagemRecords(m);
-  var check = validateBaseAppRecords(records);
-  if(!m.data || !/^\d{4}-\d{2}-\d{2}$/.test(m.data)) check.errors.push("Informe uma data de programação válida.");
-  if(records.length>100) check.errors.push("Limite de 100 linhas por montagem.");
-  if(check.errors.length){ m.error=check.errors.join(" "); render(); return; }
-  m.plan = baseAppBuildPlan(baseAppGroupByPosicao(records))[m.posicao];
-  m.existingId = m.plan.existing ? m.plan.existing.id : null;
-  m.displaced = Object.keys(state.programacoesByKey).filter(function(id){
+  if(!m.sourceValidated || !montagemEligible(m).length){m.error="Sem candidatos validados da B03_CART. A publicação está bloqueada até validar a planilha real.";render();return;}
+  if(!m.data){m.error="Escolha a data.";render();return;}
+  var records=montagemRecords(m,"Dia","ATUAL").concat(montagemRecords(m,"Noite","PROXIMA"));
+  if(!records.length){m.error="Arraste ao menos uma necessidade autorizada para o quadro.";render();return;}
+  var check=validateBaseAppRecords(records);
+  if(check.errors.length){m.error=check.errors.join(" ");render();return;}
+  m.plan=baseAppBuildPlan(baseAppGroupByPosicao(records));
+  m.displaced=Object.keys(state.programacoesByKey).filter(function(id){
     var p=state.programacoesByKey[id];
-    return p.vigente && p.papel===m.plan.papel && id!==m.existingId;
+    return p.vigente && Object.keys(m.plan).some(function(pos){return p.papel===m.plan[pos].papel && (!m.plan[pos].existing || m.plan[pos].existing.id!==id);});
   });
-  m.ciente=false; m.step="previa"; m.error=""; render();
+  var retiring=m.displaced.concat(Object.keys(m.plan).map(function(pos){return m.plan[pos].existing&&m.plan[pos].existing.id;}).filter(Boolean));
+  var repeated=records.find(function(r){return state.ferramentas.some(function(t){
+    return t.idNecessidade===r.idNecessidade && t.programacaoId && retiring.indexOf(t.programacaoId)<0 &&
+      isRecordActive(t.programacaoId,t.dataProgramacao,t.turno);
+  });});
+  if(repeated){m.plan=null;m.error="A necessidade "+repeated.idNecessidade+" já está ativa em outra programação. Retire-a antes de publicar.";render();return;}
+  m.snapshot=Object.keys(m.plan).map(function(pos){return pos+":"+(m.plan[pos].existing?m.plan[pos].existing.id:"");}).join("|");
+  m.ciente=false;m.step="previa";m.error="";render();
 }
-function montagemLoadCurrent(m){
-  var existing = baseAppFindVigenteParaSlot(m.data,m.turno);
-  if(!existing){ m.error="Não há programação vigente neste dia e turno."; render(); return; }
-  if(m.rows.some(function(r){return r.ferramenta;} ) && !confirm("Substituir o rascunho pelas linhas vigentes deste turno?")) return;
-  m.rows = state.ferramentas.filter(function(t){ return t.programacaoId===existing.id; }).map(function(t){
-    return { ferramenta:t.codigo, cliente:t.cliente||"", quantidadeKg:t.quantidadeKg, prensa:t.prensa,
-      secao:t.tipo==="Reserva"?"RESERVA":"PRINCIPAL", corte:t.corte||"", liga:t.liga||"", observacao:t.observacaoPCP||"" };
-  });
-  if(!m.rows.length) m.rows=[montagemEmptyRow()];
-  m.error=""; render();
+function montagemCard(m,c){
+  var loc=montagemLocation(m,c.idNecessidade),key=loc?loc.key:"queue",id=esc(c.idNecessidade);
+  return '<div class="montagem-card" draggable="true" data-montagem-card="'+id+'">'+
+    '<strong>'+esc(c.codigo)+'</strong> · '+fmtKg(c.saldoKg)+' kg'+
+    '<div class="sub">'+esc(c.cliente)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+'</div>'+
+    '<div class="sub">'+esc(c.liga||"Liga não informada")+' · '+esc(c.prensasPermitidas.join("/"))+'</div>'+
+    '<div class="montagem-card-actions"><select aria-label="Mover '+esc(c.codigo)+'" data-montagem-move="'+id+'"><option value="queue" '+(key==="queue"?"selected":"")+'>Fila</option>'+
+      MONTAGEM_LANES.filter(function(l){return c.prensasPermitidas.indexOf(l.prensa)>=0;}).map(function(l){return '<option value="'+l.key+'" '+(key===l.key?"selected":"")+'>'+l.label+'</option>';}).join("")+'</select>'+
+      (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer">↓</button><button type="button" data-action="montagem-type" data-id="'+id+'">'+(m.tipo[c.idNecessidade]==="RESERVA"?"Reserva":"Principal")+'</button>':"")+
+    '</div></div>';
 }
 function renderMontagemModal(){
-  var m=state.montagem; if(!m) return "";
-  var body='<div class="hint">Monte um dia/turno por vez. Revise os itens autorizados na Master antes de publicar. Esta montagem não sincroniza a carteira.</div>';
-  if(m.step==="editar"){
-    body += '<div class="hist-filters">'+
-      '<div class="field"><label>Posição</label><select data-montagem-head="posicao">'+BASE_APP_POSICOES.map(function(p){return '<option '+(m.posicao===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
-      '<div class="field"><label>Data</label><input type="date" data-montagem-head="data" value="'+esc(m.data)+'"></div>'+
-      '<div class="field"><label>Turno</label><select data-montagem-head="turno"><option '+(m.turno==="Dia"?'selected':'')+'>Dia</option><option '+(m.turno==="Noite"?'selected':'')+'>Noite</option></select></div>'+
-      '<button type="button" class="btn btn-ghost" data-action="montagem-load">Carregar programação vigente</button></div>';
-    body += '<div class="hint">Principal e Reserva pertencem ao turno selecionado. A Correção consolida ferramenta + prensa + data.</div>';
-    body += m.rows.map(function(r,i){
-      function field(name,label,wide){return '<label class="'+(wide?'wide':'')+'">'+label+'<input data-montagem-row="'+i+'" data-field="'+name+'" value="'+esc(r[name]||'')+'"></label>';}
-      return '<div class="montagem-row">'+field('ferramenta','Ferramenta')+field('cliente','Cliente')+
-        '<label>Kg<input type="number" min="0.01" step="0.01" data-montagem-row="'+i+'" data-field="quantidadeKg" value="'+esc(r.quantidadeKg||'')+'"></label>'+
-        '<label>Prensa<select data-montagem-row="'+i+'" data-field="prensa"><option '+(r.prensa==='P7'?'selected':'')+'>P7</option><option '+(r.prensa==='P4'?'selected':'')+'>P4</option></select></label>'+
-        '<label>Tipo<select data-montagem-row="'+i+'" data-field="secao"><option '+(r.secao==='PRINCIPAL'?'selected':'')+'>PRINCIPAL</option><option '+(r.secao==='RESERVA'?'selected':'')+'>RESERVA</option></select></label>'+
-        field('corte','Corte')+field('liga','Liga')+field('observacao','Observação PCP',true)+
-        '<button type="button" class="btn btn-ghost" data-action="montagem-remove" data-index="'+i+'">Remover</button></div>';
-    }).join('');
-    body += '<button type="button" class="btn btn-ghost" data-action="montagem-add">+ Linha</button> '+
-      '<button type="button" class="btn btn-primary" data-action="montagem-preview">Revisar programação</button>';
-  } else if(m.step==="previa"){
-    var p=m.plan, t=p.totais;
-    body += '<div class="warn-msg"><b>'+esc(m.posicao)+' · '+esc(fmtDateBR(m.data))+' · '+esc(m.turno)+'</b><br>'+t.P7.n+' P7 ('+fmtKg(t.P7.kg)+' kg) · '+t.P4.n+' P4 ('+fmtKg(t.P4.kg)+' kg) · '+p.secaoCount.PRINCIPAL+' Principal · '+p.secaoCount.RESERVA+' Reserva.<br>'+
-      (p.situacao==="SEM_ALTERACAO" ? 'Conteúdo idêntico ao vigente; nenhuma versão nova será criada.' : p.situacao==="MUDANCA_PAPEL" ? 'Conteúdo idêntico; a posição da programação vigente será atualizada.' : p.existing ? 'Uma versão nova arquiva a versão vigente deste turno. Linhas omitidas deixam de estar ativas.' : 'Será criada uma programação nova para este turno.')+
-      (m.displaced.length?' '+m.displaced.length+' programação(ões) vigente(s) da mesma posição em outros turnos serão encerradas e preservadas no histórico.':'')+'</div>'+
-      '<div class="audit-list">'+p.records.map(function(r){return '<div class="hist-detail-row">'+esc(r.ferramenta)+' · '+esc(r.cliente||'sem cliente')+' · '+esc(r.prensa)+' · '+esc(r.secao)+' · '+fmtKg(r.quantidadeKg)+' kg'+(r.observacao?' · PCP: '+esc(r.observacao):'')+'</div>';}).join('')+'</div>'+
-      (p.existing||m.displaced.length?'<label><input type="checkbox" data-action="montagem-ciente" '+(m.ciente?'checked':'')+'> Conferi as linhas e os encerramentos indicados.</label>':'')+
-      '<div><button type="button" class="btn btn-ghost" data-action="montagem-back">Editar</button> <button type="button" class="btn btn-primary" data-action="montagem-publish" '+((p.existing||m.displaced.length)&&!m.ciente||m.busy?'disabled':'')+'>Publicar programação</button></div>';
-  } else {
-    body += '<div class="hint">Programação '+esc(m.result||'')+' publicada. Acompanhe na tela do PCP e da Correção.</div>';
+  var m=state.montagem;if(!m)return "";
+  var eligible=montagemEligible(m),total=montagemStats(m);
+  var body='<div class="field"><label>Data da programação</label><input type="date" id="montagem-data" value="'+esc(m.data)+'"></div>'+
+    '<div class="montagem-total"><span>Total: '+total.n+' necessidade(s) · '+fmtKg(total.kg)+' kg</span><span class="hint">Dia (turno 1) → Noite (turno 2). Principal/Reserva por card.</span></div>';
+  if(m.step==="previa"){
+    body+='<div class="warn-msg">Revise a substituição por data e turno. O Histórico conserva as versões anteriores.</div>';
+    Object.keys(m.plan).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' necessidade(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
+      (p.diff?' · '+p.diff.added+' entradas, '+p.diff.removed+' saídas, variação '+fmtKg(p.diff.kgDelta)+' kg':'')+'</div>'+
+      p.records.map(function(r){return '<div class="hist-row-sub">'+esc(r.prensa)+' · '+esc(r.secao)+' · '+esc(r.ferramenta)+' · pedido '+esc(r.pedido)+'/'+esc(r.item)+' · '+fmtKg(r.quantidadeKg)+' kg</div>';}).join('');});
+    if(m.displaced.length)body+='<div class="warn-msg">Outras versões da mesma posição serão encerradas: '+esc(m.displaced.join(", "))+'</div>';
+    body+='<label><input type="checkbox" data-action="montagem-ciente" '+(m.ciente?'checked':'')+'> Conferi as necessidades e as versões substituídas.</label> '+
+      '<button type="button" class="btn btn-ghost" data-action="montagem-back">Voltar ao quadro</button> '+
+      '<button type="button" class="btn btn-primary" data-action="montagem-publish" '+(!m.ciente||m.busy?'disabled':'')+'>Publicar programação</button>';
+  }else if(m.step==="concluido"){
+    body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
+  }else{
+    body+='<div class="montagem-queue" data-montagem-drop="queue"><b>Fila da B03_CART · '+(eligible.length-total.n)+' disponível(is)</b> '+
+      '<div class="field"><label>Carregar Master (.xlsx/.xlsm) com a aba B03_CART</label><input id="montagem-b03-file" type="file" accept=".xlsx,.xlsm,.xls"></div>'+
+      (m.sourceName?'<div class="hint">Fonte: '+esc(m.sourceName)+' · '+eligible.length+' autorizada(s) · '+m.excluded+' ignorada(s)</div>':'')+
+      '<input id="montagem-busca" type="search" placeholder="Buscar ferramenta, cliente ou pedido…" value="'+esc(m.busca||"")+'" aria-label="Buscar candidatos da carteira">'+
+      (!m.sourceValidated?'<div class="warn-msg">Carregue a B03_CART para formar a fila. Sem candidatos válidos, a publicação fica bloqueada.</div>':'')+
+      '<div class="montagem-queue-list">'+eligible.filter(function(c){return !montagemLocation(m,c.idNecessidade) && historicoMatches({codigo:c.codigo,cliente:c.cliente+' '+c.pedido+' '+c.item},m.busca);}).map(function(c){return montagemCard(m,c);}).join("")+'</div></div>';
+    body+='<div class="montagem-board">'+MONTAGEM_LANES.map(function(l){var s=montagemStats(m,l.key);return '<div class="montagem-lane" data-montagem-drop="'+l.key+'"><div class="montagem-lane-head">'+l.label+'<small>'+s.n+' ferramenta(s) · '+fmtKg(s.kg)+' kg</small></div>'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c):"";}).join("")+'</div>';}).join("")+'</div>'+
+      '<div style="margin-top:10px;"><button type="button" class="btn btn-primary" data-action="montagem-preview" '+(!m.sourceValidated||!total.n?'disabled':'')+'>Revisar programação</button></div>';
   }
-  if(m.error) body += '<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
-  return '<div class="modal-overlay"><div class="modal modal-wide" onclick="event.stopPropagation()">'+
+  if(m.error)body+='<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
+  return '<div class="modal-overlay"><div class="modal modal-wide montagem-modal" onclick="event.stopPropagation()">'+
     '<div class="modal-head"><h2>Montar programação</h2><button class="modal-close" data-action="close-modal" '+(m.busy?'disabled':'')+'>×</button></div>'+body+'</div></div>';
 }
 function montagemPublish(){
   var m=state.montagem;
-  if(!m || m.step!=="previa" || m.busy || ((m.plan.existing||m.displaced.length) && !m.ciente)) return;
-  var current=baseAppFindVigenteParaSlot(m.data,m.turno);
-  var displacedNow=Object.keys(state.programacoesByKey).filter(function(id){var p=state.programacoesByKey[id];return p.vigente && p.papel===m.plan.papel && id!==m.existingId;});
-  if((current?current.id:null)!==m.existingId || displacedNow.sort().join('|')!==m.displaced.slice().sort().join('|')){
-    m.error="A programação vigente mudou. Revise novamente antes de publicar."; m.step="editar"; render(); return;
-  }
-  m.busy=true; m.error=""; render();
-  return baseAppWritePosicao(m.plan).then(function(result){
-    m.busy=false;
-    if(!result.ok){ m.error="Falha: "+(result.erro||"erro desconhecido")+(result.programacaoIdParcial?". Verifique a Auditoria antes de tentar novamente.":""); render(); return; }
-    m.step="concluido"; m.result=result.programacaoId;
-    return Promise.all(m.displaced.map(function(id){return baseAppEncerrarOrfa({id:id});})).then(function(closed){
-      var failed=closed.filter(function(x){return !x.ok;});
-      if(failed.length) m.error="Programação publicada, mas não foi possível encerrar: "+failed.map(function(x){return x.id;}).join(', ')+". Verifique a Auditoria.";
-      return withPermissionRetry(function(){return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({
-      __meta__:true, ultimaAtualizacaoProgramacao:state.db.serverTimestamp(), atualizadoPor:{uid:state.user.uid,nome:state.user.nome}, origem:"montagem_app"
-      },{merge:true});}).catch(function(){m.error += " Horário de atualização não registrado.";}).then(function(){render();});
+  if(!m||m.step!=="previa"||m.busy||!m.ciente||!m.sourceValidated||!montagemEligible(m).length)return;
+  var now=Object.keys(m.plan).map(function(pos){var p=m.plan[pos],e=baseAppFindVigenteParaSlot(p.data,p.turno);return pos+":"+(e?e.id:"");}).join("|");
+  if(now!==m.snapshot){m.step="editar";m.error="A programação vigente mudou. Revise o quadro novamente.";render();return;}
+  m.busy=true;render();
+  var entries=Object.keys(m.plan).map(function(pos){return m.plan[pos];});
+  var retiring=m.displaced.concat(entries.map(function(e){return e.existing&&e.existing.id;}).filter(Boolean));
+  var ids=entries.reduce(function(a,e){return a.concat(e.records.map(function(r){return r.idNecessidade;}));},[]);
+  return Promise.all(ids.map(function(id){return state.db.collection("ferramentas").where("idNecessidade","==",id).get().then(function(snap){
+    var duplicate=snap.docs.some(function(d){var t=d.data(),p=t.programacaoId&&state.programacoesByKey[t.programacaoId];
+      return t.programacaoId && retiring.indexOf(t.programacaoId)<0 && (!p || p.vigente);
     });
-  });
+    if(duplicate)throw new Error("Necessidade "+id+" já ativa em outra programação");
+  });})).then(function(){return entries.reduce(function(chain,e){return chain.then(function(results){return baseAppWritePosicao(e).then(function(r){results.push(r);if(!r.ok)throw new Error("Falha em "+e.posicao+": "+(r.erro||"verifique a Auditoria"));return results;});});},Promise.resolve([]));})
+    .then(function(){return Promise.all(m.displaced.map(function(id){return baseAppEncerrarOrfa({id:id});}));})
+    .then(function(closed){var failed=closed.filter(function(x){return !x.ok;});if(failed.length)throw new Error("Publicado, mas falhou encerramento de "+failed.map(function(x){return x.id;}).join(", "));
+      return withPermissionRetry(function(){return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({__meta__:true,ultimaAtualizacaoProgramacao:state.db.serverTimestamp(),atualizadoPor:{uid:state.user.uid,nome:state.user.nome},origem:"montagem_b03"},{merge:true});});})
+    .then(function(){m.busy=false;m.step="concluido";render();})
+    .catch(function(err){m.busy=false;m.error=(err&&err.message||"Falha na publicação")+". Confira o Histórico antes de tentar novamente.";render();});
 }
 function renderNecPrevQuick(g, eff){
   var key = g.key;
@@ -2869,15 +2959,36 @@ function bindApp(){
   });
   var openMontagem = app.querySelector('[data-action="open-montagem"]');
   if(openMontagem) openMontagem.addEventListener("click", function(){
-    state.montagem={step:"editar",posicao:"ATUAL",data:todayStr(),turno:"Dia",rows:[montagemEmptyRow()],draftId:Date.now().toString(36),error:"",busy:false};
+    state.montagem={step:"editar",data:todayStr(),busca:"",columns:{P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]},tipo:{},
+      candidates:[],sourceValidated:false,error:"",busy:false};
     state.modal="montagem"; render();
   });
-  app.querySelectorAll('[data-montagem-head]').forEach(function(el){el.addEventListener("change",function(){state.montagem[el.getAttribute("data-montagem-head")]=el.value;});});
-  app.querySelectorAll('[data-montagem-row]').forEach(function(el){el.addEventListener("input",function(){state.montagem.rows[+el.getAttribute("data-montagem-row")][el.getAttribute("data-field")]=el.value;});});
+  var montagemData=document.getElementById("montagem-data");
+  if(montagemData) montagemData.addEventListener("change",function(){state.montagem.data=montagemData.value;render();});
+  var montagemBusca=document.getElementById("montagem-busca");
+  if(montagemBusca) montagemBusca.addEventListener("input",function(){state.montagem.busca=montagemBusca.value;render();});
+  var montagemFile=document.getElementById("montagem-b03-file");
+  if(montagemFile) montagemFile.addEventListener("change",function(){if(montagemFile.files&&montagemFile.files[0])montagemLoadB03(montagemFile.files[0]);});
   function montagemClick(action,fn){var el=app.querySelector('[data-action="'+action+'"]'); if(el) el.addEventListener("click",fn);}
-  montagemClick("montagem-add",function(){if(state.montagem.rows.length>=100){state.montagem.error="Limite de 100 linhas.";}else state.montagem.rows.push(montagemEmptyRow());render();});
-  app.querySelectorAll('[data-action="montagem-remove"]').forEach(function(el){el.addEventListener("click",function(){state.montagem.rows.splice(+el.getAttribute("data-index"),1);render();});});
-  montagemClick("montagem-load",function(){montagemLoadCurrent(state.montagem);});
+  app.querySelectorAll('[data-montagem-card]').forEach(function(el){el.addEventListener("dragstart",function(e){e.dataTransfer.setData("text/plain",el.getAttribute("data-montagem-card"));e.dataTransfer.effectAllowed="move";});});
+  app.querySelectorAll('[data-montagem-drop]').forEach(function(el){
+    el.addEventListener("dragover",function(e){e.preventDefault();el.classList.add("drag-over");});
+    el.addEventListener("dragleave",function(){el.classList.remove("drag-over");});
+    el.addEventListener("drop",function(e){e.preventDefault();el.classList.remove("drag-over");
+      var id=e.dataTransfer.getData("text/plain"),to=el.getAttribute("data-montagem-drop");
+      var target=e.target.closest('[data-montagem-card]'),rows=to==="queue"?[]:state.montagem.columns[to];
+      var index=target&&rows?rows.indexOf(target.getAttribute("data-montagem-card")):-1;
+      if(montagemMove(state.montagem,id,to,index<0?null:index))render();
+    });
+  });
+  app.querySelectorAll('[data-montagem-move]').forEach(function(el){el.addEventListener("change",function(){if(montagemMove(state.montagem,el.getAttribute("data-montagem-move"),el.value))render();});});
+  ["up","down"].forEach(function(action){app.querySelectorAll('[data-action="montagem-'+action+'"]').forEach(function(el){el.addEventListener("click",function(){
+    var m=state.montagem,id=el.getAttribute("data-id"),lane=montagemLocation(m,id);if(!lane)return;
+    var i=m.columns[lane.key].indexOf(id),next=i+(action==="up"?-1:1);
+    if(next<0||next>=m.columns[lane.key].length)return;
+    m.columns[lane.key].splice(i,1);m.columns[lane.key].splice(next,0,id);render();
+  });});});
+  app.querySelectorAll('[data-action="montagem-type"]').forEach(function(el){el.addEventListener("click",function(){var m=state.montagem,id=el.getAttribute("data-id");m.tipo[id]=m.tipo[id]==="RESERVA"?"PRINCIPAL":"RESERVA";render();});});
   montagemClick("montagem-preview",function(){montagemPreview(state.montagem);});
   montagemClick("montagem-back",function(){state.montagem.step="editar";render();});
   var montagemCiente=app.querySelector('[data-action="montagem-ciente"]');
@@ -3726,7 +3837,11 @@ function ensureXLSX(cb){
   var s = document.createElement("script");
   s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
   s.onload = cb;
-  s.onerror = function(){ state.import.loading=false; state.import.error="Não foi possível carregar o leitor de planilhas (verifique a conexão)."; render(); };
+  s.onerror = function(){
+    if(state.montagem){state.montagem.loading=false;state.montagem.error="Não foi possível carregar o leitor de planilhas.";}
+    else if(state.import){state.import.loading=false;state.import.error="Não foi possível carregar o leitor de planilhas (verifique a conexão).";}
+    render();
+  };
   document.head.appendChild(s);
 }
 function sheetToGrid(sheet){
@@ -4687,7 +4802,8 @@ function baseAppHashString(s){
 }
 function computeConteudoHash(records){
   var linhas = records.map(function(r){
-    return [r.prensa, r.ferramenta, r.cliente||"", r.quantidadeKg, r.corte||"", r.liga||"", r.observacao||"", r.secao].join("§");
+    return [r.prensa, r.ferramenta, r.cliente||"", r.quantidadeKg, r.corte||"", r.liga||"", r.observacao||"", r.secao,
+      r.origem==="MONTAGEM B03" ? r.chaveOrigem : "",r.origem==="MONTAGEM B03" ? r.ordemOrigem : ""].join("§");
   });
   linhas.sort();
   return baseAppHashString(linhas.join("¶"));
@@ -4702,12 +4818,12 @@ function baseAppFindVigenteParaSlot(data, turno){
 }
 function baseAppDiffContent(oldProgramacaoId, newRecs){
   var oldRows = state.ferramentas.filter(function(t){ return t.programacaoId===oldProgramacaoId; });
-  function ident(prensa,ferramenta,kg){ return prensa+"|"+ferramenta+"|"+kg; }
-  var oldSet = {}; oldRows.forEach(function(t){ oldSet[ident(t.prensa,t.codigo,t.quantidadeKg)]=true; });
-  var newSet = {}; newRecs.forEach(function(r){ newSet[ident(r.prensa,r.ferramenta,r.quantidadeKg)]=true; });
+  function ident(prensa,ferramenta,kg,key){ return (key ? key+"|" : "")+prensa+"|"+ferramenta+"|"+kg; }
+  var oldSet = {}; oldRows.forEach(function(t){ oldSet[ident(t.prensa,t.codigo,t.quantidadeKg,t.origemBase==="B03_CART"?t.idNecessidade:null)]=true; });
+  var newSet = {}; newRecs.forEach(function(r){ newSet[ident(r.prensa,r.ferramenta,r.quantidadeKg,r.origem==="MONTAGEM B03"?r.idNecessidade:null)]=true; });
   var added=0, removed=0, kgOld=0, kgNew=0;
-  oldRows.forEach(function(t){ kgOld += (t.quantidadeKg||0); if(!newSet[ident(t.prensa,t.codigo,t.quantidadeKg)]) removed++; });
-  newRecs.forEach(function(r){ kgNew += (r.quantidadeKg||0); if(!oldSet[ident(r.prensa,r.ferramenta,r.quantidadeKg)]) added++; });
+  oldRows.forEach(function(t){ kgOld += (t.quantidadeKg||0); if(!newSet[ident(t.prensa,t.codigo,t.quantidadeKg,t.origemBase==="B03_CART"?t.idNecessidade:null)]) removed++; });
+  newRecs.forEach(function(r){ kgNew += (r.quantidadeKg||0); if(!oldSet[ident(r.prensa,r.ferramenta,r.quantidadeKg,r.origem==="MONTAGEM B03"?r.idNecessidade:null)]) added++; });
   return { added: added, removed: removed, kgDelta: Math.round((kgNew-kgOld)*100)/100 };
 }
 // Monta o plano de importação: para cada posição presente, decide se é
@@ -4825,7 +4941,9 @@ function baseAppBuildFerramentaDoc(rec, programacaoId, now){
     prensa: rec.prensa, turno: rec.turno, dataProgramacao: rec.dataProgramacao,
     observacaoPCP: rec.observacao||"",
     solicitadoPor: { uid: state.user.uid, nome: state.user.nome },
-    criadoEm: now, programacaoId: programacaoId, chaveOrigem: rec.chaveOrigem, origemBase: rec.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP"
+    criadoEm: now, programacaoId: programacaoId, chaveOrigem: rec.chaveOrigem,
+    origemBase: rec.origem==="MONTAGEM B03" ? "B03_CART" : rec.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP",
+    ...(rec.origem==="MONTAGEM B03" ? {idNecessidade:rec.idNecessidade,pedido:rec.pedido,item:rec.item,ordemProgramacao:rec.ordemOrigem} : {})
   };
 }
 // Gravação segura de UMA posição do plano. NOVA/NOVA_VERSAO: grava TODOS
@@ -4858,7 +4976,7 @@ function baseAppWritePosicao(entry){
       return state.db.doc("programacoes/"+novoId).set({
         programacaoId: novoId, data: entry.data, turno: entry.turno, papel: entry.papel, vigente: true,
         substituiId: entry.existing ? entry.existing.id : null, substituidaPorId: null,
-        conteudoHash: entry.hash, origemBase: entry.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP", origemAba: entry.origem,
+        conteudoHash: entry.hash, origemBase: entry.origem==="MONTAGEM B03" ? "B03_CART" : entry.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP", origemAba: entry.origem,
         criadaEm: state.db.serverTimestamp(), criadaPor: { uid: state.user.uid, nome: state.user.nome },
         substituidaEm: null, encerradaEm: null, encerradaPor: null, totais: entry.totais
       });
