@@ -11,7 +11,7 @@ const context = {
   window: {}, localStorage: { getItem: () => null },
   console, Date, setTimeout, clearTimeout
 };
-vm.runInNewContext(source + '\nglobalThis.api={state,renderHistoricoList,renderHistoricoDetail,renderNecRowCompact,montagemRecords,montagemMove,montagemStats,montagemCandidateValid,montagemParseB03,montagemParseCapacity,montagemCapacity,montagemBuildCards,montagemCard,renderMontagemPage,baseAppBuildPlan,baseAppGroupByPosicao,baseAppBuildFerramentaDoc,validateBaseAppRecords};\n})();', context);
+vm.runInNewContext(source + '\nglobalThis.api={state,renderHistoricoList,renderHistoricoDetail,renderNecRowCompact,montagemRecords,montagemMove,montagemStats,montagemCandidateValid,montagemParseB03,montagemParseCapacity,montagemCapacity,montagemBuildCards,montagemCard,montagemCardClients,renderMontagemPage,baseAppBuildPlan,baseAppGroupByPosicao,baseAppBuildFerramentaDoc,validateBaseAppRecords};\n})();', context);
 const api = context.api;
 
 test('histórico busca código e cliente junto de prensa, turno e tipo', () => {
@@ -82,6 +82,10 @@ test('Kanban agrupa pedido/item compatível, expande sem duplicar e preserva a o
   assert.equal(api.baseAppBuildFerramentaDoc(rows[0],'prog','2026-09-27T12:00:00Z').turnoOrigem,'Dia');
   assert.match(api.montagemCard(m,m.cards[0]),/Quality/);
   assert.match(api.montagemCard(m,m.cards[0]),/Pedido PED-3/);
+  assert.match(api.montagemCard(m,m.cards[0]),/data-action="montagem-clients"/);
+  assert.match(api.montagemCard(m,m.cards[0]),/popover="auto"/);
+  assert.match(api.montagemCard(m,m.cards[0]),/Prado<\/span><span class="client-count">\+1 clientes/);
+  assert.doesNotMatch(api.montagemCard(m,m.cards[0]),/data-montagem-move|<select/);
   assert.match(api.montagemCard(m,m.cards[0]),/aria-pressed="true"[^>]*>Reserva</);
   assert.match(api.montagemCard(m,m.cards[2]),/Separado por liga diferente/);
   api.montagemMove(m,other,'P7_Noite');
@@ -100,6 +104,28 @@ test('Kanban agrupa pedido/item compatível, expande sem duplicar e preserva a o
   assert.equal(plan.ATUAL.data,'2026-09-28');
   assert.equal(plan.PROXIMA.turno,'Noite');
   assert.equal(plan.PROXIMA.totais.P7.kg,160);
+});
+
+test('clientes do card somam BZ e pedido/item por nome sem aumentar o card', () => {
+  const needs=[
+    {cliente:'Prado',kgExtrudar:100,pedido:'1',item:'1'},
+    {cliente:'Quality',kgExtrudar:40,pedido:'2',item:'1'},
+    {cliente:' Prado ',kgExtrudar:75,pedido:'3',item:'2'},
+    {cliente:'prado',kgExtrudar:25,pedido:'4',item:'1'}
+  ];
+  const clients=api.montagemCardClients({needs});
+  assert.deepEqual(Array.from(clients,x=>({name:x.name,kg:x.kg,needs:x.needs})),[
+    {name:'Prado',kg:200,needs:3},{name:'Quality',kg:40,needs:1}
+  ]);
+  const m={cards:[],columns:{P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]},tipo:{}};
+  const c={id:'x',codigo:'X-1',prensa:'P7',liga:'6063',kgExtrudar:240,needs,clientes:['Prado','Quality'],prensasPermitidas:['P7']};
+  m.cards=[c];
+  const card=api.montagemCard(m,c);
+  assert.match(card,/Prado<\/span><span class="client-count">\+1 clientes/);
+  assert.match(card,/Prado<\/span><span>200 kg · 3 itens/);
+  assert.match(card,/Quality<\/span><span>40 kg · 1 item/);
+  assert.doesNotMatch(card,/<select|data-montagem-move/);
+  assert.match(card,/draggable="true"/);
 });
 
 test('primeira tela carrega Master; página tem cinco colunas e capacidade separada da Reserva', () => {

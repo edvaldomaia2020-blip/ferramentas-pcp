@@ -554,10 +554,18 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-card-extra{padding:4px 2px;max-height:170px;overflow:auto;}
 .montagem-card .need-detail{border-top:1px solid var(--border);padding:3px 0;}
 .montagem-card-actions{display:flex;gap:2px;align-items:center;margin-left:auto;}
-.montagem-card-actions select{width:55px;height:24px;padding:1px 0;font-size:10px;}
 .montagem-card-actions button{padding:1px 4px;min-height:24px;font-size:10px;line-height:1;white-space:nowrap;}
 .montagem-card-actions .type-btn{border-radius:10px;font-weight:700;}
 .montagem-card-actions .reserva-on{background:var(--st-int);color:#fff;border-color:var(--st-int);}
+.montagem-card .card-client{display:flex;align-items:center;min-width:55px;flex:1;overflow:hidden;white-space:nowrap;color:var(--text);font-size:10px;text-align:left;}
+.montagem-card .card-client .client-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.montagem-card .card-client .client-count{flex:none;margin-left:2px;}
+.montagem-card button.card-client{border:0;background:transparent;padding:2px 0;min-height:24px;cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;}
+.montagem-client-popover{position:fixed;inset:auto;margin:0;width:min(310px,calc(100vw - 16px));max-height:min(280px,calc(100dvh - 16px));overflow:auto;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border-strong);border-radius:7px;box-shadow:var(--shadow);font-size:11px;}
+.montagem-client-popover strong{display:block;margin-bottom:4px;font-size:11px;}
+.montagem-client-popover .client-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;padding:4px 0;border-top:1px solid var(--border);}
+.montagem-client-popover .client-row span:first-child{overflow-wrap:anywhere;}
+.montagem-client-popover .client-row span:last-child{white-space:nowrap;font-weight:700;}
 .montagem-card .separation{color:var(--st-int);font-size:10px;}
 .montagem-over{color:var(--danger)!important;font-weight:800!important;}
 @media(max-width:1050px){.montagem-grand{display:none}.montagem-source{flex-basis:160px}}
@@ -2750,8 +2758,17 @@ function montagemPreview(m){
   m.snapshot=Object.keys(m.plan).map(function(pos){return pos+":"+(m.plan[pos].existing?m.plan[pos].existing.id:"");}).join("|");
   m.ciente=false;m.step="previa";m.error="";render();
 }
+function montagemCardClients(c){
+  var byName=Object.create(null),result=[];
+  c.needs.forEach(function(n){
+    var name=String(n.cliente||"").trim().replace(/\s+/g," "),key=name.toLocaleLowerCase("pt-BR"),row=byName[key];
+    if(!row){row={name:name,kg:0,needs:0};byName[key]=row;result.push(row);}
+    row.kg+=Number(n.kgExtrudar);row.needs++;
+  });
+  return result;
+}
 function montagemCard(m,c){
-  var loc=montagemLocation(m,c.id),key=loc?loc.key:"queue",id=esc(c.id),reserva=m.tipo[c.id]==="RESERVA";
+  var loc=montagemLocation(m,c.id),id=esc(c.id),reserva=m.tipo[c.id]==="RESERVA",clients=montagemCardClients(c);
   var others=montagemCards(m).filter(function(x){return x.codigo===c.codigo && x.id!==c.id;});
   var reasons=[];
   if(others.some(function(x){return x.prensa!==c.prensa;}))reasons.push("prensa");
@@ -2759,11 +2776,15 @@ function montagemCard(m,c){
   if(others.some(function(x){return x.corte!==c.corte;}))reasons.push("corte");
   return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+'" draggable="true" data-montagem-card="'+id+'">'+
     '<div class="card-top"><span class="card-code"><strong title="'+esc(c.codigo)+'">'+esc(c.codigo)+'</strong><small>'+esc(c.prensa)+' · '+esc(c.liga||"—")+'</small></span><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span></div>'+
-    '<div class="card-foot"><details><summary>'+c.needs.length+' item'+(c.needs.length>1?'s':'')+(reasons.length?' · separado':'')+'</summary><div class="montagem-card-extra">'+
+    '<div class="card-foot">'+(clients.length>1?
+      '<button type="button" class="card-client" data-action="montagem-clients" aria-expanded="false" title="Ver clientes de '+esc(c.codigo)+'"><span class="client-name">'+esc(clients[0].name)+'</span><span class="client-count">+'+(clients.length-1)+' clientes</span></button>':
+      '<span class="card-client" title="'+esc(clients[0]?clients[0].name:"")+'">'+esc(clients[0]?clients[0].name:"")+'</span>')+
+    (clients.length>1?'<div class="montagem-client-popover" popover="auto"><strong>Clientes · '+esc(c.codigo)+'</strong>'+
+      clients.map(function(x){return '<div class="client-row"><span>'+esc(x.name)+'</span><span>'+fmtKg(x.kg)+' kg · '+x.needs+' '+(x.needs===1?'item':'itens')+'</span></div>';}).join('')+'</div>':'')+
+    '<details><summary>'+c.needs.length+' '+(c.needs.length===1?'item':'itens')+(reasons.length?' · separado':'')+'</summary><div class="montagem-card-extra">'+
       '<div>Cliente: '+esc(c.clientes.join(' · '))+'</div>'+(reasons.length?'<div class="separation">Separado por '+esc(reasons.join('/'))+' diferente</div>':'')+
       c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+'</div></details>'+
-    '<div class="montagem-card-actions"><select aria-label="Mover '+esc(c.codigo)+' para" title="Mover para coluna" data-montagem-move="'+id+'"><option value="queue" '+(key==="queue"?"selected":"")+'>Fila</option>'+
-      MONTAGEM_LANES.filter(function(l){return c.prensasPermitidas.indexOf(l.prensa)>=0;}).map(function(l){return '<option value="'+l.key+'" '+(key===l.key?"selected":"")+'>'+l.prensa+' '+(l.turno==="Dia"?'T1':'T2')+'</option>';}).join("")+'</select>'+
+    '<div class="montagem-card-actions">'+
       (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir" aria-label="Subir '+esc(c.codigo)+'">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer" aria-label="Descer '+esc(c.codigo)+'">↓</button><button type="button" class="type-btn '+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" aria-pressed="'+reserva+'" title="Alternar Principal e Reserva">'+(reserva?'Reserva':'Principal')+'</button>':"")+
     '</div></div></div>';
 }
@@ -3172,7 +3193,17 @@ function bindApp(){
       if(montagemMove(state.montagem,id,to,index<0?null:index))render();
     });
   });
-  app.querySelectorAll('[data-montagem-move]').forEach(function(el){el.addEventListener("change",function(){if(montagemMove(state.montagem,el.getAttribute("data-montagem-move"),el.value))render();});});
+  app.querySelectorAll('[data-action="montagem-clients"]').forEach(function(btn){var pop=btn.parentElement.querySelector('.montagem-client-popover');
+    btn.addEventListener("click",function(e){e.stopPropagation();if(!pop||!pop.showPopover)return;
+      if(pop.matches(':popover-open')){pop.hidePopover();return;}
+      pop.showPopover();
+      var rect=btn.getBoundingClientRect(),width=pop.offsetWidth,height=pop.offsetHeight;
+      pop.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-width-8))+"px";
+      pop.style.top=Math.max(8,rect.bottom+4+height<=window.innerHeight?rect.bottom+4:rect.top-height-4)+"px";
+    });
+    if(pop)pop.addEventListener("toggle",function(){btn.setAttribute("aria-expanded",pop.matches(':popover-open')?"true":"false");});
+  });
+  app.querySelectorAll('[data-montagem-scroll]').forEach(function(list){list.addEventListener("scroll",function(){app.querySelectorAll('.montagem-client-popover:popover-open').forEach(function(pop){pop.hidePopover();});},{passive:true});});
   ["up","down"].forEach(function(action){app.querySelectorAll('[data-action="montagem-'+action+'"]').forEach(function(el){el.addEventListener("click",function(){
     var m=state.montagem,id=el.getAttribute("data-id"),lane=montagemLocation(m,id);if(!lane)return;
     var i=m.columns[lane.key].indexOf(id),next=i+(action==="up"?-1:1);
