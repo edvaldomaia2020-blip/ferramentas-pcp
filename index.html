@@ -511,7 +511,6 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-pendencias summary::-webkit-details-marker{display:none;}
 .montagem-pendencias-list{position:absolute;right:0;top:calc(100% + 4px);width:min(420px,90vw);max-height:260px;overflow:auto;z-index:5;padding:9px;background:var(--surface);border:1px solid var(--st-int);border-radius:7px;box-shadow:var(--shadow);white-space:normal;}
 .montagem-pendencias-list div{padding:3px 0;border-bottom:1px solid var(--border);}
-.montagem-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:0 0 7px;}
 .montagem-summary{min-width:0;padding:7px 9px;background:var(--surface);border:1px solid var(--border-strong);border-top:3px solid var(--accent);border-radius:7px;box-shadow:var(--shadow);}
 .montagem-summary.low{border-top-color:var(--danger);}
 .montagem-summary.good{border-top-color:var(--st-ok);}
@@ -534,8 +533,10 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-summary.available .montagem-summary-line{font-size:11px;}
 .montagem-summary.available .selected{font-weight:800;color:var(--accent);}
 .montagem-board-scroll{width:100%;overflow-x:auto;padding-bottom:3px;}
-.montagem-board{display:grid;grid-template-columns:minmax(200px,1.13fr) repeat(4,minmax(205px,1fr));gap:6px;min-width:1044px;}
-.montagem-lane{display:flex;flex-direction:column;height:max(400px,calc(100dvh - 350px));min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px;}
+.montagem-board{display:grid;grid-template-columns:minmax(200px,1.13fr) repeat(4,minmax(205px,1fr));grid-template-rows:auto auto;gap:6px;min-width:1044px;align-items:stretch;}
+.montagem-lane{display:flex;flex-direction:column;min-height:410px;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px;}
+.montagem-lane.queue .montagem-list{height:0;min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;}
+.montagem-lane.turn .montagem-list{flex:none;overflow:visible;min-height:0;}
 .montagem-lane.drag-over{outline:3px solid var(--accent);}
 .montagem-lane-head{font-size:12px;font-weight:800;padding:2px 3px 5px;border-bottom:1px solid var(--border);white-space:nowrap;}
 .montagem-lane-head small{font-weight:600;color:var(--text-muted);margin-left:4px;}
@@ -551,7 +552,7 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-card.queue-selected{outline:2px solid var(--accent);outline-offset:-2px;}
 .montagem-card .queue-mark{display:inline-flex;align-items:center;flex:none;cursor:pointer;}
 .montagem-card .queue-mark input{width:16px;height:16px;margin:0 2px 0 0;accent-color:var(--accent);}
-.montagem-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1px 2px 34px;}
+.montagem-list{padding:1px 2px 34px;}
 .montagem-card{background:var(--surface);border:1px solid var(--border-strong);border-radius:5px;padding:4px 5px;margin:2px 0;cursor:grab;font-size:11px;line-height:1.25;overflow-wrap:anywhere;}
 .montagem-card.reserva{border-left:4px solid var(--st-int);background:var(--st-int-bg);}
 .montagem-card.principal{border-left:3px solid var(--st-ok);}
@@ -675,8 +676,7 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-card .separation{color:var(--st-int);font-size:10px;}
 .montagem-over{color:var(--danger)!important;font-weight:800!important;}
 @media(max-width:1050px){.montagem-grand{display:none}.montagem-source{flex-basis:160px}}
-@media(max-width:1100px){.montagem-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:700px){.montagem-page-head h1{font-size:19px}.montagem-source{order:5;flex-basis:100%;margin-top:-4px}.montagem-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.montagem-lane{height:max(370px,calc(100dvh - 280px))}.montagem-board{min-width:1044px}.montagem-reserve3-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.montagem-page-head h1{font-size:19px}.montagem-source{order:5;flex-basis:100%;margin-top:-4px}.montagem-reserve3-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.montagem-review-grid{grid-template-columns:1fr}.montagem-review-title{flex-wrap:wrap}}
 
 /* ---------- Correção: header title / sync info / micro panel ---------- */
@@ -2941,16 +2941,25 @@ function montagemStats(m,key){
 }
 function montagemClientCoverage(m,prensa,cliente){
   var normalize=function(x){return String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("pt-BR");},name=normalize(cliente),
-    all=new Set(),blocked=[],placed=new Set();
-  (m.coverage||[]).forEach(function(n){if(n.prensa===prensa&&normalize(n.cliente)===name){
-    all.add(n.idNecessidade);if(n.blocked)blocked.push(n);
-  }});
-  montagemCards(m).forEach(function(card){if(card.prensa!==prensa||!montagemLocations(m,card.id).length)return;
-    card.needs.forEach(function(n){if(normalize(n.cliente)===name&&(!all.size||all.has(n.idNecessidade)))placed.add(n.idNecessidade);});
+    rows=m.coverage||(m.candidates||[]).map(function(n){return {idNecessidade:n.idNecessidade,cliente:n.cliente,
+      prensa:n.prensasPermitidas[0],codigo:n.codigo,blocked:false};}),all=new Map(),blocked=[],placed=new Set(),positions=new Map(),tools=new Map();
+  rows.forEach(function(n){if(n.prensa!==prensa||normalize(n.cliente)!==name||!n.idNecessidade||all.has(n.idNecessidade))return;
+    all.set(n.idNecessidade,n);if(n.blocked)blocked.push(n);
   });
-  return {placed:placed.size,total:all.size||montagemCards(m).filter(function(c){return c.prensa===prensa;}).reduce(function(sum,c){
-    return sum+c.needs.filter(function(n){return normalize(n.cliente)===name;}).length;
-  },0),blocked:blocked};
+  [prensa+"_T1",prensa+"_T2",prensa+"_R3"].forEach(function(key){(m.columns[key]||[]).forEach(function(id){
+    var card=montagemCandidate(m,id);if(!card)return;
+    card.needs.forEach(function(n){if(normalize(n.cliente)!==name||!all.has(n.idNecessidade))return;
+      placed.add(n.idNecessidade);if(!positions.has(card.codigo))positions.set(card.codigo,positions.size+1);
+    });
+  });});
+  all.forEach(function(n,id){var card=montagemCards(m).find(function(c){return c.needs.some(function(need){return need.idNecessidade===id;});});
+    var code=n.codigo||(card&&card.codigo)||"Sem código: "+id,tool=tools.get(code);
+    if(!tool){tool={total:0,placed:0};tools.set(code,tool);}
+    tool.total++;if(placed.has(id))tool.placed++;
+  });
+  return {placed:placed.size,total:all.size,blocked:blocked,toolTotal:tools.size,
+    missingTools:Array.from(tools.values()).filter(function(t){return t.placed<t.total;}).length,
+    positionByCode:positions,tools:tools};
 }
 function montagemClientOverview(m){
   var clean=function(x){return String(x||"").trim().replace(/\s+/g," ");},nameKey=function(x){return clean(x).toLocaleLowerCase("pt-BR");},
@@ -2976,23 +2985,29 @@ function montagemClientOverview(m){
       statusPCP:raw.statusPCP||"—",destinations:blocked?[]:destinations});
   });
   return Array.from(groups.values()).sort(function(a,b){return a.name.localeCompare(b.name,"pt-BR");}).map(function(group){
-    group.summary={};["P7","P4"].forEach(function(p){var rows=group.presses[p],sum={tools:new Set(rows.map(function(n){return n.codigo;})).size,items:rows.length,kg:0,
+    group.summary={};["P7","P4"].forEach(function(p){var rows=group.presses[p],toolRows=new Map(),sum={tools:0,missingTools:0,items:rows.length,kg:0,
       principal:{items:0,kg:0},reserva:{items:0,kg:0},unplanned:{items:0,kg:0},blocked:{items:0,kg:0}};
       rows.forEach(function(n){sum.kg+=n.kg;var section=n.status==="principal"?sum.principal:n.status==="reserva"?sum.reserva:sum.unplanned;
-        section.items++;section.kg+=n.kg;if(n.blocked){sum.blocked.items++;sum.blocked.kg+=n.kg;}});
+        section.items++;section.kg+=n.kg;if(n.blocked){sum.blocked.items++;sum.blocked.kg+=n.kg;}
+        var tool=toolRows.get(n.codigo);if(!tool){tool={total:0,covered:0};toolRows.set(n.codigo,tool);}
+        tool.total++;if(n.status!=="sem programação")tool.covered++;
+      });
+      rows.forEach(function(n){var tool=toolRows.get(n.codigo);n.toolCoverage={total:tool.total,covered:tool.covered,partial:tool.covered>0&&tool.covered<tool.total};});
+      sum.tools=toolRows.size;sum.missingTools=Array.from(toolRows.values()).filter(function(t){return t.covered<t.total;}).length;
       group.summary[p]=sum;
     });return group;
   });
 }
 function renderMontagemClients(m){
   var query=String(m.clientSearch||"").trim().toLocaleLowerCase("pt-BR"),all=montagemClientOverview(m),visible=all.filter(function(g){return g.name.toLocaleLowerCase("pt-BR").includes(query);});
-  function metrics(s){return '<div class="client-pending-metrics"><span>Ferramentas <b>'+s.tools+'</b> · pedidos/itens <b>'+s.items+'</b> · BZ <b>'+fmtKg(s.kg)+' kg</b></span>'+
+  function metrics(s){return '<div class="client-pending-metrics"><span>Ferramentas distintas <b>'+s.tools+'</b> · <b>'+s.missingTools+' '+(s.missingTools===1?'falta':'faltam')+'</b></span><span>Pedidos/itens <b>'+s.items+'</b> · BZ <b>'+fmtKg(s.kg)+' kg</b></span>'+
     '<span class="principal">Principal programado <b>'+s.principal.items+' '+(s.principal.items===1?'item':'itens')+' · '+fmtKg(s.principal.kg)+' kg</b></span>'+
     '<span class="reserve">Somente Reserva <b>'+s.reserva.items+' '+(s.reserva.items===1?'item':'itens')+' · '+fmtKg(s.reserva.kg)+' kg</b></span>'+
     '<span class="missing">Ainda falta programar <b>'+s.unplanned.items+' '+(s.unplanned.items===1?'item':'itens')+' · '+fmtKg(s.unplanned.kg)+' kg</b></span>'+
     (s.blocked.items?'<span class="blocked">Bloqueados pela B03 <b>'+s.blocked.items+' '+(s.blocked.items===1?'item':'itens')+' · '+fmtKg(s.blocked.kg)+' kg</b></span>':'')+'</div>';}
   function row(n){return '<div class="client-pending-row"><strong>'+esc(n.codigo)+'</strong><span>Pedido '+esc(n.pedido)+' / item '+esc(n.item)+'</span><b>'+fmtKg(n.kg)+' kg BZ</b>'+
-    '<span>'+esc(n.statusPCP)+(n.blocked&&n.reason!==n.statusPCP?' · '+esc(n.reason.startsWith(n.statusPCP+' · ')?n.reason.slice(n.statusPCP.length+3):n.reason):'')+'</span><span class="client-pending-dest">'+(n.blocked?'Bloqueado · não programável':n.destinations.length?
+    '<span>'+esc(n.statusPCP)+(n.blocked&&n.reason!==n.statusPCP?' · '+esc(n.reason.startsWith(n.statusPCP+' · ')?n.reason.slice(n.statusPCP.length+3):n.reason):'')+
+      (n.toolCoverage.partial?' · ferramenta parcialmente coberta ('+n.toolCoverage.covered+'/'+n.toolCoverage.total+' pedidos/itens)':'')+'</span><span class="client-pending-dest">'+(n.blocked?'Bloqueado · não programável':n.destinations.length?
       n.destinations.map(function(d){return esc(d.label);}).join(' → '):'Ainda disponível')+'</span></div>';}
   return '<section class="client-pending-page"><div class="client-pending-head"><div><h2>Pendências por cliente</h2><small>Cobertura planejada, inclusive Principal do Turno 3; bloqueados também constam em “Ainda falta programar”. Não indica produção realizada nem liberação para faturar.</small></div>'+
     '<label>Buscar cliente <input type="search" id="montagem-client-search" value="'+esc(m.clientSearch||'')+'" placeholder="Nome do cliente" aria-label="Buscar cliente"></label></div>'+
@@ -3097,9 +3112,12 @@ function montagemCard(m,c,laneKey){
     orderControls=loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" data-key="'+esc(laneKey)+'" title="Voltar uma posição" aria-label="Voltar '+esc(c.codigo)+' uma posição">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" data-key="'+esc(laneKey)+'" title="Avançar uma posição" aria-label="Avançar '+esc(c.codigo)+' uma posição">↓</button>':'',
     transferControl=mainTurn&&laneKey.endsWith("_T2")&&!m.columns[c.prensa+"_T1"].includes(c.id)?
       '<button type="button" class="montagem-transfer" data-action="montagem-transfer" data-id="'+id+'" data-key="'+esc(laneKey)+'">Transferir Principal para Turno 1</button>':'',
+    clientPosition=function(x){var position=x.coverage.positionByCode.get(c.codigo);return loc&&position?position+"/"+x.coverage.toolTotal:"pendente";},
+    partialNote=function(x){var tool=x.coverage.tools.get(c.codigo);return tool&&tool.placed>0&&tool.placed<tool.total?
+      ' · ferramenta parcialmente coberta ('+tool.placed+'/'+tool.total+' pedidos/itens)':'';},
     details='<details class="card-details"><summary title="Ver '+c.needs.length+' '+(c.needs.length===1?'pedido/item':'pedidos/itens')+'" aria-label="Ver pedidos e itens de '+esc(c.codigo)+'">'+
       (mainTurn?'▾':c.needs.length+' '+(c.needs.length===1?'item':'itens')+(reasons.length?' · separado':''))+'</summary><div class="montagem-card-extra">'+
-      '<div>'+c.needs.length+' '+(c.needs.length===1?'pedido/item':'pedidos/itens')+' · Cobertura: '+clients.map(function(x){return esc(x.name)+' '+x.coverage.placed+'/'+x.coverage.total+
+      '<div>'+c.needs.length+' '+(c.needs.length===1?'pedido/item':'pedidos/itens')+' · Cobertura: '+clients.map(function(x){return esc(x.name)+' · '+x.coverage.placed+'/'+x.coverage.total+' pedidos/itens'+esc(partialNote(x))+
         (x.coverage.blocked.length?' · bloqueado '+esc(x.coverage.blocked.map(function(b){return b.idNecessidade+' '+b.statusPCP;}).join(', ')):'');}).join('; ')+'</div>'+(reasons.length?'<div class="separation">Separado por '+esc(reasons.join('/'))+' diferente</div>':'')+
       c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+
       transferControl+'</div></details>';
@@ -3108,10 +3126,10 @@ function montagemCard(m,c,laneKey){
   return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+(marked?' queue-selected':'')+(mainTurn?' turn-card':'')+'" draggable="true" data-montagem-card="'+id+'" data-montagem-from="'+esc(laneKey||"queue")+'">'+
     '<div class="card-top">'+mark+'<span class="card-code"><strong title="'+esc(c.codigo)+'">'+esc(c.codigo)+'</strong><small>'+esc(c.prensa)+' · '+esc(c.liga||"—")+'</small></span><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span>'+typeControl+'</div>'+
     '<div class="card-foot'+(mainTurn?' turn-foot':'')+'">'+(clients.length>1?
-      '<button type="button" class="card-client" data-action="montagem-clients" aria-expanded="false" title="Ver clientes de '+esc(c.codigo)+'"><span class="client-name">'+esc(clients[0].name)+'</span><span class="client-progress">'+clients[0].coverage.placed+'/'+clients[0].coverage.total+'</span><span class="client-count">+'+(clients.length-1)+' clientes</span></button>':
-      '<span class="card-client" title="'+esc(clients[0]?clients[0].name:"")+'"><span class="client-name">'+esc(clients[0]?clients[0].name:"")+'</span><span class="client-progress">'+(clients[0]?clients[0].coverage.placed+'/'+clients[0].coverage.total:'')+'</span></span>')+
+      '<button type="button" class="card-client" data-action="montagem-clients" aria-expanded="false" title="Ver clientes de '+esc(c.codigo)+'"><span class="client-name">'+esc(clients[0].name)+'</span><span class="client-progress">'+clientPosition(clients[0])+'</span><span class="client-count">+'+(clients.length-1)+' clientes</span></button>':
+      '<span class="card-client" title="'+esc(clients[0]?clients[0].name:"")+'"><span class="client-name">'+esc(clients[0]?clients[0].name:"")+'</span><span class="client-progress">'+(clients[0]?clientPosition(clients[0]):'')+'</span></span>')+
     (clients.length>1?'<div class="montagem-client-popover" popover="auto"><strong>Clientes · '+esc(c.codigo)+'</strong>'+
-      clients.map(function(x){return '<div class="client-row"><span>'+esc(x.name)+' · '+x.coverage.placed+'/'+x.coverage.total+
+      clients.map(function(x){return '<div class="client-row"><span>'+esc(x.name)+' · '+clientPosition(x)+esc(partialNote(x))+' · '+x.coverage.placed+'/'+x.coverage.total+' pedidos/itens'+
         (x.coverage.blocked.length?' · bloqueado: '+esc(x.coverage.blocked.map(function(b){return b.idNecessidade+' ('+b.statusPCP+')';}).join(', ')):'')+
         '</span><span>'+fmtKg(x.kg)+' kg · '+x.needs+' '+(x.needs===1?'item':'itens')+'</span></div>';}).join('')+'</div>':'')+
     (mainTurn?'<div class="montagem-card-actions">'+orderControls+'</div>'+details:
@@ -3130,12 +3148,15 @@ function montagemSummary(m,l){
     '<div class="bar" aria-hidden="true"><span style="width:'+(pct==null?0:Math.max(0,Math.min(100,pct)))+'%"></span></div></div>';
 }
 function montagemAvailableSummary(m){
-  var available=montagemCards(m).filter(function(c){return !montagemLocation(m,c.id);});
+  var available=montagemCards(m).filter(function(c){return !montagemLocation(m,c.id);}),missing={P7:new Set(),P4:new Set()};
+  montagemClientOverview(m).forEach(function(g){["P7","P4"].forEach(function(p){g.presses[p].forEach(function(n){
+    if(n.status==="sem programação")missing[p].add(n.codigo);
+  });});});
   var press=["P7","P4"].map(function(p){var list=available.filter(function(c){return c.prensa===p;});
-    return {name:p,n:list.length,kg:list.reduce(function(sum,c){return sum+c.kgExtrudar;},0)};});
+    return {name:p,missing:missing[p].size,kg:list.reduce(function(sum,c){return sum+c.kgExtrudar;},0)};});
   return '<div class="montagem-summary available"><div class="montagem-summary-top"><strong>Disponíveis</strong><small>Fila B03</small></div>'+
-    press.map(function(x){return '<div class="montagem-summary-line '+(m.filtroPrensa===x.name?'selected':'')+'"><span>'+x.name+' · '+x.n+' ferramentas</span><b>'+fmtKg(x.kg)+' kg</b></div>';}).join('')+
-    '<div class="montagem-summary-bottom"><span>'+available.length+' no total</span><b>'+fmtKg(press[0].kg+press[1].kg)+' kg</b></div></div>';
+    press.map(function(x){return '<div class="montagem-summary-line '+(m.filtroPrensa===x.name?'selected':'')+'"><span>'+x.name+' · '+x.missing+' '+(x.missing===1?'ferramenta falta':'ferramentas faltam')+'</span><b>'+fmtKg(x.kg)+' kg fila</b></div>';}).join('')+
+    '<div class="montagem-summary-bottom"><span>'+available.length+' cards na fila</span><b>'+fmtKg(press[0].kg+press[1].kg)+' kg BZ</b></div></div>';
 }
 function montagemCapacityControl(m){
   var edit=m.capacityEdit||montagemCapacityDefaults(m);
@@ -3224,12 +3245,13 @@ function renderMontagemPage(){
   }else if(m.step==="concluido"){
     body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
   }else{
-    body+=(m.error?'<div class="error-msg" role="alert">'+esc(m.error)+'</div>':'')+'<div class="montagem-summary-grid">'+montagemAvailableSummary(m)+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+'</div>';
+    body+=(m.error?'<div class="error-msg" role="alert">'+esc(m.error)+'</div>':'');
     var queue=cards.filter(function(c){return !montagemLocation(m,c.id) && (m.filtroPrensa==="Todas"||m.filtroPrensa===c.prensa) &&
       historicoMatches({codigo:c.codigo,cliente:c.clientes.join(' ')+' '+c.needs.map(function(n){return n.pedido+' '+n.item;}).join(' ')},m.busca);});
     var selected=montagemSelectedCards(m),selectedKg=selected.reduce(function(sum,c){return sum+c.kgExtrudar;},0);
     body+='<div class="montagem-board-scroll"><div class="montagem-board">'+
-      '<section class="montagem-lane"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' na fila</small></div>'+
+      montagemAvailableSummary(m)+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+
+      '<section class="montagem-lane queue"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' na fila</small></div>'+
       '<div class="montagem-queue-controls"><input id="montagem-busca" type="search" placeholder="Ferramenta, cliente, pedido…" value="'+esc(m.busca||'')+'" aria-label="Buscar disponíveis">'+
       '<select id="montagem-prensa" aria-label="Filtrar prensa">'+['Todas','P7','P4'].map(function(p){return '<option '+(m.filtroPrensa===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
       '<div class="montagem-select-tools"><button type="button" data-action="montagem-select-mode" aria-pressed="'+!!m.selectionMode+'">'+(m.selectionMode?'Fechar seleção':'Selecionar')+'</button>'+
@@ -3238,7 +3260,7 @@ function renderMontagemPage(){
       (selected.length&&m.bulkMenuOpen?'<div class="montagem-bulk-destinations" role="group" aria-label="Destino dos cards selecionados">'+MONTAGEM_ALL_LANES.map(function(l){return '<button type="button" data-action="montagem-bulk-dest" data-key="'+l.key+'">'+esc(l.label)+'</button>';}).join('')+'</div>':'')+
       '<div class="montagem-list" data-montagem-scroll="queue" data-montagem-drop="queue">'+queue.map(function(c){return montagemCard(m,c,"queue");}).join('')+'</div></section>'+
       MONTAGEM_LANES.map(function(l){
-        return '<section class="montagem-lane"><div class="montagem-lane-head">'+l.label+'<small>'+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · '+esc(fmtDateBR(montagemLaneDate(m,l)))+'</small></div>'+
+        return '<section class="montagem-lane turn"><div class="montagem-lane-head">'+l.label+'<small>'+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · '+esc(fmtDateBR(montagemLaneDate(m,l)))+'</small></div>'+
           '<div class="montagem-list" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c,l.key):'';}).join('')+'</div></section>';}).join('')+
       '</div></div>'+
       '<section class="montagem-reserve3"><div class="montagem-reserve3-head"><span>Reserva para amanhã à noite · Turno 3</span><small>Reserva do Turno 2 · Principal '+esc(fmtDateBR(montagemNextDate(m.data)))+' Noite</small></div>'+
