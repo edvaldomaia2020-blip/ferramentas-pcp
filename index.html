@@ -543,6 +543,14 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-queue-controls input{min-width:0;width:100%;}
 .montagem-queue-controls select{width:62px;flex:none;}
 .montagem-queue-controls input,.montagem-queue-controls select{height:29px;padding:2px 4px;font-size:11px;}
+.montagem-select-tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:2px 0 4px;font-size:10px;}
+.montagem-select-tools button{min-height:25px;padding:2px 5px;font-size:10px;}
+.montagem-select-tools .selected-count{font-weight:800;color:var(--accent);}
+.montagem-bulk-destinations{display:flex;flex-wrap:wrap;gap:3px;padding:3px 0 5px;}
+.montagem-bulk-destinations button{min-height:27px;padding:3px 6px;font-size:10px;}
+.montagem-card.queue-selected{outline:2px solid var(--accent);outline-offset:-2px;}
+.montagem-card .queue-mark{display:inline-flex;align-items:center;flex:none;cursor:pointer;}
+.montagem-card .queue-mark input{width:16px;height:16px;margin:0 2px 0 0;accent-color:var(--accent);}
 .montagem-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1px 2px 34px;}
 .montagem-card{background:var(--surface);border:1px solid var(--border-strong);border-radius:5px;padding:4px 5px;margin:2px 0;cursor:grab;font-size:11px;line-height:1.25;overflow-wrap:anywhere;}
 .montagem-card.reserva{border-left:4px solid var(--st-int);background:var(--st-int-bg);}
@@ -604,7 +612,12 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-capacity-note{font-size:10px;color:var(--text-muted);margin:6px 0;}
 .montagem-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:8px 0 12px;}
 .montagem-review-group{min-width:0;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden;}
-.montagem-review-group.excess{border-color:var(--danger);}
+.montagem-review-group.low{border-color:var(--danger);background:var(--surface);}
+.montagem-review-group.good{border-color:var(--st-ok);}
+.montagem-review-group.high,.montagem-review-group.no-capacity{border:2px solid #B67B00;background:#FFF1C2;color:#352800;}
+.montagem-review-group.high .montagem-review-counts span,.montagem-review-group.no-capacity .montagem-review-counts span{background:#FFF9E6;}
+.montagem-review-group.high .montagem-review-counts .reserve,.montagem-review-group.no-capacity .montagem-review-counts .reserve{background:#F3DFAD;}
+.montagem-review-group.zero{border-color:var(--border-strong);}
 .montagem-review-group summary{cursor:pointer;padding:10px 12px;list-style:none;}
 .montagem-review-group summary::-webkit-details-marker{display:none;}
 .montagem-review-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px;}
@@ -613,7 +626,9 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-review-counts span{padding:5px 7px;border-radius:5px;background:var(--surface-2);font-size:11px;}
 .montagem-review-counts .reserve{background:var(--st-int-bg);}
 .montagem-review-capacity{margin-top:6px;font-size:11px;color:var(--text-muted);}
-.montagem-review-group.excess .montagem-review-capacity{color:var(--danger);font-weight:800;}
+.montagem-review-group.low .montagem-review-capacity{color:var(--danger);font-weight:800;}
+.montagem-review-group.good .montagem-review-capacity{color:var(--st-ok);font-weight:800;}
+.montagem-review-group.high .montagem-review-capacity,.montagem-review-group.no-capacity .montagem-review-capacity{color:#704600;font-weight:900;}
 .montagem-review-hint{margin-top:5px;font-size:10px;color:var(--text-muted);}
 .montagem-review-detail{border-top:1px solid var(--border);padding:7px 12px;max-height:370px;overflow:auto;}
 .montagem-review-tool{padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;}
@@ -2766,7 +2781,7 @@ function montagemCapacity(m,prensa,turno,date){
 function montagemLoadB03(file){
   var m=state.montagem;if(!m||!file)return;
   m.loading=true;m.sourceValidated=false;m.candidates=[];m.pending=[];m.sourceName="";
-  m.columns=montagemEmptyColumns();m.tipo={};m.links={};m.error="";render();
+  m.columns=montagemEmptyColumns();m.tipo={};m.links={};m.selectedIds={};m.selectionMode=false;m.bulkMenuOpen=false;m.error="";render();
   ensureXLSX(function(){var reader=new FileReader();
     reader.onload=function(e){try{
       var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}),result=montagemParseB03(wb),capacity=montagemParseCapacity(wb);
@@ -2840,6 +2855,21 @@ function montagemMove(m,id,to,index,fromKey){
   m.step="editar";m.conflict=null;
   m.error=to==="queue" && montagemLocations(m,id).length ?
     "A outra posição desta ferramenta permanece programada; retire-a separadamente se desejar devolvê-la à fila." : "";
+  return true;
+}
+function montagemSelectedCards(m){
+  return montagemCards(m).filter(function(c){return m.selectedIds&&m.selectedIds[c.id]&&!montagemLocation(m,c.id);});
+}
+function montagemMoveSelected(m,to){
+  var lane=montagemLane(to),selected=montagemSelectedCards(m);
+  if(!lane || !selected.length)return false;
+  var blocked=selected.filter(function(c){return c.prensasPermitidas.indexOf(lane.prensa)<0;});
+  if(blocked.length){
+    m.error="Nenhum card foi movido para "+lane.prensa+". Prensa incompatível: "+blocked.map(function(c){return c.codigo+" ("+c.prensa+")";}).join(", ")+". Desmarque esses cards ou escolha a prensa correspondente.";
+    return false;
+  }
+  selected.forEach(function(c){m.columns[to].push(c.id);});
+  m.selectedIds={};m.bulkMenuOpen=false;m.error="";m.conflict=null;m.step="editar";
   return true;
 }
 function montagemSetType(m,key,id,type){
@@ -2997,8 +3027,10 @@ function montagemCard(m,c,laneKey){
         (x.coverage.blocked.length?' · bloqueado '+esc(x.coverage.blocked.map(function(b){return b.idNecessidade+' '+b.statusPCP;}).join(', ')):'');}).join('; ')+'</div>'+(reasons.length?'<div class="separation">Separado por '+esc(reasons.join('/'))+' diferente</div>':'')+
       c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+
       transferControl+'</div></details>';
-  return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+(mainTurn?' turn-card':'')+'" draggable="true" data-montagem-card="'+id+'" data-montagem-from="'+esc(laneKey||"queue")+'">'+
-    '<div class="card-top"><span class="card-code"><strong title="'+esc(c.codigo)+'">'+esc(c.codigo)+'</strong><small>'+esc(c.prensa)+' · '+esc(c.liga||"—")+'</small></span><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span>'+typeControl+'</div>'+
+  var marked=!loc&&m.selectedIds&&m.selectedIds[c.id],mark=!loc&&m.selectionMode?
+    '<label class="queue-mark" title="Selecionar '+esc(c.codigo)+'"><input type="checkbox" data-montagem-select="'+id+'" aria-label="Selecionar '+esc(c.codigo)+'" '+(marked?'checked':'')+'></label>':'';
+  return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+(marked?' queue-selected':'')+(mainTurn?' turn-card':'')+'" draggable="true" data-montagem-card="'+id+'" data-montagem-from="'+esc(laneKey||"queue")+'">'+
+    '<div class="card-top">'+mark+'<span class="card-code"><strong title="'+esc(c.codigo)+'">'+esc(c.codigo)+'</strong><small>'+esc(c.prensa)+' · '+esc(c.liga||"—")+'</small></span><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span>'+typeControl+'</div>'+
     '<div class="card-foot'+(mainTurn?' turn-foot':'')+'">'+(clients.length>1?
       '<button type="button" class="card-client" data-action="montagem-clients" aria-expanded="false" title="Ver clientes de '+esc(c.codigo)+'"><span class="client-name">'+esc(clients[0].name)+'</span><span class="client-progress">'+clients[0].coverage.placed+'/'+clients[0].coverage.total+'</span><span class="client-count">+'+(clients.length-1)+' clientes</span></button>':
       '<span class="card-client" title="'+esc(clients[0]?clients[0].name:"")+'"><span class="client-name">'+esc(clients[0]?clients[0].name:"")+'</span><span class="client-progress">'+(clients[0]?clients[0].coverage.placed+'/'+clients[0].coverage.total:'')+'</span></span>')+
@@ -3047,24 +3079,32 @@ function montagemReviewStats(rows){
   }
   return {principal:section("PRINCIPAL"),reserva:section("RESERVA")};
 }
+function montagemReviewOccupancy(kg,capacity){
+  var cap=capacity.kg;
+  if(cap==null)return {tone:"zero",message:"Capacidade indisponível; verifique parâmetros"};
+  if(cap===0)return kg>0?{tone:"no-capacity",message:"Programação sem capacidade informada · "+fmtKg(kg)+" kg Principal"}:
+    {tone:"zero",message:"Zero horas efetivas · 0 kg Principal"};
+  if(kg<cap)return {tone:"low",message:"Faltam "+fmtKg(cap-kg)+" kg · "+Math.round(kg/cap*100)+"% ocupado"};
+  if(kg<=cap*1.1)return {tone:"good",message:(kg>cap?"Excede "+fmtKg(kg-cap)+" kg":"Capacidade completa")+" · "+Math.round(kg/cap*100)+"% ocupado"};
+  return {tone:"high",message:"Programado acima da capacidade · excesso de "+fmtKg(kg-cap)+" kg · "+Math.round(kg/cap*100)+"% ocupado"};
+}
 function montagemReviewGroup(m,l){
   var pos=l.key.endsWith("_R3")?"FUTURA":l.posicao,p=m.plan[pos],
     rows=p?p.records.filter(function(r){return r.prensa===l.prensa;}):[],s=montagemReviewStats(rows),
-    capacity=montagemCapacityInfo(m,l.key),over=capacity.kg!=null&&s.principal.kg>capacity.kg,
+    capacity=montagemCapacityInfo(m,l.key),occupancy=montagemReviewOccupancy(s.principal.kg,capacity),
     date=montagemLaneDate(m,l),cardByNeed={};
   montagemCards(m).forEach(function(card){card.needs.forEach(function(n){cardByNeed[n.idNecessidade]=card.id;});});
   var groups=[],byKey={};rows.forEach(function(r){var key=(cardByNeed[r.idNecessidade]||r.ferramenta)+"|"+r.secao;
     if(!byKey[key]){byKey[key]={code:r.ferramenta,section:r.secao,items:[]};groups.push(byKey[key]);}
     byKey[key].items.push(r);
   });
-  return '<details class="montagem-review-group '+(over?'excess':'')+'" data-review-lane="'+l.key+'"><summary>'+
+  return '<details class="montagem-review-group '+occupancy.tone+'" data-review-lane="'+l.key+'"><summary>'+
     '<div class="montagem-review-title"><strong>'+esc(l.prensa)+' · '+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · Turno '+l.numero+'</strong><small>'+esc(fmtDateBR(date))+' · detalhes ▾</small></div>'+
     '<div class="montagem-review-counts"><span>PRINCIPAL <b>'+s.principal.tools+' '+(s.principal.tools===1?'ferramenta':'ferramentas')+' · '+fmtKg(s.principal.kg)+' kg BZ</b></span>'+
     '<span class="reserve">RESERVA <b>'+s.reserva.tools+' '+(s.reserva.tools===1?'ferramenta':'ferramentas')+' · '+fmtKg(s.reserva.kg)+' kg BZ</b></span></div>'+
     '<div class="montagem-review-capacity">Capacidade Principal: '+(capacity.kg==null?'indisponível':fmtKg(capacity.kg)+' kg')+
       (capacity.hours!=null&&capacity.kgHour!=null?' ('+fmtKg(capacity.hours)+' h × '+fmtKg(capacity.kgHour)+' kg/h)':'')+
-      ' · '+(over?'Excede '+fmtKg(s.principal.kg-capacity.kg)+' kg':capacity.kg==null?'verifique parâmetros':capacity.hours===0?'0 h efetivas':
-        'Faltam '+fmtKg(Math.max(0,capacity.kg-s.principal.kg))+' kg')+'</div>'+
+      ' · '+occupancy.message+'</div>'+
     (l.key.endsWith("_R3")?'<div class="montagem-review-hint">Vem da área Reserva para Turno 3: publicada como Principal em Amanhã Noite; no Espelho, aparece nesta prensa e neste turno. A Reserva correspondente aparece em Amanhã Dia.</div>':'')+
     (p&&p.existing?'<div class="montagem-review-hint">'+esc(p.situacao)+' · '+(p.situacao==="NOVA_VERSAO"?'substitui versão ':'versão vigente ')+esc(p.existing.id)+
       (p.diff?' · '+p.diff.added+' pedidos/itens incluídos, '+p.diff.removed+' retirados · variação '+fmtKg(p.diff.kgDelta)+' kg':'')+'</div>':'')+
@@ -3106,13 +3146,18 @@ function renderMontagemPage(){
   }else if(m.step==="concluido"){
     body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
   }else{
-    body+='<div class="montagem-summary-grid">'+montagemAvailableSummary(m)+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+'</div>';
+    body+=(m.error?'<div class="error-msg" role="alert">'+esc(m.error)+'</div>':'')+'<div class="montagem-summary-grid">'+montagemAvailableSummary(m)+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+'</div>';
     var queue=cards.filter(function(c){return !montagemLocation(m,c.id) && (m.filtroPrensa==="Todas"||m.filtroPrensa===c.prensa) &&
       historicoMatches({codigo:c.codigo,cliente:c.clientes.join(' ')+' '+c.needs.map(function(n){return n.pedido+' '+n.item;}).join(' ')},m.busca);});
+    var selected=montagemSelectedCards(m),selectedKg=selected.reduce(function(sum,c){return sum+c.kgExtrudar;},0);
     body+='<div class="montagem-board-scroll"><div class="montagem-board">'+
       '<section class="montagem-lane"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' na fila</small></div>'+
       '<div class="montagem-queue-controls"><input id="montagem-busca" type="search" placeholder="Ferramenta, cliente, pedido…" value="'+esc(m.busca||'')+'" aria-label="Buscar disponíveis">'+
       '<select id="montagem-prensa" aria-label="Filtrar prensa">'+['Todas','P7','P4'].map(function(p){return '<option '+(m.filtroPrensa===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
+      '<div class="montagem-select-tools"><button type="button" data-action="montagem-select-mode" aria-pressed="'+!!m.selectionMode+'">'+(m.selectionMode?'Fechar seleção':'Selecionar')+'</button>'+
+      (m.selectionMode?'<span class="selected-count">'+selected.length+' cards · '+fmtKg(selectedKg)+' kg BZ</span>':'')+
+      (selected.length?'<button type="button" data-action="montagem-move-selected" aria-expanded="'+!!m.bulkMenuOpen+'">Mover selecionados</button>':'')+'</div>'+
+      (selected.length&&m.bulkMenuOpen?'<div class="montagem-bulk-destinations" role="group" aria-label="Destino dos cards selecionados">'+MONTAGEM_ALL_LANES.map(function(l){return '<button type="button" data-action="montagem-bulk-dest" data-key="'+l.key+'">'+esc(l.label)+'</button>';}).join('')+'</div>':'')+
       '<div class="montagem-list" data-montagem-scroll="queue" data-montagem-drop="queue">'+queue.map(function(c){return montagemCard(m,c,"queue");}).join('')+'</div></section>'+
       MONTAGEM_LANES.map(function(l){
         return '<section class="montagem-lane"><div class="montagem-lane-head">'+l.label+'<small>'+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · '+esc(fmtDateBR(montagemLaneDate(m,l)))+'</small></div>'+
@@ -3136,7 +3181,7 @@ function renderMontagemPage(){
     if(!m.capacity||!m.capacity.calendar[m.data]||!m.capacity.calendar[montagemNextDate(m.data)])
       body+='<div class="warn-msg">Hoje e amanhã precisam constar em 0.CALEND para revisar a sequência.</div>';
   }
-  if(m.error)body+='<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
+  if(m.error&&m.step!=="editar")body+='<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
   return '<main class="montagem-page">'+head+body+'</main>';
 }
 function montagemPublish(){
@@ -3497,7 +3542,7 @@ function bindApp(){
   });
   var openMontagem = app.querySelector('[data-action="open-montagem"]');
   if(openMontagem) openMontagem.addEventListener("click", function(){
-    state.montagem={step:"carregar",data:todayStr(),busca:"",filtroPrensa:"Todas",columns:montagemEmptyColumns(),tipo:{},links:{},
+    state.montagem={step:"carregar",data:todayStr(),busca:"",filtroPrensa:"Todas",selectedIds:{},selectionMode:false,columns:montagemEmptyColumns(),tipo:{},links:{},
       candidates:[],cards:[],sourceValidated:false,error:"",busy:false};render();
   });
   var montagemData=document.getElementById("montagem-data");
@@ -3518,33 +3563,38 @@ function bindApp(){
   if(montagemFile) montagemFile.addEventListener("change",function(){if(montagemFile.files&&montagemFile.files[0])montagemLoadB03(montagemFile.files[0]);});
   function montagemClick(action,fn){var el=app.querySelector('[data-action="'+action+'"]'); if(el) el.addEventListener("click",fn);}
   montagemClick("montagem-close",function(){if(state.montagem.busy)return;state.montagem=null;render();});
-  montagemClick("montagem-reload",function(){state.montagem.step="carregar";state.montagem.sourceValidated=false;state.montagem.candidates=[];state.montagem.cards=[];state.montagem.coverage=[];state.montagem.capacity=null;state.montagem.capacityEdit=null;render();});
+  montagemClick("montagem-reload",function(){state.montagem.step="carregar";state.montagem.sourceValidated=false;state.montagem.candidates=[];state.montagem.cards=[];state.montagem.coverage=[];state.montagem.capacity=null;state.montagem.capacityEdit=null;state.montagem.selectedIds={};state.montagem.selectionMode=false;state.montagem.bulkMenuOpen=false;render();});
+  montagemClick("montagem-select-mode",function(){var m=state.montagem;m.selectionMode=!m.selectionMode;if(!m.selectionMode){m.selectedIds={};m.bulkMenuOpen=false;m.error="";}render();});
+  app.querySelectorAll('[data-montagem-select]').forEach(function(input){input.addEventListener('change',function(){var m=state.montagem,id=input.getAttribute('data-montagem-select');m.selectedIds=m.selectedIds||{};if(input.checked)m.selectedIds[id]=true;else delete m.selectedIds[id];m.error="";if(!montagemSelectedCards(m).length)m.bulkMenuOpen=false;render();});});
+  montagemClick("montagem-move-selected",function(){state.montagem.bulkMenuOpen=!state.montagem.bulkMenuOpen;render();});
+  app.querySelectorAll('[data-action="montagem-bulk-dest"]').forEach(function(el){el.addEventListener('click',function(){montagemMoveSelected(state.montagem,el.getAttribute('data-key'));render();});});
   app.querySelectorAll('[data-montagem-card]').forEach(function(el){
     el.addEventListener("dragstart",function(e){var id=el.getAttribute("data-montagem-card");
       state.montagem.draggingId=id;state.montagem.draggingFrom=el.getAttribute("data-montagem-from");
+      state.montagem.draggingBulk=state.montagem.draggingFrom==="queue"&&!!(state.montagem.selectedIds||{})[id];
       e.dataTransfer.setData("text/plain",id);e.dataTransfer.effectAllowed="move";});
-    el.addEventListener("dragend",function(){state.montagem.draggingId=null;state.montagem.draggingFrom=null;app.querySelectorAll('.drag-over,.drop-before,.drop-after').forEach(function(x){x.classList.remove('drag-over','drop-before','drop-after');});});
+    el.addEventListener("dragend",function(){state.montagem.draggingId=null;state.montagem.draggingFrom=null;state.montagem.draggingBulk=false;app.querySelectorAll('.drag-over,.drop-before,.drop-after').forEach(function(x){x.classList.remove('drag-over','drop-before','drop-after');});});
   });
   app.querySelectorAll('[data-montagem-drop]').forEach(function(el){
     el.addEventListener("dragover",function(e){var id=state.montagem.draggingId,c=montagemCandidate(state.montagem,id),to=el.getAttribute("data-montagem-drop"),lane=montagemLane(to);
-      if(!c || (lane && c.prensasPermitidas.indexOf(lane.prensa)<0))return;
+      if(!c || (!state.montagem.draggingBulk&&lane&&c.prensasPermitidas.indexOf(lane.prensa)<0))return;
       e.preventDefault();el.classList.add("drag-over");
       app.querySelectorAll('.drop-before,.drop-after').forEach(function(x){x.classList.remove('drop-before','drop-after');});
       var target=e.target.closest('[data-montagem-card]');
-      if(target && el.contains(target) && target.getAttribute('data-montagem-card')!==id){
+      if(state.montagem.draggingFrom!=="queue" && target && el.contains(target) && target.getAttribute('data-montagem-card')!==id){
         var rect=target.getBoundingClientRect(),horizontal=el.getAttribute("data-montagem-axis")==="x";
         target.classList.add((horizontal?e.clientX<rect.left+rect.width/2:e.clientY<rect.top+rect.height/2)?'drop-before':'drop-after');
       }
     });
     el.addEventListener("dragleave",function(e){if(!el.contains(e.relatedTarget))el.classList.remove("drag-over");});
     el.addEventListener("drop",function(e){e.preventDefault();el.classList.remove("drag-over");
-      var id=e.dataTransfer.getData("text/plain"),to=el.getAttribute("data-montagem-drop"),from=state.montagem.draggingFrom;
+      var id=e.dataTransfer.getData("text/plain"),to=el.getAttribute("data-montagem-drop"),from=state.montagem.draggingFrom,bulk=state.montagem.draggingBulk;
       var target=e.target.closest('[data-montagem-card]'),rows=to==="queue"?[]:state.montagem.columns[to];
       var index=target&&el.contains(target)&&rows?rows.indexOf(target.getAttribute("data-montagem-card")):-1;
       if(index>=0){var rect=target.getBoundingClientRect(),horizontal=el.getAttribute("data-montagem-axis")==="x";
         if(horizontal?e.clientX>=rect.left+rect.width/2:e.clientY>=rect.top+rect.height/2)index++;}
-      state.montagem.draggingId=null;state.montagem.draggingFrom=null;
-      if(montagemMove(state.montagem,id,to,index<0?null:index,from)||state.montagem.error)render();
+      state.montagem.draggingId=null;state.montagem.draggingFrom=null;state.montagem.draggingBulk=false;
+      if(bulk){if(to!=="queue"){montagemMoveSelected(state.montagem,to);render();}}else if(montagemMove(state.montagem,id,to,index<0?null:index,from)||state.montagem.error)render();
     });
   });
   app.querySelectorAll('[data-action="montagem-clients"]').forEach(function(btn){var pop=btn.parentElement.querySelector('.montagem-client-popover');
