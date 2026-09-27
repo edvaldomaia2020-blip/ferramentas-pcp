@@ -511,22 +511,31 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-pendencias summary::-webkit-details-marker{display:none;}
 .montagem-pendencias-list{position:absolute;right:0;top:calc(100% + 4px);width:min(420px,90vw);max-height:260px;overflow:auto;z-index:5;padding:9px;background:var(--surface);border:1px solid var(--st-int);border-radius:7px;box-shadow:var(--shadow);white-space:normal;}
 .montagem-pendencias-list div{padding:3px 0;border-bottom:1px solid var(--border);}
-.montagem-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 7px;}
+.montagem-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:0 0 7px;}
 .montagem-summary{min-width:0;padding:7px 9px;background:var(--surface);border:1px solid var(--border-strong);border-top:3px solid var(--accent);border-radius:7px;box-shadow:var(--shadow);}
-.montagem-summary.over{border-top-color:var(--danger);}
+.montagem-summary.low{border-top-color:var(--danger);}
+.montagem-summary.good{border-top-color:var(--st-ok);}
+.montagem-summary.over{border-top-color:var(--st-int);}
 .montagem-summary-top,.montagem-summary-bottom{display:flex;justify-content:space-between;align-items:baseline;gap:5px;}
 .montagem-summary strong{font-size:13px;white-space:nowrap;}
 .montagem-summary small{font-size:10px;color:var(--text-muted);white-space:nowrap;}
 .montagem-summary-bottom{font-size:11px;margin-top:3px;white-space:nowrap;}
 .montagem-summary-bottom b{font-size:13px;}
+.montagem-summary.low .montagem-summary-bottom b{color:var(--danger);}
+.montagem-summary.good .montagem-summary-bottom b{color:var(--st-ok);}
+.montagem-summary.over .montagem-summary-bottom b{color:var(--st-int);}
 .montagem-summary-line{display:flex;justify-content:space-between;gap:5px;margin-top:3px;font-size:10px;white-space:nowrap;}
 .montagem-summary-line b{font-size:11px;}
 .montagem-summary .bar{height:4px;background:var(--surface-2);border-radius:3px;margin-top:5px;overflow:hidden;}
-.montagem-summary .bar span{display:block;height:100%;background:var(--st-ok);}
-.montagem-summary.over .bar span{background:var(--danger);}
+.montagem-summary .bar span{display:block;height:100%;background:var(--danger);}
+.montagem-summary.good .bar span{background:var(--st-ok);}
+.montagem-summary.over .bar span{background:var(--st-int);}
+.montagem-summary.available{border-top-color:var(--accent);}
+.montagem-summary.available .montagem-summary-line{font-size:11px;}
+.montagem-summary.available .selected{font-weight:800;color:var(--accent);}
 .montagem-board-scroll{width:100%;overflow-x:auto;padding-bottom:3px;}
 .montagem-board{display:grid;grid-template-columns:minmax(190px,1.13fr) repeat(4,minmax(185px,1fr));gap:6px;min-width:960px;}
-.montagem-lane{display:flex;flex-direction:column;height:max(420px,calc(100dvh - 180px));min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px;}
+.montagem-lane{display:flex;flex-direction:column;height:max(400px,calc(100dvh - 350px));min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px;}
 .montagem-lane.drag-over{outline:3px solid var(--accent);}
 .montagem-lane-head{font-size:12px;font-weight:800;padding:2px 3px 5px;border-bottom:1px solid var(--border);white-space:nowrap;}
 .montagem-lane-head small{font-weight:600;color:var(--text-muted);margin-left:4px;}
@@ -557,6 +566,19 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-card-actions button{padding:1px 4px;min-height:24px;font-size:10px;line-height:1;white-space:nowrap;}
 .montagem-card-actions .type-btn{border-radius:10px;font-weight:700;}
 .montagem-card-actions .reserva-on{background:var(--st-int);color:#fff;border-color:var(--st-int);}
+.montagem-card-actions .type-label{font-size:10px;font-weight:700;padding:3px 4px;white-space:nowrap;}
+.montagem-reserve3{margin-top:6px;padding:6px;border:1px solid var(--border-strong);border-radius:7px;background:var(--surface-2);}
+.montagem-reserve3-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin-bottom:4px;}
+.montagem-reserve3-head small{font-size:10px;font-weight:600;color:var(--text-muted);}
+.montagem-reserve3-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+.montagem-reserve3-lane{min-width:0;padding:4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);}
+.montagem-reserve3-lane.drag-over{outline:2px solid var(--accent);}
+.montagem-reserve3-title{font-size:11px;font-weight:800;white-space:nowrap;}
+.montagem-reserve3-list{display:flex;align-items:stretch;gap:4px;min-height:54px;max-height:93px;overflow:auto;padding:2px 2px 8px;overscroll-behavior:contain;}
+.montagem-reserve3-list.drag-over{outline:2px solid var(--accent);}
+.montagem-reserve3-list .montagem-card{flex:0 0 190px;max-width:190px;margin:0;}
+.montagem-conflict{padding:8px;margin:6px 0;border:1px solid var(--st-int);border-radius:6px;background:var(--st-int-bg);font-size:12px;}
+.montagem-conflict button{margin:5px 4px 0 0;}
 .montagem-card .card-client{display:flex;align-items:center;min-width:55px;flex:1;overflow:hidden;white-space:nowrap;color:var(--text);font-size:10px;text-align:left;}
 .montagem-card .card-client .client-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .montagem-card .card-client .client-count{flex:none;margin-left:2px;}
@@ -569,7 +591,8 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-card .separation{color:var(--st-int);font-size:10px;}
 .montagem-over{color:var(--danger)!important;font-weight:800!important;}
 @media(max-width:1050px){.montagem-grand{display:none}.montagem-source{flex-basis:160px}}
-@media(max-width:700px){.montagem-page-head h1{font-size:19px}.montagem-source{order:5;flex-basis:100%;margin-top:-4px}.montagem-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.montagem-lane{height:max(370px,calc(100dvh - 230px))}.montagem-board{min-width:960px}}
+@media(max-width:1100px){.montagem-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.montagem-page-head h1{font-size:19px}.montagem-source{order:5;flex-basis:100%;margin-top:-4px}.montagem-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.montagem-lane{height:max(370px,calc(100dvh - 280px))}.montagem-board{min-width:960px}.montagem-reserve3-grid{grid-template-columns:1fr}}
 
 /* ---------- Correção: header title / sync info / micro panel ---------- */
 .correcao-title{font-size:15px;color:var(--accent);letter-spacing:.03em;}
@@ -829,6 +852,7 @@ window.__FIREBASE_DB_PROMISE = new Promise(function(resolve){
         var batch = writeBatch(fsdb);
         return {
           set: function(path, data, opts){ batch.set(doc(fsdb, path), data, opts||{}); },
+          update: function(path, data){ batch.update(doc(fsdb, path), data); },
           commit: function(){ return batch.commit(); }
         };
       }
@@ -1152,7 +1176,7 @@ var LIVE_TEXT_INPUT_IDS = ["filter-busca","hist-search","montagem-busca"];
 function render(){
   var focusId = null, selStart = null, selEnd = null;
   var montagemScroll={};
-  app.querySelectorAll('[data-montagem-scroll]').forEach(function(el){montagemScroll[el.getAttribute('data-montagem-scroll')]=el.scrollTop;});
+  app.querySelectorAll('[data-montagem-scroll]').forEach(function(el){var key=el.getAttribute('data-montagem-scroll');montagemScroll[key]=el.scrollTop;montagemScroll[key+"_x"]=el.scrollLeft;});
   var montagemX=app.querySelector('.montagem-board-scroll');
   if(montagemX)montagemScroll.x=montagemX.scrollLeft;
   var active = document.activeElement;
@@ -1169,7 +1193,7 @@ function render(){
   if(!state.dbReady){ app.innerHTML = '<div class="spinner-wrap">CARREGANDO…</div>'; return; }
   if(state.montagem){
     app.innerHTML=renderMontagemPage();bindApp();
-    app.querySelectorAll('[data-montagem-scroll]').forEach(function(el){el.scrollTop=montagemScroll[el.getAttribute('data-montagem-scroll')]||0;});
+    app.querySelectorAll('[data-montagem-scroll]').forEach(function(el){var key=el.getAttribute('data-montagem-scroll');el.scrollTop=montagemScroll[key]||0;el.scrollLeft=montagemScroll[key+"_x"]||0;});
     var boardScroll=app.querySelector('.montagem-board-scroll');if(boardScroll)boardScroll.scrollLeft=montagemScroll.x||0;
     if(focusId){var search=document.getElementById(focusId);if(search){search.focus();try{search.setSelectionRange(selStart,selEnd);}catch(e){}}}
     return;
@@ -1472,6 +1496,10 @@ function getFerramentasDaProgramacao(programacaoId, filtroPrensa, filtroTipo){
     if(filtroTipo==="Principal" && t.tipo==="Reserva") return false;
     if(filtroTipo==="Reserva" && t.tipo!=="Reserva") return false;
     return true;
+  }).sort(function(a,b){
+    if(a.origemBase==="B03_CART" && b.origemBase==="B03_CART")
+      return Number(a.ordemProgramacao||0)-Number(b.ordemProgramacao||0);
+    return 0;
   });
 }
 function historicoMatches(t, busca){
@@ -1626,14 +1654,9 @@ function sortTools(list){
    Ordenação (Bloco 3, reconfirmado no 3.1): a BASE_APP tem uma coluna
    ORDEM_ORIGEM (parseada em rec.ordemOrigem, ver baseAppPrepareImport),
    mas ela é excluída de propósito do que é gravado em "ferramentas" —
-   baseAppBuildFerramentaDoc NUNCA grava ordemOrigem nem
-   posicaoProgramacao no documento (mesmo raciocínio do comentário de
-   computeConteudoHash: essas colunas descrevem de onde o dado veio na
-   planilha, não o que o dado é) — e ordemOrigem não é usado em NENHUM
-   outro lugar do app para ordenar nada. Não existe, hoje, uma ordem
-   operacional explícita e persistida pra reaproveitar — por isso cada
-   quadro continua ordenado por sortTools() (dentro de uma folha já fixa
-   em prensa+turno, isso equivale a ordenar por código).
+   para importações BASE_APP preserva a ordenação legada. A montagem B03
+   grava ordemProgramacao por ocorrência; as folhas dessa origem usam a
+   sequência escolhida pelo PCP em vez de ordenar alfabeticamente.
 
    Bloco 3.1 — "espelho como ORDEM DE PRODUÇÃO": só ferramentas
    efetivamente PROGRAMADAS entram na folha. "Programada" reaproveita a
@@ -1648,11 +1671,10 @@ function sortTools(list){
    Reserva. Nenhuma lógica paralela foi criada: printEspelhoIsProgramada
    só chama necStatusGroup, a mesma função já usada pelos indicadores.
 
-   "Todos" agora gera 4 folhas fixas (uma por combinação prensa+turno),
-   sempre nesta ordem: P7 Dia, P7 Noite, P4 Dia, P4 Noite. Cada folha
-   contém dois quadros (Principal e Reserva) — nunca linhas misturadas.
-   turnoOrigem CONTINUA não sendo usado pra filtrar/selecionar nada (só
-   t.turno/t.tipo, os campos reais) — ver Teste O, preservado do Bloco 3. */
+   "Todos" mantém 4 folhas no fluxo legado. Quando a data inicial
+   pertence à montagem Noite-Dia-Noite, gera 6 folhas: três turnos por
+   prensa, com data própria e quadros Principal/Reserva separados.
+   turnoOrigem não seleciona registros: valem t.turno/t.tipo. */
 var PRINT_ESP_FOLHAS_ORDEM = [
   { prensa:"P7", turno:"Dia" },
   { prensa:"P7", turno:"Noite" },
@@ -1666,7 +1688,15 @@ function printEspelhoIsProgramada(t){
   return necStatusGroup(status)==="ok";
 }
 function printEspelhoFolhasSelecionadas(e){
-  return PRINT_ESP_FOLHAS_ORDEM.filter(function(f){
+  var b03Sequence=Object.keys(state.programacoesByKey).some(function(id){var p=state.programacoesByKey[id];
+    return p.vigente && p.sequenciaMontagem==="Noite-Dia-Noite" && p.dataBaseMontagem===e.filtroData;
+  });
+  var slots=b03Sequence?["P7","P4"].reduce(function(out,prensa){
+    return out.concat([{prensa:prensa,turno:"Noite",data:e.filtroData,numero:1},
+      {prensa:prensa,turno:"Dia",data:montagemNextDate(e.filtroData),numero:2},
+      {prensa:prensa,turno:"Noite",data:montagemNextDate(e.filtroData),numero:3}]);
+  },[]):PRINT_ESP_FOLHAS_ORDEM.map(function(f){return {prensa:f.prensa,turno:f.turno,data:e.filtroData};});
+  return slots.filter(function(f){
     var okPrensa = (e.filtroPrensa==="Todas") || (e.filtroPrensa===f.prensa);
     var okTurno = (e.filtroTurno==="Todos") || (e.filtroTurno===f.turno);
     return okPrensa && okTurno;
@@ -1685,13 +1715,18 @@ function printEspelhoRowsForFolha(folha, filtroData){
     if(!isRecordActive(t.programacaoId, t.dataProgramacao, t.turno)) return false;
     return true;
   });
-  return sortTools(list);
+  return list.slice().sort(function(a,b){
+    var ao=a.origemBase==="B03_CART"&&Number.isFinite(Number(a.ordemProgramacao))?Number(a.ordemProgramacao):null,
+      bo=b.origemBase==="B03_CART"&&Number.isFinite(Number(b.ordemProgramacao))?Number(b.ordemProgramacao):null;
+    if(ao!=null && bo!=null)return ao-bo;
+    return (a.codigo||"").localeCompare(b.codigo||"");
+  });
 }
 function printEspelhoBuildFolhas(e){
   return printEspelhoFolhasSelecionadas(e).map(function(f){
-    var rows = printEspelhoRowsForFolha(f, e.filtroData);
+    var rows = printEspelhoRowsForFolha(f, f.data);
     return {
-      prensa: f.prensa, turno: f.turno,
+      prensa: f.prensa, turno: f.turno, data:f.data, numero:f.numero,
       principal: rows.filter(function(t){ return t.tipo!=="Reserva"; }),
       reserva: rows.filter(function(t){ return t.tipo==="Reserva"; })
     };
@@ -1745,7 +1780,7 @@ function renderPrintEspelhoModal(){
   function chip(field,val,label){ return '<button type="button" class="chip '+(e[field]===val?"active":"")+'" data-action="print-filter" data-field="'+field+'" data-value="'+val+'">'+label+'</button>'; }
   var body = '' +
     '<div class="hint" style="margin-bottom:8px;">Selecione os filtros e revise antes de imprimir. Somente ferramentas efetivamente PROGRAMADAS (status "Programado") da programação vigente entram no espelho.</div>' +
-    '<div class="field"><label>Data programada</label><input id="print-esp-data" type="date" value="'+esc(e.filtroData)+'"></div>' +
+    '<div class="field"><label>Data inicial (Hoje)</label><input id="print-esp-data" type="date" value="'+esc(e.filtroData)+'"></div>' +
     '<div class="segmented">' + chip("filtroPrensa","Todas","Todas") + chip("filtroPrensa","P4","P4") + chip("filtroPrensa","P7","P7") + '</div>' +
     '<div class="segmented">' + chip("filtroTurno","Todos","Todos") + chip("filtroTurno","Dia","☀ Dia") + chip("filtroTurno","Noite","☾ Noite") + '</div>' +
     '<div class="segmented">' + chip("filtroTipo","Todas","Todas") + chip("filtroTipo","Principal","Principal") + chip("filtroTipo","Reserva","Reserva") + '</div>';
@@ -1758,7 +1793,7 @@ function renderPrintEspelhoModal(){
       ' — <b>'+grand.count+'</b> ferramenta(s) programada(s), <b>'+fmtKg(grand.kg)+' kg</b> no total.</div>';
     body += '<div class="hint" style="margin-top:6px;">' + folhas.map(function(f){
       var t = printEspelhoFolhaTotals(f, e.filtroTipo);
-      return esc(f.prensa)+' '+esc(f.turno)+': '+t.count+' fer. / '+fmtKg(t.kg)+' kg';
+      return esc(f.prensa)+' '+(f.numero?'T'+f.numero+' ':'')+esc(f.turno)+' '+esc(fmtDateBR(f.data))+': '+t.count+' fer. / '+fmtKg(t.kg)+' kg';
     }).join(' &nbsp;·&nbsp; ') + '</div>';
     body += '<div class="hint" style="margin-top:6px;">Serão geradas <b>'+folhas.length+'</b> folha(s) de impressão (uma por prensa+turno).</div>';
     body += '<div style="display:flex;gap:8px;margin-top:14px;">' +
@@ -1804,10 +1839,10 @@ function renderPrintFolha(folha, e, horaImpressao){
     '<div class="print-header">' +
       '<div class="print-empresa">EXTRUTECH</div>' +
       '<div class="print-titulo">ESPELHO DE PROGRAMAÇÃO DE PRODUÇÃO</div>' +
-      '<div class="print-folha-titulo">'+esc(folha.prensa)+' — TURNO '+esc((folha.turno||"").toUpperCase())+'</div>' +
+      '<div class="print-folha-titulo">'+esc(folha.prensa)+' — '+(folha.numero?'TURNO '+folha.numero+' — ':'')+esc((folha.turno||"").toUpperCase())+'</div>' +
     '</div>' +
     '<div class="print-meta">' +
-      '<span>Data programada: <b>'+esc(fmtDateBR(e.filtroData))+'</b></span>' +
+      '<span>Data programada: <b>'+esc(fmtDateBR(folha.data))+'</b></span>' +
       '<span>Impresso em: <b>'+esc(horaImpressao)+'</b></span>' +
     '</div>' +
     '<div class="print-resumo">TOTAL PROGRAMADO: <b>'+totals.count+'</b> ferramenta(s) &nbsp;·&nbsp; <b>'+fmtKg(totals.kg)+' kg</b></div>' +
@@ -2566,11 +2601,19 @@ function renderBaseAppImportModal(){
 /* Kanban da programação. A fila só pode vir de um adaptador B03_CART validado.
    Não existe fallback para cadastro manual, ferramentas já publicadas ou dados de exemplo. */
 var MONTAGEM_LANES = [
-  {key:"P7_Dia",prensa:"P7",turno:"Dia",label:"P7 turno 1"},
-  {key:"P7_Noite",prensa:"P7",turno:"Noite",label:"P7 turno 2"},
-  {key:"P4_Dia",prensa:"P4",turno:"Dia",label:"P4 turno 1"},
-  {key:"P4_Noite",prensa:"P4",turno:"Noite",label:"P4 turno 2"}
+  {key:"P7_T1",prensa:"P7",turno:"Noite",offset:0,posicao:"ATUAL",numero:1,label:"P7 · Turno 1"},
+  {key:"P7_T2",prensa:"P7",turno:"Dia",offset:1,posicao:"PROXIMA",numero:2,label:"P7 · Turno 2"},
+  {key:"P4_T1",prensa:"P4",turno:"Noite",offset:0,posicao:"ATUAL",numero:1,label:"P4 · Turno 1"},
+  {key:"P4_T2",prensa:"P4",turno:"Dia",offset:1,posicao:"PROXIMA",numero:2,label:"P4 · Turno 2"}
 ];
+var MONTAGEM_RESERVE_LANES = [
+  {key:"P7_R3",prensa:"P7",turno:"Dia",offset:1,posicao:"PROXIMA",numero:3,label:"P7"},
+  {key:"P4_R3",prensa:"P4",turno:"Dia",offset:1,posicao:"PROXIMA",numero:3,label:"P4"}
+];
+var MONTAGEM_ALL_LANES=MONTAGEM_LANES.concat(MONTAGEM_RESERVE_LANES);
+function montagemEmptyColumns(){return {P7_T1:[],P7_T2:[],P4_T1:[],P4_T2:[],P7_R3:[],P4_R3:[]};}
+function montagemNextDate(iso){var d=new Date(iso+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);}
+function montagemLaneDate(m,l){return l.offset?montagemNextDate(m.data):m.data;}
 var MONTAGEM_B03_COLS = ["PEDIDO_ID","ITEM","FERRAMENTA_ID","LIGA","COMPRIMENTO","PRENSA","STATUS_PCP","PROGRAMÁVEL AGORA?","SALDO A PRODUZIR KG (SD_KG)","KG A EXTRUDAR LÍQUIDO","CLIENTE (DA CENTRAL)"];
 function montagemParseB03(wb){
   var sheet=wb.Sheets["B03 CART"] || wb.Sheets["B03_CART"];
@@ -2643,10 +2686,10 @@ function montagemParseCapacity(wb){
   return {calendar:calendar,hoursDay:hoursDay,hoursNight:hoursNight,normal:normal,
     reinforced:reinforced,start:start,end:end,nightActive:nightActive};
 }
-function montagemCapacity(m,prensa,turno){
-  var c=m.capacity,day=c&&c.calendar[m.data];
+function montagemCapacity(m,prensa,turno,date){
+  var c=m.capacity,selected=date||m.data,day=c&&c.calendar[selected];
   if(!day || !Number.isFinite(day[prensa]))return null;
-  var special=m.data>=c.start && m.data<=c.end;
+  var special=selected>=c.start && selected<=c.end;
   var hours=special?c.reinforced/2:(turno==="Dia"?c.hoursDay:c.hoursNight);
   if(turno==="Noite" && !c.nightActive)return 0;
   return Math.round(day[prensa]*hours/(special?c.reinforced:c.normal)*100)/100;
@@ -2654,20 +2697,15 @@ function montagemCapacity(m,prensa,turno){
 function montagemLoadB03(file){
   var m=state.montagem;if(!m||!file)return;
   m.loading=true;m.sourceValidated=false;m.candidates=[];m.pending=[];m.sourceName="";
-  m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};m.error="";render();
+  m.columns=montagemEmptyColumns();m.tipo={};m.links={};m.error="";render();
   ensureXLSX(function(){var reader=new FileReader();
     reader.onload=function(e){try{
       var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}),result=montagemParseB03(wb),capacity=montagemParseCapacity(wb);
       m.candidates=result.candidates;m.cards=montagemBuildCards(result.candidates);m.pending=result.pending;
       m.sourceValidated=result.candidates.length>0;m.sourceName=file.name;
       m.capacity=capacity;m.step="editar";
-      if(!capacity.calendar[m.data] || !(capacity.calendar[m.data].P4>0 || capacity.calendar[m.data].P7>0)){
-        var next=Object.keys(capacity.calendar).sort().find(function(d){return d>=m.data &&
-          (capacity.calendar[d].P4>0 || capacity.calendar[d].P7>0);});
-        if(next)m.data=next;
-      }
       m.excluded=result.excluded;m.gateCount=result.gateCount;m.pressCount=result.pressCount;
-      m.columns={P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]};m.tipo={};
+      m.columns=montagemEmptyColumns();m.tipo={};m.links={};
       if(!m.sourceValidated)m.error="Nenhuma necessidade com BZ positivo e prensa válida na B03 CART.";
     }catch(err){m.candidates=[];m.cards=[];m.pending=[];m.capacity=null;m.sourceValidated=false;m.step="carregar";m.error=err&&err.message||"Erro ao ler B03 CART.";}
     m.loading=false;render();};
@@ -2704,46 +2742,129 @@ function montagemBuildCards(candidates){
 }
 function montagemCards(m){return m.cards||montagemBuildCards(m.candidates);}
 function montagemCandidate(m,id){return montagemCards(m).find(function(c){return c.id===id;});}
-function montagemLane(key){return MONTAGEM_LANES.find(function(l){return l.key===key;});}
-function montagemLocation(m,id){return MONTAGEM_LANES.find(function(l){return m.columns[l.key].indexOf(id)>=0;});}
-function montagemMove(m,id,to,index){
-  var c=montagemCandidate(m,id), lane=montagemLane(to);
-  if(!c || (lane && c.prensasPermitidas.indexOf(lane.prensa)<0) || (to!=="queue" && !lane)) return false;
-  var from=montagemLocation(m,id),fromIndex=from?m.columns[from.key].indexOf(id):-1;
-  MONTAGEM_LANES.forEach(function(l){m.columns[l.key]=m.columns[l.key].filter(function(x){return x!==id;});});
-  if(lane){var rows=m.columns[lane.key],at=index==null?rows.length:index;
+function montagemLane(key){return MONTAGEM_ALL_LANES.find(function(l){return l.key===key;});}
+function montagemLocations(m,id){return MONTAGEM_ALL_LANES.filter(function(l){return (m.columns[l.key]||[]).indexOf(id)>=0;});}
+function montagemLocation(m,id){return montagemLocations(m,id)[0]||null;}
+function montagemType(m,key,id){return key.endsWith("_R3")?"RESERVA":key.endsWith("_T2")?"PRINCIPAL":m.tipo[key+"|"+id]==="RESERVA"?"RESERVA":"PRINCIPAL";}
+function montagemMove(m,id,to,index,fromKey){
+  var c=montagemCandidate(m,id),lane=montagemLane(to),from=fromKey&&fromKey!=="queue"?montagemLane(fromKey):montagemLocation(m,id);
+  if(!c || (lane && c.prensasPermitidas.indexOf(lane.prensa)<0) || (to!=="queue" && !lane) ||
+     (from && (m.columns[from.key]||[]).indexOf(id)<0))return false;
+  if(fromKey==="queue" && montagemLocations(m,id).length)return false;
+  if(!from && montagemLocations(m,id).length)return false;
+  if(from && from.key.endsWith("_R3") && to!==from.key){
+    if(to!=="queue"){m.error="Devolva primeiro a Reserva T3 à fila para alterar seu destino.";return false;}
+    m.conflict={kind:"removeR3",id:id,from:from.key};
+    m.error="Devolver à fila retirará explicitamente a Reserva do Turno 2 e o Principal derivado do Turno 3.";
+    return false;
+  }
+  if(lane && from && lane.key!==from.key && montagemLocations(m,id).some(function(x){return x.key!==from.key;})){
+    m.error="Esta necessidade já ocupa outra posição. Retire ou edite cada posição separadamente para evitar duplicação.";return false;
+  }
+  var rows=from?m.columns[from.key]:null,fromIndex=rows?rows.indexOf(id):-1;
+  if(rows)rows.splice(fromIndex,1);
+  if(lane){var target=m.columns[lane.key],at=index==null?target.length:index;
     if(from && from.key===lane.key && fromIndex<at)at--;
-    rows.splice(Math.max(0,Math.min(at,rows.length)),0,id);}
-  m.step="editar"; m.error="";
+    target.splice(Math.max(0,Math.min(at,target.length)),0,id);
+  }
+  if(from && from.key.endsWith("_T1") && from.key!==to)delete m.tipo[from.key+"|"+id];
+  m.step="editar";m.conflict=null;
+  m.error=to==="queue" && montagemLocations(m,id).length ?
+    "A outra posição desta ferramenta permanece programada; retire-a separadamente se desejar devolvê-la à fila." : "";
   return true;
 }
+function montagemSetType(m,key,id,type){
+  var from=montagemLane(key),next=from&&montagemLane(from.prensa+"_T2");
+  if(!from || !key.endsWith("_T1") || m.columns[key].indexOf(id)<0)return false;
+  if(type==="RESERVA"){
+    if(!m.columns[next.key].includes(id)){
+      var other=montagemLocations(m,id).filter(function(l){return l.key!==key;});
+      if(other.length){m.error="A ferramenta já ocupa outra posição. Resolva essa posição antes de criar a continuidade.";return false;}
+      m.columns[next.key].push(id);
+      m.links[id]={from:key,to:next.key,origem:"Reserva T1"};
+    }
+    m.tipo[key+"|"+id]="RESERVA";m.conflict=null;m.error="";return true;
+  }
+  if(m.columns[next.key].includes(id)){
+    m.conflict={id:id,key:key,next:next.key};
+    m.error="O mesmo pedido/item ficaria como Principal nos turnos 1 e 2. Escolha explicitamente qual posição manter.";
+    return false;
+  }
+  m.tipo[key+"|"+id]="PRINCIPAL";m.conflict=null;m.error="";return true;
+}
+function montagemResolveConflict(m,choice){
+  var p=m.conflict;if(!p)return;
+  if(p.kind==="removeR3"){
+    if(choice==="remove")m.columns[p.from]=m.columns[p.from].filter(function(id){return id!==p.id;});
+    m.conflict=null;m.error="";m.step="editar";return;
+  }
+  if(choice==="T1"){m.columns[p.next]=m.columns[p.next].filter(function(id){return id!==p.id;});m.tipo[p.key+"|"+p.id]="PRINCIPAL";}
+  if(choice==="T2"){m.columns[p.key]=m.columns[p.key].filter(function(id){return id!==p.id;});delete m.tipo[p.key+"|"+p.id];}
+  m.conflict=null;m.error="";m.step="editar";
+}
 function montagemStats(m,key){
-  var ids=key ? m.columns[key] : MONTAGEM_LANES.reduce(function(a,l){return a.concat(m.columns[l.key]);},[]);
-  return ids.reduce(function(s,id){var c=montagemCandidate(m,id);if(!c)return s;
+  var ids=key?(m.columns[key]||[]):Array.from(new Set(MONTAGEM_ALL_LANES.reduce(function(a,l){return a.concat(m.columns[l.key]||[]);},[])));
+  var s=ids.reduce(function(s,id){var c=montagemCandidate(m,id);if(!c)return s;
     s.n++;s.needs+=c.needs.length;
-    if(m.tipo[id]==="RESERVA")s.reserva+=c.kgExtrudar;else s.principal+=c.kgExtrudar;
+    if(key && montagemType(m,key,id)==="RESERVA")s.reserva+=c.kgExtrudar;else s.principal+=c.kgExtrudar;
     s.kg+=c.kgExtrudar;return s;
   },{n:0,needs:0,principal:0,reserva:0,kg:0});
+  if(key && key.endsWith("_T2")){
+    var reserve=montagemStats(m,key.replace("_T2","_R3"));
+    s.reserva+=reserve.kg;s.kg+=reserve.kg;s.n+=reserve.n;s.needs+=reserve.needs;
+  }
+  return s;
 }
-function montagemRecords(m,turno,posicao){
-  return MONTAGEM_LANES.filter(function(l){return l.turno===turno;}).reduce(function(out,l){
-    m.columns[l.key].forEach(function(id){var card=montagemCandidate(m,id); if(!card) return;
-      card.needs.forEach(function(c){out.push({_excelRow:out.length+1,posicao:posicao,origem:"MONTAGEM B03",dataProgramacao:m.data,
-        turno:turno,turnoBruto:turno,prensa:l.prensa,ferramenta:c.codigo,cliente:c.cliente,
-        quantidadeKg:Number(c.kgExtrudar),saldoKgInformado:c.saldoKg,corte:c.corte||"",liga:c.liga||"",observacao:c.observacao||"",
-        secao:m.tipo[id]==="RESERVA"?"RESERVA":"PRINCIPAL",ordemOrigem:out.length+1,
-        chaveOrigem:c.idNecessidade,idNecessidade:c.idNecessidade,pedido:c.pedido,item:c.item});});
-    });return out;
-  },[]);
+function montagemRecords(m,posicao){
+  var out=[],tomorrow=montagemNextDate(m.data);
+  function append(l,secao,slot,date,turno,linked,ids){
+    (ids||m.columns[l.key]||[]).forEach(function(id){var card=montagemCandidate(m,id);if(!card)return;
+      card.needs.forEach(function(c){
+        var link=linked==="T2_T3"?"T2_T3|"+m.data+"|"+c.idNecessidade:
+          m.links&&m.links[id]&&((slot==="ATUAL"&&secao==="RESERVA")||(slot==="PROXIMA"&&secao==="PRINCIPAL"))?
+            "T1_T2|"+m.data+"|"+c.idNecessidade:null;
+        out.push({_excelRow:out.length+1,posicao:slot,origem:"MONTAGEM B03",dataProgramacao:date,
+          dataBaseMontagem:m.data,turno:turno,turnoBruto:turno,prensa:l.prensa,ferramenta:c.codigo,cliente:c.cliente,
+          quantidadeKg:Number(c.kgExtrudar),saldoKgInformado:c.saldoKg,corte:c.corte||"",liga:c.liga||"",observacao:c.observacao||"",
+          secao:secao,ordemOrigem:out.length+1,chaveOrigem:c.idNecessidade+"|"+slot+"|"+secao,
+          idNecessidade:c.idNecessidade,pedido:c.pedido,item:c.item,vinculoProgramacao:link,
+          turnoOrigem:secao==="RESERVA"?(turno==="Noite"?"Dia":"Noite"):null});});
+    });
+  }
+  MONTAGEM_LANES.filter(function(l){return l.posicao===posicao;}).forEach(function(l){
+    (m.columns[l.key]||[]).forEach(function(id){
+      var secao=montagemType(m,l.key,id);
+      append(l,secao,posicao,montagemLaneDate(m,l),l.turno,null,[id]);
+    });
+  });
+  if(posicao==="PROXIMA")MONTAGEM_RESERVE_LANES.forEach(function(l){append(l,"RESERVA","PROXIMA",tomorrow,"Dia","T2_T3");});
+  if(posicao==="FUTURA")MONTAGEM_RESERVE_LANES.forEach(function(l){append(l,"PRINCIPAL","FUTURA",tomorrow,"Noite","T2_T3");});
+  return out;
+}
+function montagemValidateOccurrences(records){
+  var byId={},errors=[];
+  records.forEach(function(r){(byId[r.idNecessidade]=byId[r.idNecessidade]||[]).push(r);});
+  Object.keys(byId).forEach(function(id){
+    var rows=byId[id],places=rows.map(function(r){return r.posicao+":"+r.secao;}).sort(),signature=places.join(",");
+    if(rows.length>2 || (rows.length===2 && signature!=="ATUAL:RESERVA,PROXIMA:PRINCIPAL" &&
+        signature!=="FUTURA:PRINCIPAL,PROXIMA:RESERVA"))
+      errors.push("Pedido/item "+id+" aparece em posições incompatíveis: "+places.join(" e ")+".");
+  });
+  return errors;
 }
 function montagemPreview(m){
+  if(m.conflict){m.error="Resolva a decisão pendente antes de revisar a programação.";render();return;}
   if(!m.sourceValidated || !montagemEligible(m).length){m.error="Sem candidatos validados da B03_CART. A publicação está bloqueada até validar a planilha real.";render();return;}
   if(!m.data){m.error="Escolha a data.";render();return;}
-  if(!m.capacity || !m.capacity.calendar[m.data]){m.error="Data fora do calendário de capacidade da Master.";render();return;}
-  var records=montagemRecords(m,"Dia","ATUAL").concat(montagemRecords(m,"Noite","PROXIMA"));
+  var tomorrow=montagemNextDate(m.data);
+  if(!m.capacity || !m.capacity.calendar[m.data] || !m.capacity.calendar[tomorrow]){
+    m.error="Hoje e amanhã precisam constar no calendário de capacidade da Master.";render();return;
+  }
+  var records=montagemRecords(m,"ATUAL").concat(montagemRecords(m,"PROXIMA"),montagemRecords(m,"FUTURA"));
   if(!records.length){m.error="Arraste ao menos uma necessidade autorizada para o quadro.";render();return;}
   var check=validateBaseAppRecords(records);
-  if(check.errors.length){m.error=check.errors.join(" ");render();return;}
+  var occurrenceErrors=montagemValidateOccurrences(records);
+  if(check.errors.length||occurrenceErrors.length){m.error=check.errors.concat(occurrenceErrors).join(" ");render();return;}
   m.plan=baseAppBuildPlan(baseAppGroupByPosicao(records));
   m.displaced=Object.keys(state.programacoesByKey).filter(function(id){
     var p=state.programacoesByKey[id];
@@ -2767,14 +2888,15 @@ function montagemCardClients(c){
   });
   return result;
 }
-function montagemCard(m,c){
-  var loc=montagemLocation(m,c.id),id=esc(c.id),reserva=m.tipo[c.id]==="RESERVA",clients=montagemCardClients(c);
+function montagemCard(m,c,laneKey){
+  var loc=laneKey&&laneKey!=="queue"?montagemLane(laneKey):null,id=esc(c.id),
+    reserva=loc&&montagemType(m,laneKey,c.id)==="RESERVA",clients=montagemCardClients(c);
   var others=montagemCards(m).filter(function(x){return x.codigo===c.codigo && x.id!==c.id;});
   var reasons=[];
   if(others.some(function(x){return x.prensa!==c.prensa;}))reasons.push("prensa");
   if(others.some(function(x){return x.liga!==c.liga;}))reasons.push("liga");
   if(others.some(function(x){return x.corte!==c.corte;}))reasons.push("corte");
-  return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+'" draggable="true" data-montagem-card="'+id+'">'+
+  return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+'" draggable="true" data-montagem-card="'+id+'" data-montagem-from="'+esc(laneKey||"queue")+'">'+
     '<div class="card-top"><span class="card-code"><strong title="'+esc(c.codigo)+'">'+esc(c.codigo)+'</strong><small>'+esc(c.prensa)+' · '+esc(c.liga||"—")+'</small></span><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span></div>'+
     '<div class="card-foot">'+(clients.length>1?
       '<button type="button" class="card-client" data-action="montagem-clients" aria-expanded="false" title="Ver clientes de '+esc(c.codigo)+'"><span class="client-name">'+esc(clients[0].name)+'</span><span class="client-count">+'+(clients.length-1)+' clientes</span></button>':
@@ -2785,16 +2907,28 @@ function montagemCard(m,c){
       '<div>Cliente: '+esc(c.clientes.join(' · '))+'</div>'+(reasons.length?'<div class="separation">Separado por '+esc(reasons.join('/'))+' diferente</div>':'')+
       c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+'</div></details>'+
     '<div class="montagem-card-actions">'+
-      (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir" aria-label="Subir '+esc(c.codigo)+'">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer" aria-label="Descer '+esc(c.codigo)+'">↓</button><button type="button" class="type-btn '+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" aria-pressed="'+reserva+'" title="Alternar Principal e Reserva">'+(reserva?'Reserva':'Principal')+'</button>':"")+
+      (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" data-key="'+esc(laneKey)+'" title="Voltar uma posição" aria-label="Voltar '+esc(c.codigo)+' uma posição">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" data-key="'+esc(laneKey)+'" title="Avançar uma posição" aria-label="Avançar '+esc(c.codigo)+' uma posição">↓</button>'+
+        (laneKey.endsWith("_T1")?'<button type="button" class="type-btn '+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" data-key="'+esc(laneKey)+'" aria-pressed="'+reserva+'" title="Alternar Principal e Reserva">'+(reserva?'Reserva':'Principal')+'</button>':
+          '<span class="type-label">'+(laneKey.endsWith("_R3")?'Reserva T2':'Principal')+'</span>'):"")+
     '</div></div></div>';
 }
 function montagemSummary(m,l){
-  var s=montagemStats(m,l.key),cap=montagemCapacity(m,l.prensa,l.turno),pct=cap>0?100*s.principal/cap:cap===0&&s.principal===0?0:null,over=cap!=null&&s.principal>cap;
-  return '<div class="montagem-summary '+(over?'over':'')+'"><div class="montagem-summary-top"><strong>'+esc(l.prensa)+' turno '+(l.turno==="Dia"?'1':'2')+'</strong><small>'+esc(fmtDateBR(m.data))+' · '+esc(l.turno)+'</small></div>'+
+  var s=montagemStats(m,l.key),date=montagemLaneDate(m,l),cap=montagemCapacity(m,l.prensa,l.turno,date),
+    pct=cap>0?100*s.principal/cap:cap===0&&s.principal===0?0:null,over=cap!=null&&s.principal>cap,
+    color=cap==null?"":pct==null||pct>110?"over":pct>=100?"good":"low";
+  return '<div class="montagem-summary '+color+'"><div class="montagem-summary-top"><strong>'+esc(l.prensa)+' · Turno '+l.numero+'</strong><small>'+esc(fmtDateBR(date))+' · '+esc(l.turno)+'</small></div>'+
     '<div class="montagem-summary-line"><span>'+s.n+' ferramenta'+(s.n===1?'':'s')+'</span><span>Principal <b>'+fmtKg(s.principal)+' kg</b></span></div>'+
     '<div class="montagem-summary-line"><span>Reserva <b>'+fmtKg(s.reserva)+' kg</b></span><span>Cap. <b>'+(cap==null?'—':fmtKg(cap)+' kg')+'</b></span></div>'+
-    '<div class="montagem-summary-bottom"><span>Ocupação Principal</span><b class="'+(over?'montagem-over':'')+'">'+(cap===0&&over?'Excede':pct==null?'—':Math.round(pct)+'%')+'</b></div>'+
+    '<div class="montagem-summary-bottom"><span>'+(over?'Excede '+fmtKg(s.principal-cap)+' kg':cap==null?'Capacidade indisponível':'Faltam '+fmtKg(Math.max(0,cap-s.principal))+' kg')+'</span><b>'+ (cap===0&&over?'Excede':pct==null?'—':Math.round(pct)+'%')+'</b></div>'+
     '<div class="bar" aria-hidden="true"><span style="width:'+(pct==null?0:Math.max(0,Math.min(100,pct)))+'%"></span></div></div>';
+}
+function montagemAvailableSummary(m){
+  var available=montagemCards(m).filter(function(c){return !montagemLocation(m,c.id);});
+  var press=["P7","P4"].map(function(p){var list=available.filter(function(c){return c.prensa===p;});
+    return {name:p,n:list.length,kg:list.reduce(function(sum,c){return sum+c.kgExtrudar;},0)};});
+  return '<div class="montagem-summary available"><div class="montagem-summary-top"><strong>Disponíveis</strong><small>Fila B03</small></div>'+
+    press.map(function(x){return '<div class="montagem-summary-line '+(m.filtroPrensa===x.name?'selected':'')+'"><span>'+x.name+' · '+x.n+' ferramentas</span><b>'+fmtKg(x.kg)+' kg</b></div>';}).join('')+
+    '<div class="montagem-summary-bottom"><span>'+available.length+' no total</span><b>'+fmtKg(press[0].kg+press[1].kg)+' kg</b></div></div>';
 }
 function renderMontagemPage(){
   var m=state.montagem;if(!m)return "";
@@ -2802,7 +2936,7 @@ function renderMontagemPage(){
   var head='<header class="montagem-page-head"><h1>Montar programação</h1>'+
     (m.step!=="carregar"?'<label>Data <input type="date" id="montagem-data" value="'+esc(m.data)+'" '+(m.step==="editar"?'':'disabled')+'></label>':'')+
     '<span class="montagem-source" title="'+esc(m.sourceName||"Carregue a Master")+'">Master: '+esc(m.sourceName||"aguardando arquivo")+'</span>'+
-    (m.step==="editar"?'<span class="montagem-grand" title="Total colocado nas quatro colunas">'+total.n+' ferramentas · '+fmtKg(total.kg)+' kg BZ</span>'+
+    (m.step==="editar"?'<span class="montagem-grand" title="Necessidades únicas colocadas no quadro">'+total.n+' ferramentas · '+fmtKg(total.kg)+' kg BZ</span>'+
       (m.pending&&m.pending.length?'<details class="montagem-pendencias"><summary>'+m.pending.length+' pendência'+(m.pending.length===1?'':'s')+'</summary><div class="montagem-pendencias-list">'+m.pending.map(function(c){return '<div>'+esc(c.codigo)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+' · '+esc(c.reason)+' · BZ '+(c.kgExtrudar==null?'vazio':fmtKg(c.kgExtrudar))+' kg</div>';}).join('')+'</div></details>':''):'')+
     '<div class="montagem-page-actions">'+(m.step==="editar"?'<button type="button" class="btn btn-ghost" data-action="montagem-reload">Trocar Master</button>':'')+
     '<button type="button" class="btn btn-ghost" data-action="montagem-close">Voltar ao painel</button></div></header>';
@@ -2815,10 +2949,10 @@ function renderMontagemPage(){
   }
   body='';
   if(m.step==="previa"){
-    body+='<div class="warn-msg">Revise a substituição por data e turno. O Histórico conserva as versões anteriores.</div>';
-    Object.keys(m.plan).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' necessidade(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
+    body+='<div class="warn-msg">Sequência: Hoje Noite → Amanhã Dia → Amanhã Noite. Revise as posições e substituições; o Histórico conserva as versões anteriores.</div>';
+    ["ATUAL","PROXIMA","FUTURA"].filter(function(pos){return m.plan[pos];}).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' ocorrência(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
       (p.diff?' · '+p.diff.added+' entradas, '+p.diff.removed+' saídas, variação '+fmtKg(p.diff.kgDelta)+' kg':'')+'</div>'+
-      p.records.map(function(r){return '<div class="hist-row-sub">'+esc(r.prensa)+' · '+esc(r.secao)+' · '+esc(r.ferramenta)+' · pedido '+esc(r.pedido)+'/'+esc(r.item)+' · '+fmtKg(r.quantidadeKg)+' kg</div>';}).join('');});
+      p.records.map(function(r){return '<div class="hist-row-sub">'+esc(r.prensa)+' · '+esc(r.secao)+' · #'+r.ordemOrigem+' · '+esc(r.ferramenta)+' · pedido '+esc(r.pedido)+'/'+esc(r.item)+' · '+fmtKg(r.quantidadeKg)+' kg'+(r.vinculoProgramacao?' · vínculo '+esc(r.vinculoProgramacao.split("|")[0]):'')+'</div>';}).join('');});
     if(m.displaced.length)body+='<div class="warn-msg">Outras versões da mesma posição serão encerradas: '+esc(m.displaced.join(", "))+'</div>';
     body+='<label><input type="checkbox" data-action="montagem-ciente" '+(m.ciente?'checked':'')+'> Conferi as necessidades e as versões substituídas.</label> '+
       '<button type="button" class="btn btn-ghost" data-action="montagem-back">Voltar ao quadro</button> '+
@@ -2826,19 +2960,32 @@ function renderMontagemPage(){
   }else if(m.step==="concluido"){
     body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
   }else{
-    body+='<div class="montagem-summary-grid">'+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+'</div>';
+    body+='<div class="montagem-summary-grid">'+montagemAvailableSummary(m)+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+'</div>';
     var queue=cards.filter(function(c){return !montagemLocation(m,c.id) && (m.filtroPrensa==="Todas"||m.filtroPrensa===c.prensa) &&
       historicoMatches({codigo:c.codigo,cliente:c.clientes.join(' ')+' '+c.needs.map(function(n){return n.pedido+' '+n.item;}).join(' ')},m.busca);});
     body+='<div class="montagem-board-scroll"><div class="montagem-board">'+
       '<section class="montagem-lane"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' na fila</small></div>'+
       '<div class="montagem-queue-controls"><input id="montagem-busca" type="search" placeholder="Ferramenta, cliente, pedido…" value="'+esc(m.busca||'')+'" aria-label="Buscar disponíveis">'+
       '<select id="montagem-prensa" aria-label="Filtrar prensa">'+['Todas','P7','P4'].map(function(p){return '<option '+(m.filtroPrensa===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
-      '<div class="montagem-list" data-montagem-scroll="queue" data-montagem-drop="queue">'+queue.map(function(c){return montagemCard(m,c);}).join('')+'</div></section>'+
+      '<div class="montagem-list" data-montagem-scroll="queue" data-montagem-drop="queue">'+queue.map(function(c){return montagemCard(m,c,"queue");}).join('')+'</div></section>'+
       MONTAGEM_LANES.map(function(l){
-        return '<section class="montagem-lane"><div class="montagem-lane-head">'+l.label+'</div>'+
-          '<div class="montagem-list" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c):'';}).join('')+'</div></section>';}).join('')+
-      '</div></div><div style="margin-top:10px;"><button type="button" class="btn btn-primary" data-action="montagem-preview" '+(!m.sourceValidated||!total.n||!m.capacity.calendar[m.data]?'disabled':'')+'>Revisar programação</button></div>';
-    if(!m.capacity.calendar[m.data])body+='<div class="warn-msg">Data fora do calendário da Master: escolha uma data com capacidade em 0.CALEND para publicar.</div>';
+        return '<section class="montagem-lane"><div class="montagem-lane-head">'+l.label+'<small>'+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · '+esc(fmtDateBR(montagemLaneDate(m,l)))+'</small></div>'+
+          '<div class="montagem-list" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c,l.key):'';}).join('')+'</div></section>';}).join('')+
+      '</div></div>'+
+      '<section class="montagem-reserve3"><div class="montagem-reserve3-head"><span>Reserva para amanhã à noite · Turno 3</span><small>Reserva do Turno 2 · Principal '+esc(fmtDateBR(montagemNextDate(m.data)))+' Noite</small></div>'+
+      '<div class="montagem-reserve3-grid">'+MONTAGEM_RESERVE_LANES.map(function(l){var s=montagemStats(m,l.key);
+        return '<div class="montagem-reserve3-lane"><div class="montagem-reserve3-title">'+l.label+' · '+s.n+' ferramentas · '+fmtKg(s.kg)+' kg BZ</div>'+
+          '<div class="montagem-reserve3-list" data-montagem-axis="x" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c,l.key):'';}).join('')+'</div></div>';}).join('')+'</div></section>'+
+      (m.conflict?'<div class="montagem-conflict" role="alert">'+(m.conflict.kind==="removeR3"?
+        'Devolver à fila retira as duas aparições vinculadas: Reserva T2 e Principal T3. '+
+        '<button type="button" data-action="montagem-conflict" data-choice="remove">Confirmar devolução à fila</button>':
+        'O mesmo pedido/item ficaria como Principal nos dois turnos. Escolha: '+
+        '<button type="button" data-action="montagem-conflict" data-choice="T1">Manter Principal T1 e retirar Principal T2</button>'+
+        '<button type="button" data-action="montagem-conflict" data-choice="T2">Manter Principal T2 e retirar Reserva T1</button>')+
+        '<button type="button" data-action="montagem-conflict" data-choice="cancel">Manter como está</button></div>':'')+
+      '<div style="margin-top:6px;"><button type="button" class="btn btn-primary" data-action="montagem-preview" '+(!m.sourceValidated||!total.n||!m.capacity||!m.capacity.calendar[m.data]||!m.capacity.calendar[montagemNextDate(m.data)]||m.conflict?'disabled':'')+'>Revisar programação</button></div>';
+    if(!m.capacity||!m.capacity.calendar[m.data]||!m.capacity.calendar[montagemNextDate(m.data)])
+      body+='<div class="warn-msg">Hoje e amanhã precisam constar em 0.CALEND para revisar a sequência.</div>';
   }
   if(m.error)body+='<div class="error-msg" role="alert">'+esc(m.error)+'</div>';
   return '<main class="montagem-page">'+head+body+'</main>';
@@ -2849,20 +2996,63 @@ function montagemPublish(){
   var now=Object.keys(m.plan).map(function(pos){var p=m.plan[pos],e=baseAppFindVigenteParaSlot(p.data,p.turno);return pos+":"+(e?e.id:"");}).join("|");
   if(now!==m.snapshot){m.step="editar";m.error="A programação vigente mudou. Revise o quadro novamente.";render();return;}
   m.busy=true;render();
-  var entries=Object.keys(m.plan).map(function(pos){return m.plan[pos];});
+  var entries=["ATUAL","PROXIMA","FUTURA"].filter(function(pos){return m.plan[pos];}).map(function(pos){return m.plan[pos];});
   var retiring=m.displaced.concat(entries.map(function(e){return e.existing&&e.existing.id;}).filter(Boolean));
-  var ids=entries.reduce(function(a,e){return a.concat(e.records.map(function(r){return r.idNecessidade;}));},[]);
+  var ids=Array.from(new Set(entries.reduce(function(a,e){return a.concat(e.records.map(function(r){return r.idNecessidade;}));},[])));
   return Promise.all(ids.map(function(id){return state.db.collection("ferramentas").where("idNecessidade","==",id).get().then(function(snap){
     var duplicate=snap.docs.some(function(d){var t=d.data(),p=t.programacaoId&&state.programacoesByKey[t.programacaoId];
       return t.programacaoId && retiring.indexOf(t.programacaoId)<0 && (!p || p.vigente);
     });
     if(duplicate)throw new Error("Necessidade "+id+" já ativa em outra programação");
-  });})).then(function(){return entries.reduce(function(chain,e){return chain.then(function(results){return baseAppWritePosicao(e).then(function(r){results.push(r);if(!r.ok)throw new Error("Falha em "+e.posicao+": "+(r.erro||"verifique a Auditoria"));return results;});});},Promise.resolve([]));})
-    .then(function(){return Promise.all(m.displaced.map(function(id){return baseAppEncerrarOrfa({id:id});}));})
-    .then(function(closed){var failed=closed.filter(function(x){return !x.ok;});if(failed.length)throw new Error("Publicado, mas falhou encerramento de "+failed.map(function(x){return x.id;}).join(", "));
-      return withPermissionRetry(function(){return state.db.doc("necessidades/"+SYNC_META_DOC_ID).set({__meta__:true,ultimaAtualizacaoProgramacao:state.db.serverTimestamp(),atualizadoPor:{uid:state.user.uid,nome:state.user.nome},origem:"montagem_b03"},{merge:true});});})
+  });})).then(function(){
+    // Os três slots só ficam vigentes juntos. Documentos de ferramentas
+    // são preparados antes; nenhum deles aparece como programação ativa
+    // até o lote atômico de ativação e aposentadoria das versões anteriores.
+    var staged=entries.filter(function(e){return e.situacao==="NOVA"||e.situacao==="NOVA_VERSAO";})
+      .map(function(e){return {entry:e,id:baseAppGenerateProgramacaoId()};});
+    return Promise.all(staged.map(function(s){return Promise.all(s.entry.records.map(function(rec){
+      var ref=state.db.collection("ferramentas").doc(),doc=baseAppBuildFerramentaDoc(rec,s.id,new Date().toISOString()),
+        delta=necessidadeDelta(doc,1);
+      return withPermissionRetry(function(){var batch=state.db.batch();
+        batch.set(ref.path,doc);batch.set("necessidades/"+delta.key,delta.body,{merge:true});return batch.commit();
+      });
+    }));})).then(function(){
+      var current=Object.keys(m.plan).map(function(pos){var p=m.plan[pos],e=baseAppFindVigenteParaSlot(p.data,p.turno);return pos+":"+(e?e.id:"");}).join("|");
+      if(current!==m.snapshot)throw new Error("A programação vigente mudou durante a preparação; nenhuma nova versão foi ativada");
+      return withPermissionRetry(function(){
+        var batch=state.db.batch(),retired={};
+        entries.forEach(function(e){
+          if(e.situacao==="MUDANCA_PAPEL")batch.update("programacoes/"+e.existing.id,{papel:e.papel});
+        });
+        staged.forEach(function(s){var e=s.entry;
+          batch.set("programacoes/"+s.id,{
+            programacaoId:s.id,data:e.data,turno:e.turno,papel:e.papel,vigente:true,
+            substituiId:e.existing?e.existing.id:null,substituidaPorId:null,conteudoHash:e.hash,
+            origemBase:"B03_CART",origemAba:e.origem,dataBaseMontagem:m.data,sequenciaMontagem:"Noite-Dia-Noite",
+            criadaEm:state.db.serverTimestamp(),criadaPor:{uid:state.user.uid,nome:state.user.nome},
+            substituidaEm:null,encerradaEm:null,encerradaPor:null,totais:e.totais
+          });
+          if(e.existing){retired[e.existing.id]=true;batch.update("programacoes/"+e.existing.id,{
+            papel:"historica",vigente:false,substituidaPorId:s.id,substituidaEm:state.db.serverTimestamp()
+          });}
+        });
+        m.displaced.forEach(function(id){if(retired[id])return;retired[id]=true;batch.update("programacoes/"+id,{
+          papel:"historica",vigente:false,encerradaEm:state.db.serverTimestamp(),
+          encerradaPor:{uid:state.user.uid,nome:state.user.nome}
+        });});
+        batch.set("necessidades/"+SYNC_META_DOC_ID,{__meta__:true,ultimaAtualizacaoProgramacao:state.db.serverTimestamp(),
+          atualizadoPor:{uid:state.user.uid,nome:state.user.nome},origem:"montagem_b03"},{merge:true});
+        return batch.commit();
+      }).then(function(){return staged;});
+    });
+  }).then(function(staged){return Promise.all(staged.map(function(s){var e=s.entry;
+    return criarNotificacao("prog_"+s.id,{tipo:"programacao",titulo:"NOVA PROGRAMAÇÃO RECEBIDA",
+      resumo:fmtDateBR(e.data)+" — "+e.turno+" · "+(e.totais.P7.n+e.totais.P4.n)+" ocorrência(s)",
+      data:e.data,turno:e.turno,programacaoId:s.id}).catch(function(){return null;});
+  }));})
     .then(function(){m.busy=false;m.step="concluido";render();})
-    .catch(function(err){m.busy=false;m.error=(err&&err.message||"Falha na publicação")+". Confira o Histórico antes de tentar novamente.";render();});
+    .catch(function(err){m.busy=false;m.error=(err&&err.message||"Falha na publicação")+
+      ". Confira o Histórico antes de tentar novamente; registros preparados sem versão ativa não devem ser publicados manualmente.";render();});
 }
 function renderNecPrevQuick(g, eff){
   var key = g.key;
@@ -3157,7 +3347,7 @@ function bindApp(){
   });
   var openMontagem = app.querySelector('[data-action="open-montagem"]');
   if(openMontagem) openMontagem.addEventListener("click", function(){
-    state.montagem={step:"carregar",data:todayStr(),busca:"",filtroPrensa:"Todas",columns:{P7_Dia:[],P7_Noite:[],P4_Dia:[],P4_Noite:[]},tipo:{},
+    state.montagem={step:"carregar",data:todayStr(),busca:"",filtroPrensa:"Todas",columns:montagemEmptyColumns(),tipo:{},links:{},
       candidates:[],cards:[],sourceValidated:false,error:"",busy:false};render();
   });
   var montagemData=document.getElementById("montagem-data");
@@ -3172,8 +3362,10 @@ function bindApp(){
   montagemClick("montagem-close",function(){if(state.montagem.busy)return;state.montagem=null;render();});
   montagemClick("montagem-reload",function(){state.montagem.step="carregar";state.montagem.sourceValidated=false;state.montagem.candidates=[];state.montagem.cards=[];state.montagem.capacity=null;render();});
   app.querySelectorAll('[data-montagem-card]').forEach(function(el){
-    el.addEventListener("dragstart",function(e){var id=el.getAttribute("data-montagem-card");state.montagem.draggingId=id;e.dataTransfer.setData("text/plain",id);e.dataTransfer.effectAllowed="move";});
-    el.addEventListener("dragend",function(){state.montagem.draggingId=null;app.querySelectorAll('.drag-over,.drop-before,.drop-after').forEach(function(x){x.classList.remove('drag-over','drop-before','drop-after');});});
+    el.addEventListener("dragstart",function(e){var id=el.getAttribute("data-montagem-card");
+      state.montagem.draggingId=id;state.montagem.draggingFrom=el.getAttribute("data-montagem-from");
+      e.dataTransfer.setData("text/plain",id);e.dataTransfer.effectAllowed="move";});
+    el.addEventListener("dragend",function(){state.montagem.draggingId=null;state.montagem.draggingFrom=null;app.querySelectorAll('.drag-over,.drop-before,.drop-after').forEach(function(x){x.classList.remove('drag-over','drop-before','drop-after');});});
   });
   app.querySelectorAll('[data-montagem-drop]').forEach(function(el){
     el.addEventListener("dragover",function(e){var id=state.montagem.draggingId,c=montagemCandidate(state.montagem,id),to=el.getAttribute("data-montagem-drop"),lane=montagemLane(to);
@@ -3181,16 +3373,20 @@ function bindApp(){
       e.preventDefault();el.classList.add("drag-over");
       app.querySelectorAll('.drop-before,.drop-after').forEach(function(x){x.classList.remove('drop-before','drop-after');});
       var target=e.target.closest('[data-montagem-card]');
-      if(target && el.contains(target) && target.getAttribute('data-montagem-card')!==id)target.classList.add(e.clientY<target.getBoundingClientRect().top+target.offsetHeight/2?'drop-before':'drop-after');
+      if(target && el.contains(target) && target.getAttribute('data-montagem-card')!==id){
+        var rect=target.getBoundingClientRect(),horizontal=el.getAttribute("data-montagem-axis")==="x";
+        target.classList.add((horizontal?e.clientX<rect.left+rect.width/2:e.clientY<rect.top+rect.height/2)?'drop-before':'drop-after');
+      }
     });
     el.addEventListener("dragleave",function(e){if(!el.contains(e.relatedTarget))el.classList.remove("drag-over");});
     el.addEventListener("drop",function(e){e.preventDefault();el.classList.remove("drag-over");
-      var id=e.dataTransfer.getData("text/plain"),to=el.getAttribute("data-montagem-drop");
+      var id=e.dataTransfer.getData("text/plain"),to=el.getAttribute("data-montagem-drop"),from=state.montagem.draggingFrom;
       var target=e.target.closest('[data-montagem-card]'),rows=to==="queue"?[]:state.montagem.columns[to];
       var index=target&&el.contains(target)&&rows?rows.indexOf(target.getAttribute("data-montagem-card")):-1;
-      if(index>=0 && e.clientY>=target.getBoundingClientRect().top+target.offsetHeight/2)index++;
-      state.montagem.draggingId=null;
-      if(montagemMove(state.montagem,id,to,index<0?null:index))render();
+      if(index>=0){var rect=target.getBoundingClientRect(),horizontal=el.getAttribute("data-montagem-axis")==="x";
+        if(horizontal?e.clientX>=rect.left+rect.width/2:e.clientY>=rect.top+rect.height/2)index++;}
+      state.montagem.draggingId=null;state.montagem.draggingFrom=null;
+      if(montagemMove(state.montagem,id,to,index<0?null:index,from)||state.montagem.error)render();
     });
   });
   app.querySelectorAll('[data-action="montagem-clients"]').forEach(function(btn){var pop=btn.parentElement.querySelector('.montagem-client-popover');
@@ -3205,12 +3401,18 @@ function bindApp(){
   });
   app.querySelectorAll('[data-montagem-scroll]').forEach(function(list){list.addEventListener("scroll",function(){app.querySelectorAll('.montagem-client-popover:popover-open').forEach(function(pop){pop.hidePopover();});},{passive:true});});
   ["up","down"].forEach(function(action){app.querySelectorAll('[data-action="montagem-'+action+'"]').forEach(function(el){el.addEventListener("click",function(){
-    var m=state.montagem,id=el.getAttribute("data-id"),lane=montagemLocation(m,id);if(!lane)return;
+    var m=state.montagem,id=el.getAttribute("data-id"),lane=montagemLane(el.getAttribute("data-key"));if(!lane)return;
     var i=m.columns[lane.key].indexOf(id),next=i+(action==="up"?-1:1);
     if(next<0||next>=m.columns[lane.key].length)return;
     m.columns[lane.key].splice(i,1);m.columns[lane.key].splice(next,0,id);render();
   });});});
-  app.querySelectorAll('[data-action="montagem-type"]').forEach(function(el){el.addEventListener("click",function(){var m=state.montagem,id=el.getAttribute("data-id");m.tipo[id]=m.tipo[id]==="RESERVA"?"PRINCIPAL":"RESERVA";render();});});
+  app.querySelectorAll('[data-action="montagem-type"]').forEach(function(el){el.addEventListener("click",function(){
+    var m=state.montagem,id=el.getAttribute("data-id"),key=el.getAttribute("data-key");
+    montagemSetType(m,key,id,montagemType(m,key,id)==="RESERVA"?"PRINCIPAL":"RESERVA");render();
+  });});
+  app.querySelectorAll('[data-action="montagem-conflict"]').forEach(function(el){el.addEventListener("click",function(){
+    montagemResolveConflict(state.montagem,el.getAttribute("data-choice"));render();
+  });});
   montagemClick("montagem-preview",function(){montagemPreview(state.montagem);});
   montagemClick("montagem-back",function(){state.montagem.step="editar";render();});
   var montagemCiente=app.querySelector('[data-action="montagem-ciente"]');
@@ -4524,7 +4726,9 @@ function renderHistoricoListRow(p){
       '<span class="hist-archived-badge">ARQUIVADA</span>' +
     '</div>' +
     '<div class="hist-row-sub">P7: '+p7.n+' oc. / '+fmtKg(p7.kg)+' kg · P4: '+p4.n+' oc. / '+fmtKg(p4.kg)+' kg</div>' +
-    '<div class="hist-row-sub hint">'+esc(HIST_PAPEL_ANTES_LABEL[p.papel]||p.papel||"")+(p.substituidaPorId?" · substituída por versão mais nova":"")+(p.origemAba?" · "+esc(p.origemAba):"")+'</div>' +
+    '<div class="hist-row-sub hint">'+esc(HIST_PAPEL_ANTES_LABEL[p.papel]||p.papel||"")+
+      (p.sequenciaMontagem?' · sequência iniciada em '+esc(fmtDateBR(p.dataBaseMontagem)):"")+
+      (p.substituidaPorId?" · substituída por versão mais nova":"")+(p.origemAba?" · "+esc(p.origemAba):"")+'</div>' +
   '</div>';
 }
 function renderHistoricoDetail(h){
@@ -4566,7 +4770,9 @@ function renderHistoricoDetailRow(t){
       '<span class="status-badge sm" style="background:var(--st-'+meta.v+'-bg);color:var(--st-'+meta.v+');">'+esc(meta.label)+'</span>' +
     '</div>' +
     '<div class="hist-row-sub">' +
-      esc(t.prensa)+' · '+(t.turno==="Dia"?"☀ Dia":"☾ Noite")+' · '+fmtKg(t.quantidadeKg)+' kg · '+(t.tipo==="Reserva"?"Reserva":"Principal") +
+      esc(t.prensa)+' · '+esc(fmtDateBR(t.dataProgramacao))+' · '+(t.turno==="Dia"?"☀ Dia":"☾ Noite")+
+      (t.ordemProgramacao?' · #'+t.ordemProgramacao:"")+' · '+fmtKg(t.quantidadeKg)+' kg · '+(t.tipo==="Reserva"?"Reserva":"Principal") +
+      (t.vinculoProgramacao?' · vínculo '+esc(t.vinculoProgramacao.split("|")[0]):"") +
       (info.teveUrgencia ? ' · <span style="color:var(--st-quebrada);font-weight:700;">🚨 teve urgência</span>' : '') +
     '</div>' +
     (t.cliente ? '<div class="hist-row-sub hint">Cliente: '+esc(t.cliente)+'</div>' : '') +
@@ -5173,7 +5379,8 @@ function baseAppBuildFerramentaDoc(rec, programacaoId, now){
     origemBase: rec.origem==="MONTAGEM B03" ? "B03_CART" : rec.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP",
     ...(rec.origem==="MONTAGEM B03" ? {idNecessidade:rec.idNecessidade,pedido:rec.pedido,item:rec.item,
       ordemProgramacao:rec.ordemOrigem,saldoKgInformado:rec.saldoKgInformado,
-      ...(rec.secao==="RESERVA" && rec.turno==="Noite" ? {turnoOrigem:"Dia"} : {})} : {})
+      ...(rec.vinculoProgramacao ? {vinculoProgramacao:rec.vinculoProgramacao} : {}),
+      ...(rec.turnoOrigem ? {turnoOrigem:rec.turnoOrigem} : {})} : {})
   };
 }
 // Gravação segura de UMA posição do plano. NOVA/NOVA_VERSAO: grava TODOS
@@ -5207,6 +5414,7 @@ function baseAppWritePosicao(entry){
         programacaoId: novoId, data: entry.data, turno: entry.turno, papel: entry.papel, vigente: true,
         substituiId: entry.existing ? entry.existing.id : null, substituidaPorId: null,
         conteudoHash: entry.hash, origemBase: entry.origem==="MONTAGEM B03" ? "B03_CART" : entry.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP", origemAba: entry.origem,
+        ...(entry.origem==="MONTAGEM B03" ? {dataBaseMontagem:entry.records[0].dataBaseMontagem,sequenciaMontagem:"Noite-Dia-Noite"} : {}),
         criadaEm: state.db.serverTimestamp(), criadaPor: { uid: state.user.uid, nome: state.user.nome },
         substituidaEm: null, encerradaEm: null, encerradaPor: null, totais: entry.totais
       });
