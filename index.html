@@ -584,6 +584,26 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-capacity-grid label{display:flex;align-items:center;justify-content:space-between;gap:6px;}
 .montagem-capacity-grid input{width:78px;min-width:0;padding:4px;font-size:12px;}
 .montagem-capacity-note{font-size:10px;color:var(--text-muted);margin:6px 0;}
+.montagem-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:8px 0 12px;}
+.montagem-review-group{min-width:0;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden;}
+.montagem-review-group.excess{border-color:var(--danger);}
+.montagem-review-group summary{cursor:pointer;padding:10px 12px;list-style:none;}
+.montagem-review-group summary::-webkit-details-marker{display:none;}
+.montagem-review-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:13px;}
+.montagem-review-title small{font-size:11px;color:var(--text-muted);}
+.montagem-review-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px;}
+.montagem-review-counts span{padding:5px 7px;border-radius:5px;background:var(--surface-2);font-size:11px;}
+.montagem-review-counts .reserve{background:var(--st-int-bg);}
+.montagem-review-capacity{margin-top:6px;font-size:11px;color:var(--text-muted);}
+.montagem-review-group.excess .montagem-review-capacity{color:var(--danger);font-weight:800;}
+.montagem-review-hint{margin-top:5px;font-size:10px;color:var(--text-muted);}
+.montagem-review-detail{border-top:1px solid var(--border);padding:7px 12px;max-height:370px;overflow:auto;}
+.montagem-review-tool{padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;}
+.montagem-review-tool:last-child{border-bottom:0;}
+.montagem-review-tool-head{display:flex;justify-content:space-between;gap:5px;font-weight:800;}
+.montagem-review-need{padding:2px 0 0 13px;color:var(--text-muted);}
+.montagem-review-link{color:var(--st-int);font-weight:700;}
+.montagem-review-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;}
 .montagem-conflict{padding:8px;margin:6px 0;border:1px solid var(--st-int);border-radius:6px;background:var(--st-int-bg);font-size:12px;}
 .montagem-conflict button{margin:5px 4px 0 0;}
 .montagem-card .card-client{display:flex;align-items:center;min-width:55px;flex:1;overflow:hidden;white-space:nowrap;color:var(--text);font-size:10px;text-align:left;}
@@ -601,6 +621,7 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 @media(max-width:1050px){.montagem-grand{display:none}.montagem-source{flex-basis:160px}}
 @media(max-width:1100px){.montagem-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.montagem-page-head h1{font-size:19px}.montagem-source{order:5;flex-basis:100%;margin-top:-4px}.montagem-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.montagem-lane{height:max(370px,calc(100dvh - 280px))}.montagem-board{min-width:960px}.montagem-reserve3-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.montagem-review-grid{grid-template-columns:1fr}.montagem-review-title{flex-wrap:wrap}}
 
 /* ---------- Correção: header title / sync info / micro panel ---------- */
 .correcao-title{font-size:15px;color:var(--accent);letter-spacing:.03em;}
@@ -2992,6 +3013,46 @@ function montagemCapacityControl(m){
     ['P7','P4'].map(function(p){var rate=edit.rate[p];return '<label>'+p+' · kg/h líquido <input type="number" min="0.01" step="0.01" data-capacity-rate="'+p+'" value="'+(rate==null?'':Math.round(rate*100)/100)+'" aria-label="Kg por hora '+p+'"></label>';}).join('')+
     '</div><div class="montagem-capacity-note">Zero no calendário resulta em 0 h. Informe horas efetivas aqui para programar um turno nessa data.</div></div></details>';
 }
+function montagemReviewStats(rows){
+  function section(name){
+    var list=rows.filter(function(r){return r.secao===name;}),seen={},kg=0;
+    list.forEach(function(r){var id=r.idNecessidade||r.chaveOrigem;
+      if(!seen[id]){seen[id]=true;kg+=Number(r.quantidadeKg)||0;}
+    });
+    return {tools:new Set(list.map(function(r){return r.ferramenta;})).size,needs:Object.keys(seen).length,kg:Math.round(kg*100)/100};
+  }
+  return {principal:section("PRINCIPAL"),reserva:section("RESERVA")};
+}
+function montagemReviewGroup(m,l){
+  var pos=l.key.endsWith("_R3")?"FUTURA":l.posicao,p=m.plan[pos],
+    rows=p?p.records.filter(function(r){return r.prensa===l.prensa;}):[],s=montagemReviewStats(rows),
+    capacity=montagemCapacityInfo(m,l.key),over=capacity.kg!=null&&s.principal.kg>capacity.kg,
+    date=montagemLaneDate(m,l),cardByNeed={};
+  montagemCards(m).forEach(function(card){card.needs.forEach(function(n){cardByNeed[n.idNecessidade]=card.id;});});
+  var groups=[],byKey={};rows.forEach(function(r){var key=(cardByNeed[r.idNecessidade]||r.ferramenta)+"|"+r.secao;
+    if(!byKey[key]){byKey[key]={code:r.ferramenta,section:r.secao,items:[]};groups.push(byKey[key]);}
+    byKey[key].items.push(r);
+  });
+  return '<details class="montagem-review-group '+(over?'excess':'')+'" data-review-lane="'+l.key+'"><summary>'+
+    '<div class="montagem-review-title"><strong>'+esc(l.prensa)+' · '+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · Turno '+l.numero+'</strong><small>'+esc(fmtDateBR(date))+' · detalhes ▾</small></div>'+
+    '<div class="montagem-review-counts"><span>PRINCIPAL <b>'+s.principal.tools+' '+(s.principal.tools===1?'ferramenta':'ferramentas')+' · '+fmtKg(s.principal.kg)+' kg BZ</b></span>'+
+    '<span class="reserve">RESERVA <b>'+s.reserva.tools+' '+(s.reserva.tools===1?'ferramenta':'ferramentas')+' · '+fmtKg(s.reserva.kg)+' kg BZ</b></span></div>'+
+    '<div class="montagem-review-capacity">Capacidade Principal: '+(capacity.kg==null?'indisponível':fmtKg(capacity.kg)+' kg')+
+      (capacity.hours!=null&&capacity.kgHour!=null?' ('+fmtKg(capacity.hours)+' h × '+fmtKg(capacity.kgHour)+' kg/h)':'')+
+      ' · '+(over?'Excede '+fmtKg(s.principal.kg-capacity.kg)+' kg':capacity.kg==null?'verifique parâmetros':capacity.hours===0?'0 h efetivas':
+        'Faltam '+fmtKg(Math.max(0,capacity.kg-s.principal.kg))+' kg')+'</div>'+
+    (l.key.endsWith("_R3")?'<div class="montagem-review-hint">Vem da área Reserva para Turno 3: publicada como Principal em Amanhã Noite; no Espelho, aparece nesta prensa e neste turno. A Reserva correspondente aparece em Amanhã Dia.</div>':'')+
+    (p&&p.existing?'<div class="montagem-review-hint">'+esc(p.situacao)+' · '+(p.situacao==="NOVA_VERSAO"?'substitui versão ':'versão vigente ')+esc(p.existing.id)+
+      (p.diff?' · '+p.diff.added+' pedidos/itens incluídos, '+p.diff.removed+' retirados · variação '+fmtKg(p.diff.kgDelta)+' kg':'')+'</div>':'')+
+    '</summary><div class="montagem-review-detail">'+(groups.length?groups.map(function(g,i){
+      var unique=new Set(),kg=g.items.reduce(function(sum,r){var id=r.idNecessidade||r.chaveOrigem;
+        if(unique.has(id))return sum;unique.add(id);return sum+Number(r.quantidadeKg||0);
+      },0);
+      return '<div class="montagem-review-tool"><div class="montagem-review-tool-head"><span>#'+(i+1)+' · '+esc(g.code)+' · '+(g.section==="RESERVA"?'Reserva':'Principal')+'</span><span>'+fmtKg(kg)+' kg · '+g.items.length+' '+(g.items.length===1?'pedido/item':'pedidos/itens')+'</span></div>'+
+        g.items.map(function(r){return '<div class="montagem-review-need">'+esc(r.cliente)+' · pedido '+esc(r.pedido)+' / item '+esc(r.item)+' · '+fmtKg(r.quantidadeKg)+' kg'+
+          (r.vinculoProgramacao?' · <span class="montagem-review-link">vínculo '+esc(r.vinculoProgramacao)+'</span>':'')+'</div>';}).join('')+'</div>';
+    }).join(''):'<div class="hint">Nenhuma ferramenta nesta prensa e neste turno.</div>')+'</div></details>';
+}
 function renderMontagemPage(){
   var m=state.montagem;if(!m)return "";
   var cards=montagemCards(m),total=montagemStats(m),body='';
@@ -3011,15 +3072,13 @@ function renderMontagemPage(){
   }
   body='';
   if(m.step==="previa"){
-    body+='<div class="warn-msg">Sequência: Hoje Noite → Amanhã Dia → Amanhã Noite. Revise as posições e substituições; o Histórico conserva as versões anteriores.</div>';
-    body+='<div class="hist-detail-row"><b>Capacidades usadas:</b> '+MONTAGEM_ALL_LANES.map(function(l){var v=montagemCapacityInfo(m,l.key);return esc(l.prensa)+' T'+l.numero+' '+esc(fmtDateBR(montagemLaneDate(m,l)))+' '+esc(l.turno)+': '+(v.hours==null?'—':v.hours+' h')+' × '+(v.kgHour==null?'—':fmtKg(v.kgHour)+' kg/h')+' = '+(v.kg==null?'—':fmtKg(v.kg)+' kg');}).join(' · ')+'</div>';
-    ["ATUAL","PROXIMA","FUTURA"].filter(function(pos){return m.plan[pos];}).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' ocorrência(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
-      (p.diff?' · '+p.diff.added+' entradas, '+p.diff.removed+' saídas, variação '+fmtKg(p.diff.kgDelta)+' kg':'')+'</div>'+
-      p.records.map(function(r){return '<div class="hist-row-sub">'+esc(r.prensa)+' · '+esc(r.secao)+' · #'+r.ordemOrigem+' · '+esc(r.ferramenta)+' · pedido '+esc(r.pedido)+'/'+esc(r.item)+' · '+fmtKg(r.quantidadeKg)+' kg'+(r.vinculoProgramacao?' · vínculo '+esc(r.vinculoProgramacao.split("|")[0]):'')+'</div>';}).join('');});
+    body+='<div class="hint">Sequência: Hoje Noite → Amanhã Dia → Amanhã Noite. Abra cada grupo para conferir a ordem e os pedidos/itens. O Histórico conserva as versões anteriores.</div>';
+    body+='<div class="montagem-review-grid">'+["P7_T1","P4_T1","P7_T2","P4_T2","P7_R3","P4_R3"].map(function(key){return montagemReviewGroup(m,montagemLane(key));}).join('')+'</div>';
+    if(m.conflict)body+='<div class="warn-msg" role="alert">Há conflito pendente na montagem. Volte ao quadro para decidir antes de publicar.</div>';
     if(m.displaced.length)body+='<div class="warn-msg">Outras versões da mesma posição serão encerradas: '+esc(m.displaced.join(", "))+'</div>';
-    body+='<label><input type="checkbox" data-action="montagem-ciente" '+(m.ciente?'checked':'')+'> Conferi as necessidades e as versões substituídas.</label> '+
-      '<button type="button" class="btn btn-ghost" data-action="montagem-back">Voltar ao quadro</button> '+
-      '<button type="button" class="btn btn-primary" data-action="montagem-publish" '+(!m.ciente||m.busy?'disabled':'')+'>Publicar programação</button>';
+    body+='<div class="montagem-review-actions"><label><input type="checkbox" data-action="montagem-ciente" '+(m.ciente?'checked':'')+'> Conferi as necessidades e as versões substituídas.</label> '+
+      '<button type="button" class="btn btn-ghost" data-action="montagem-back">Voltar à montagem</button> '+
+      '<button type="button" class="btn btn-primary" data-action="montagem-publish" '+(!m.ciente||m.busy||m.conflict?'disabled':'')+'>Publicar programação</button></div>';
   }else if(m.step==="concluido"){
     body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
   }else{
