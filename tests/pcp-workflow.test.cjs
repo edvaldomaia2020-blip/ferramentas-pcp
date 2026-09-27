@@ -82,8 +82,8 @@ test('Kanban agrupa pedido/item compatível, expande sem duplicar e preserva a o
   assert.equal(api.baseAppBuildFerramentaDoc(rows[0],'prog','2026-09-27T12:00:00Z').turnoOrigem,'Dia');
   assert.match(api.montagemCard(m,m.cards[0]),/Quality/);
   assert.match(api.montagemCard(m,m.cards[0]),/Pedido PED-3/);
-  assert.match(api.montagemCard(m,m.cards[0]),/Reserva ligada/);
-  assert.match(api.montagemCard(m,m.cards[2]),/Separada por liga diferente/);
+  assert.match(api.montagemCard(m,m.cards[0]),/aria-pressed="true"[^>]*>Reserva</);
+  assert.match(api.montagemCard(m,m.cards[2]),/Separado por liga diferente/);
   api.montagemMove(m,other,'P7_Noite');
   api.montagemMove(m,id,'P7_Noite',2);
   assert.deepEqual(Array.from(m.columns.P7_Noite),[other,id]);
@@ -113,6 +113,10 @@ test('primeira tela carrega Master; página tem cinco colunas e capacidade separ
   assert.equal(api.montagemCapacity(m,'P4','Noite'),4646.4);
   const html=api.renderMontagemPage();
   for(const label of ['Disponíveis','P7 turno 1','P7 turno 2','P4 turno 1','P4 turno 2']) assert.ok(html.includes(label));
+  assert.equal((html.match(/class="montagem-summary /g)||[]).length,4);
+  assert.match(html,/Cap\. <b>10\.032 kg<\/b>/);
+  assert.match(html,/Ocupação Principal/);
+  assert.doesNotMatch(html,/liberados AZ\/BX|Sequência seguinte:|class="montagem-total"/);
   assert.match(html,/data-montagem-scroll="queue"/);
   assert.match(html,/data-action="montagem-preview" disabled/);
   assert.doesNotMatch(html,/data-action="montagem-add"/);
@@ -122,9 +126,13 @@ test('primeira tela carrega Master; página tem cinco colunas e capacidade separ
   const heavy={origem:'B03_CART',idNecessidade:'99|1',pedido:'99',item:'1',codigo:'P7-TESTE',cliente:'Teste',
     saldoKg:11000,kgExtrudar:11000,prensasPermitidas:['P7'],liga:'6063',corte:'6000',statusPCP:'LIBERADO P/ PCP',programavelAgora:true};
   m.candidates=[heavy];m.cards=api.montagemBuildCards(m.candidates);m.columns.P7_Dia=[m.cards[0].id];m.sourceValidated=true;
-  assert.match(api.renderMontagemPage(),/Principal excede em 2\.640 kg/);
+  assert.match(api.renderMontagemPage(),/132%/);
+  assert.match(api.renderMontagemPage(),/class="montagem-summary over"/);
   m.tipo[m.cards[0].id]='RESERVA';
-  assert.doesNotMatch(api.renderMontagemPage(),/Principal excede/);
+  const reserved=api.renderMontagemPage();
+  assert.match(reserved,/Reserva <b>11\.000 kg<\/b>/);
+  assert.match(reserved,/Ocupação Principal<\/span><b class="">0%/);
+  assert.doesNotMatch(reserved,/class="montagem-summary over"/);
 });
 
 test('importador B03 aceita ambas as abas, usa BZ e mostra pendência sem prensa', () => {

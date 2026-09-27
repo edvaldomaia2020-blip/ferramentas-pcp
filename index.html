@@ -495,44 +495,73 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .hist-search{width:100%;max-width:420px;min-height:40px;}
 @media (max-width:600px){.hist-search{max-width:none}.nec-list-compact .nec-compact-row{margin-bottom:2px;border-radius:3px}.nec-compact-summary{gap:4px}}
 #app.role-pcp.montagem-app{max-width:none;width:100%;}
-.montagem-page{width:100%;padding:14px clamp(10px,2vw,28px) 24px;}
-.montagem-page-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
-.montagem-page-head h1{font-size:30px;line-height:1;}
-.montagem-page-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.montagem-page{width:100%;padding:8px clamp(8px,1vw,16px) 14px;}
+.montagem-page-head{display:flex;align-items:center;gap:8px;min-height:40px;margin-bottom:7px;flex-wrap:wrap;}
+.montagem-page-head h1{font-size:22px;line-height:1;white-space:nowrap;}
+.montagem-page-head label{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;white-space:nowrap;}
+.montagem-page-head input[type=date]{height:32px;max-width:145px;padding:2px 5px;font-size:12px;}
+.montagem-source{min-width:0;flex:1;color:var(--text-muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.montagem-grand{font-size:11px;font-weight:700;white-space:nowrap;color:var(--text-muted);}
+.montagem-page-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.montagem-page-actions .btn{min-height:32px;padding:5px 9px;font-size:11px;white-space:nowrap;}
 .montagem-upload{max-width:560px;margin:8vh auto;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);}
 .montagem-upload input[type=file]{width:100%;margin:12px 0;}
-.montagem-total{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:var(--surface-2);border-radius:8px;margin:9px 0;font-weight:700;}
-.montagem-total span{white-space:nowrap;}
-.montagem-pendencias{margin:8px 0;padding:8px 12px;border:1px solid var(--st-int);border-radius:7px;color:var(--st-int);font-size:12px;}
-.montagem-pendencias summary{cursor:pointer;font-weight:700;}
-.montagem-board-scroll{width:100%;overflow-x:auto;padding-bottom:5px;}
-.montagem-board{display:grid;grid-template-columns:minmax(220px,1.1fr) repeat(4,minmax(210px,1fr));gap:8px;min-width:1110px;}
-.montagem-lane{display:flex;flex-direction:column;height:max(390px,calc(100dvh - 255px));max-height:900px;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:7px;}
+.montagem-pendencias{position:relative;font-size:11px;color:var(--st-int);white-space:nowrap;}
+.montagem-pendencias summary{cursor:pointer;font-weight:700;padding:5px;border:1px solid var(--st-int);border-radius:5px;list-style:none;}
+.montagem-pendencias summary::-webkit-details-marker{display:none;}
+.montagem-pendencias-list{position:absolute;right:0;top:calc(100% + 4px);width:min(420px,90vw);max-height:260px;overflow:auto;z-index:5;padding:9px;background:var(--surface);border:1px solid var(--st-int);border-radius:7px;box-shadow:var(--shadow);white-space:normal;}
+.montagem-pendencias-list div{padding:3px 0;border-bottom:1px solid var(--border);}
+.montagem-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 7px;}
+.montagem-summary{min-width:0;padding:7px 9px;background:var(--surface);border:1px solid var(--border-strong);border-top:3px solid var(--accent);border-radius:7px;box-shadow:var(--shadow);}
+.montagem-summary.over{border-top-color:var(--danger);}
+.montagem-summary-top,.montagem-summary-bottom{display:flex;justify-content:space-between;align-items:baseline;gap:5px;}
+.montagem-summary strong{font-size:13px;white-space:nowrap;}
+.montagem-summary small{font-size:10px;color:var(--text-muted);white-space:nowrap;}
+.montagem-summary-bottom{font-size:11px;margin-top:3px;white-space:nowrap;}
+.montagem-summary-bottom b{font-size:13px;}
+.montagem-summary-line{display:flex;justify-content:space-between;gap:5px;margin-top:3px;font-size:10px;white-space:nowrap;}
+.montagem-summary-line b{font-size:11px;}
+.montagem-summary .bar{height:4px;background:var(--surface-2);border-radius:3px;margin-top:5px;overflow:hidden;}
+.montagem-summary .bar span{display:block;height:100%;background:var(--st-ok);}
+.montagem-summary.over .bar span{background:var(--danger);}
+.montagem-board-scroll{width:100%;overflow-x:auto;padding-bottom:3px;}
+.montagem-board{display:grid;grid-template-columns:minmax(190px,1.13fr) repeat(4,minmax(185px,1fr));gap:6px;min-width:960px;}
+.montagem-lane{display:flex;flex-direction:column;height:max(420px,calc(100dvh - 180px));min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px;}
 .montagem-lane.drag-over{outline:3px solid var(--accent);}
-.montagem-lane-head{font-size:13px;font-weight:800;padding:5px 3px 7px;border-bottom:1px solid var(--border);}
-.montagem-lane-head small{display:block;color:var(--text-muted);font-weight:600;line-height:1.35;margin-top:3px;}
-.montagem-queue-controls{display:flex;gap:5px;padding:7px 0;}
+.montagem-lane-head{font-size:12px;font-weight:800;padding:2px 3px 5px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.montagem-lane-head small{font-weight:600;color:var(--text-muted);margin-left:4px;}
+.montagem-queue-controls{display:flex;gap:4px;padding:5px 0;}
 .montagem-queue-controls input{min-width:0;width:100%;}
-.montagem-queue-controls select{width:70px;flex:none;}
-.montagem-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:3px 3px 20px;}
-.montagem-card{background:var(--surface);border:1px solid var(--border-strong);border-radius:7px;padding:7px;margin:4px 0;cursor:grab;font-size:11px;line-height:1.35;overflow-wrap:anywhere;}
+.montagem-queue-controls select{width:62px;flex:none;}
+.montagem-queue-controls input,.montagem-queue-controls select{height:29px;padding:2px 4px;font-size:11px;}
+.montagem-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1px 2px 34px;}
+.montagem-card{background:var(--surface);border:1px solid var(--border-strong);border-radius:5px;padding:4px 5px;margin:2px 0;cursor:grab;font-size:11px;line-height:1.25;overflow-wrap:anywhere;}
 .montagem-card.reserva{border-left:4px solid var(--st-int);background:var(--st-int-bg);}
-.montagem-card.principal{border-left:4px solid var(--st-ok);}
+.montagem-card.principal{border-left:3px solid var(--st-ok);}
 .montagem-card.drop-before{border-top:3px solid var(--accent);}
 .montagem-card.drop-after{border-bottom:3px solid var(--accent);}
-.montagem-card strong{font-size:13px;}.montagem-card .sub{color:var(--text-muted);}
-.montagem-card .card-top{display:flex;align-items:center;justify-content:space-between;gap:5px;}
-.montagem-card .card-kg{font-weight:700;white-space:nowrap;}
-.montagem-card details{margin-top:3px;color:var(--text-muted);}
-.montagem-card summary{cursor:pointer;}
+.montagem-card strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.montagem-card .card-top,.montagem-card .card-foot{display:flex;align-items:center;gap:4px;min-width:0;}
+.montagem-card .card-top{justify-content:space-between;}
+.montagem-card .card-code{display:flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;}
+.montagem-card .card-code small{color:var(--text-muted);font-size:10px;white-space:nowrap;}
+.montagem-card .card-kg{font-weight:700;white-space:nowrap;font-size:11px;}
+.montagem-card .card-foot{justify-content:space-between;margin-top:2px;flex-wrap:wrap;}
+.montagem-card details{color:var(--text-muted);font-size:10px;min-width:0;}
+.montagem-card summary{cursor:pointer;white-space:nowrap;}
+.montagem-card details[open]{flex-basis:100%;order:3;}
+.montagem-card details[open] .montagem-card-extra{white-space:normal;}
+.montagem-card-extra{padding:4px 2px;max-height:170px;overflow:auto;}
 .montagem-card .need-detail{border-top:1px solid var(--border);padding:3px 0;}
-.montagem-card select{font-size:11px;padding:3px;max-width:100%;}
-.montagem-card-actions{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:5px;}
-.montagem-card-actions button{padding:3px 6px;min-height:29px;font-size:11px;}
+.montagem-card-actions{display:flex;gap:2px;align-items:center;margin-left:auto;}
+.montagem-card-actions select{width:55px;height:24px;padding:1px 0;font-size:10px;}
+.montagem-card-actions button{padding:1px 4px;min-height:24px;font-size:10px;line-height:1;white-space:nowrap;}
+.montagem-card-actions .type-btn{border-radius:10px;font-weight:700;}
 .montagem-card-actions .reserva-on{background:var(--st-int);color:#fff;border-color:var(--st-int);}
 .montagem-card .separation{color:var(--st-int);font-size:10px;}
 .montagem-over{color:var(--danger)!important;font-weight:800!important;}
-@media(max-width:650px){.montagem-page-head h1{font-size:25px}.montagem-lane{height:max(350px,calc(100dvh - 275px))}.montagem-total span{white-space:normal}}
+@media(max-width:1050px){.montagem-grand{display:none}.montagem-source{flex-basis:160px}}
+@media(max-width:700px){.montagem-page-head h1{font-size:19px}.montagem-source{order:5;flex-basis:100%;margin-top:-4px}.montagem-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.montagem-lane{height:max(370px,calc(100dvh - 230px))}.montagem-board{min-width:960px}}
 
 /* ---------- Correção: header title / sync info / micro panel ---------- */
 .correcao-title{font-size:15px;color:var(--accent);letter-spacing:.03em;}
@@ -2729,23 +2758,33 @@ function montagemCard(m,c){
   if(others.some(function(x){return x.liga!==c.liga;}))reasons.push("liga");
   if(others.some(function(x){return x.corte!==c.corte;}))reasons.push("corte");
   return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+'" draggable="true" data-montagem-card="'+id+'">'+
-    '<div class="card-top"><strong>'+esc(c.codigo)+'</strong><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span></div>'+
-    '<div class="sub" title="'+esc(c.clientes.join(', '))+'">'+esc(c.clientes.join(' · '))+'</div>'+
-    '<div class="sub">Liga '+esc(c.liga||"—")+' · '+esc(c.prensa)+'</div>'+
-    (reasons.length?'<div class="separation">Separada por '+esc(reasons.join('/'))+' diferente</div>':'')+
-    '<details><summary>'+c.needs.length+' pedido/item'+(c.needs.length>1?'s':'')+' · ver origem</summary>'+
-      c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+'</details>'+
-    '<div class="montagem-card-actions"><select aria-label="Mover '+esc(c.codigo)+'" data-montagem-move="'+id+'"><option value="queue" '+(key==="queue"?"selected":"")+'>Disponíveis</option>'+
-      MONTAGEM_LANES.filter(function(l){return c.prensasPermitidas.indexOf(l.prensa)>=0;}).map(function(l){return '<option value="'+l.key+'" '+(key===l.key?"selected":"")+'>'+l.label+'</option>';}).join("")+'</select>'+
-      (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer">↓</button><button type="button" class="'+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" aria-pressed="'+reserva+'">Reserva '+(reserva?'ligada':'desligada')+'</button>':"")+
-    '</div></div>';
+    '<div class="card-top"><span class="card-code"><strong title="'+esc(c.codigo)+'">'+esc(c.codigo)+'</strong><small>'+esc(c.prensa)+' · '+esc(c.liga||"—")+'</small></span><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span></div>'+
+    '<div class="card-foot"><details><summary>'+c.needs.length+' item'+(c.needs.length>1?'s':'')+(reasons.length?' · separado':'')+'</summary><div class="montagem-card-extra">'+
+      '<div>Cliente: '+esc(c.clientes.join(' · '))+'</div>'+(reasons.length?'<div class="separation">Separado por '+esc(reasons.join('/'))+' diferente</div>':'')+
+      c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+'</div></details>'+
+    '<div class="montagem-card-actions"><select aria-label="Mover '+esc(c.codigo)+' para" title="Mover para coluna" data-montagem-move="'+id+'"><option value="queue" '+(key==="queue"?"selected":"")+'>Fila</option>'+
+      MONTAGEM_LANES.filter(function(l){return c.prensasPermitidas.indexOf(l.prensa)>=0;}).map(function(l){return '<option value="'+l.key+'" '+(key===l.key?"selected":"")+'>'+l.prensa+' '+(l.turno==="Dia"?'T1':'T2')+'</option>';}).join("")+'</select>'+
+      (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" title="Subir" aria-label="Subir '+esc(c.codigo)+'">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" title="Descer" aria-label="Descer '+esc(c.codigo)+'">↓</button><button type="button" class="type-btn '+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" aria-pressed="'+reserva+'" title="Alternar Principal e Reserva">'+(reserva?'Reserva':'Principal')+'</button>':"")+
+    '</div></div></div>';
+}
+function montagemSummary(m,l){
+  var s=montagemStats(m,l.key),cap=montagemCapacity(m,l.prensa,l.turno),pct=cap>0?100*s.principal/cap:cap===0&&s.principal===0?0:null,over=cap!=null&&s.principal>cap;
+  return '<div class="montagem-summary '+(over?'over':'')+'"><div class="montagem-summary-top"><strong>'+esc(l.prensa)+' turno '+(l.turno==="Dia"?'1':'2')+'</strong><small>'+esc(fmtDateBR(m.data))+' · '+esc(l.turno)+'</small></div>'+
+    '<div class="montagem-summary-line"><span>'+s.n+' ferramenta'+(s.n===1?'':'s')+'</span><span>Principal <b>'+fmtKg(s.principal)+' kg</b></span></div>'+
+    '<div class="montagem-summary-line"><span>Reserva <b>'+fmtKg(s.reserva)+' kg</b></span><span>Cap. <b>'+(cap==null?'—':fmtKg(cap)+' kg')+'</b></span></div>'+
+    '<div class="montagem-summary-bottom"><span>Ocupação Principal</span><b class="'+(over?'montagem-over':'')+'">'+(cap===0&&over?'Excede':pct==null?'—':Math.round(pct)+'%')+'</b></div>'+
+    '<div class="bar" aria-hidden="true"><span style="width:'+(pct==null?0:Math.max(0,Math.min(100,pct)))+'%"></span></div></div>';
 }
 function renderMontagemPage(){
   var m=state.montagem;if(!m)return "";
   var cards=montagemCards(m),total=montagemStats(m),body='';
-  var head='<div class="montagem-page-head"><div><h1>Montar programação</h1><div class="hint">'+
-    (m.sourceName?'Master: '+esc(m.sourceName):'Carregue a Master para iniciar')+'</div></div><div class="montagem-page-actions">'+
-    '<button type="button" class="btn btn-ghost" data-action="montagem-close">Voltar ao painel</button></div></div>';
+  var head='<header class="montagem-page-head"><h1>Montar programação</h1>'+
+    (m.step!=="carregar"?'<label>Data <input type="date" id="montagem-data" value="'+esc(m.data)+'" '+(m.step==="editar"?'':'disabled')+'></label>':'')+
+    '<span class="montagem-source" title="'+esc(m.sourceName||"Carregue a Master")+'">Master: '+esc(m.sourceName||"aguardando arquivo")+'</span>'+
+    (m.step==="editar"?'<span class="montagem-grand" title="Total colocado nas quatro colunas">'+total.n+' ferramentas · '+fmtKg(total.kg)+' kg BZ</span>'+
+      (m.pending&&m.pending.length?'<details class="montagem-pendencias"><summary>'+m.pending.length+' pendência'+(m.pending.length===1?'':'s')+'</summary><div class="montagem-pendencias-list">'+m.pending.map(function(c){return '<div>'+esc(c.codigo)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+' · '+esc(c.reason)+' · BZ '+(c.kgExtrudar==null?'vazio':fmtKg(c.kgExtrudar))+' kg</div>';}).join('')+'</div></details>':''):'')+
+    '<div class="montagem-page-actions">'+(m.step==="editar"?'<button type="button" class="btn btn-ghost" data-action="montagem-reload">Trocar Master</button>':'')+
+    '<button type="button" class="btn btn-ghost" data-action="montagem-close">Voltar ao painel</button></div></header>';
   if(m.step==="carregar"){
     body='<div class="montagem-upload"><h2>Carregar Master</h2><p>Selecione a planilha com B03 CART ou B03_CART, 0.PARAM e 0.CALEND.</p>'+
       '<input id="montagem-b03-file" type="file" accept=".xlsx,.xlsm,.xls" aria-label="Carregar Master">'+
@@ -2753,12 +2792,7 @@ function renderMontagemPage(){
       (m.error?'<div class="error-msg" role="alert">'+esc(m.error)+'</div>':'')+'</div>';
     return '<main class="montagem-page">'+head+body+'</main>';
   }
-  body='<div class="montagem-page-actions"><label>Data <input type="date" id="montagem-data" value="'+esc(m.data)+'" '+(m.step==="editar"?'':'disabled')+'></label>'+
-    (m.step==="editar"?'<button type="button" class="btn btn-ghost" data-action="montagem-reload">Trocar Master</button>':'')+'</div>'+
-    '<div class="montagem-total"><span>'+total.n+' ferramenta(s) · '+total.needs+' pedido/item · '+fmtKg(total.kg)+' kg BZ</span>'+
-    '<span>Principal: '+fmtKg(total.principal)+' kg</span><span>Reserva: '+fmtKg(total.reserva)+' kg</span></div>'+
-    '<div class="hint">Turno 1 = Dia '+esc(fmtDateBR(m.data))+'; turno 2 = Noite '+esc(fmtDateBR(m.data))+
-      '. Sequência seguinte: Dia e Noite do próximo dia. Reserva é do turno alvo; reserva da Noite tem origem no Dia.</div>';
+  body='';
   if(m.step==="previa"){
     body+='<div class="warn-msg">Revise a substituição por data e turno. O Histórico conserva as versões anteriores.</div>';
     Object.keys(m.plan).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' necessidade(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
@@ -2771,17 +2805,16 @@ function renderMontagemPage(){
   }else if(m.step==="concluido"){
     body+='<div class="hint">Programação publicada. Consulte o PCP e a Correção.</div>';
   }else{
-    body+='<div class="hint">'+m.gateCount+' liberados AZ/BX · '+m.pressCount+' com P4/P7 · '+m.candidates.length+' necessidades programáveis · '+(m.pending||[]).length+' pendências</div>'+
-      (m.pending&&m.pending.length?'<details class="montagem-pendencias"><summary>'+m.pending.length+' pendência(s) da Master fora da fila</summary>'+m.pending.map(function(c){return '<div>'+esc(c.codigo)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+' · '+esc(c.reason)+' · BZ '+(c.kgExtrudar==null?'vazio':fmtKg(c.kgExtrudar))+' kg</div>';}).join('')+'</details>':'');
+    body+='<div class="montagem-summary-grid">'+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+'</div>';
     var queue=cards.filter(function(c){return !montagemLocation(m,c.id) && (m.filtroPrensa==="Todas"||m.filtroPrensa===c.prensa) &&
       historicoMatches({codigo:c.codigo,cliente:c.clientes.join(' ')+' '+c.needs.map(function(n){return n.pedido+' '+n.item;}).join(' ')},m.busca);});
     body+='<div class="montagem-board-scroll"><div class="montagem-board">'+
-      '<section class="montagem-lane"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' ferramenta(s) na fila</small></div>'+
+      '<section class="montagem-lane"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' na fila</small></div>'+
       '<div class="montagem-queue-controls"><input id="montagem-busca" type="search" placeholder="Ferramenta, cliente, pedido…" value="'+esc(m.busca||'')+'" aria-label="Buscar disponíveis">'+
       '<select id="montagem-prensa" aria-label="Filtrar prensa">'+['Todas','P7','P4'].map(function(p){return '<option '+(m.filtroPrensa===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
       '<div class="montagem-list" data-montagem-scroll="queue" data-montagem-drop="queue">'+queue.map(function(c){return montagemCard(m,c);}).join('')+'</div></section>'+
-      MONTAGEM_LANES.map(function(l){var s=montagemStats(m,l.key),cap=montagemCapacity(m,l.prensa,l.turno),over=cap!=null&&s.principal>cap;
-        return '<section class="montagem-lane"><div class="montagem-lane-head">'+l.label+' · '+esc(fmtDateBR(m.data))+'<small>'+s.n+' ferramenta(s) · Principal '+fmtKg(s.principal)+' kg · Reserva '+fmtKg(s.reserva)+' kg</small><small class="'+(over?'montagem-over':'')+'">Capacidade '+(cap==null?'indisponível':fmtKg(cap)+' kg')+(over?' · Principal excede em '+fmtKg(s.principal-cap)+' kg':'')+'</small></div>'+
+      MONTAGEM_LANES.map(function(l){
+        return '<section class="montagem-lane"><div class="montagem-lane-head">'+l.label+'</div>'+
           '<div class="montagem-list" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c):'';}).join('')+'</div></section>';}).join('')+
       '</div></div><div style="margin-top:10px;"><button type="button" class="btn btn-primary" data-action="montagem-preview" '+(!m.sourceValidated||!total.n||!m.capacity.calendar[m.data]?'disabled':'')+'>Revisar programação</button></div>';
     if(!m.capacity.calendar[m.data])body+='<div class="warn-msg">Data fora do calendário da Master: escolha uma data com capacidade em 0.CALEND para publicar.</div>';
