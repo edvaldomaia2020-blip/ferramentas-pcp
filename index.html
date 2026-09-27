@@ -574,14 +574,22 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-reserve3-lane{min-width:0;padding:4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);}
 .montagem-reserve3-lane.drag-over{outline:2px solid var(--accent);}
 .montagem-reserve3-title{font-size:11px;font-weight:800;white-space:nowrap;}
-.montagem-reserve3-list{display:flex;align-items:stretch;gap:4px;min-height:54px;max-height:93px;overflow:auto;padding:2px 2px 8px;overscroll-behavior:contain;}
+.montagem-reserve3-list{display:flex;flex-direction:column;gap:2px;min-height:54px;overflow:visible;padding:2px 2px 12px;}
 .montagem-reserve3-list.drag-over{outline:2px solid var(--accent);}
-.montagem-reserve3-list .montagem-card{flex:0 0 190px;max-width:190px;margin:0;}
+.montagem-reserve3-list .montagem-card{width:100%;margin:0;}
+.montagem-capacity{position:relative;font-size:11px;}
+.montagem-capacity summary{cursor:pointer;font-weight:700;white-space:nowrap;}
+.montagem-capacity-panel{position:absolute;top:100%;right:0;z-index:8;width:min(580px,calc(100vw - 24px));max-height:70dvh;overflow:auto;padding:10px;background:var(--surface);border:1px solid var(--border-strong);border-radius:7px;box-shadow:var(--shadow);}
+.montagem-capacity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+.montagem-capacity-grid label{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.montagem-capacity-grid input{width:78px;min-width:0;padding:4px;font-size:12px;}
+.montagem-capacity-note{font-size:10px;color:var(--text-muted);margin:6px 0;}
 .montagem-conflict{padding:8px;margin:6px 0;border:1px solid var(--st-int);border-radius:6px;background:var(--st-int-bg);font-size:12px;}
 .montagem-conflict button{margin:5px 4px 0 0;}
 .montagem-card .card-client{display:flex;align-items:center;min-width:55px;flex:1;overflow:hidden;white-space:nowrap;color:var(--text);font-size:10px;text-align:left;}
 .montagem-card .card-client .client-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .montagem-card .card-client .client-count{flex:none;margin-left:2px;}
+.montagem-card .client-progress{flex:none;margin-left:3px;font-weight:800;color:var(--accent);}
 .montagem-card button.card-client{border:0;background:transparent;padding:2px 0;min-height:24px;cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;}
 .montagem-client-popover{position:fixed;inset:auto;margin:0;width:min(310px,calc(100vw - 16px));max-height:min(280px,calc(100dvh - 16px));overflow:auto;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border-strong);border-radius:7px;box-shadow:var(--shadow);font-size:11px;}
 .montagem-client-popover strong{display:block;margin-bottom:4px;font-size:11px;}
@@ -2607,8 +2615,8 @@ var MONTAGEM_LANES = [
   {key:"P4_T2",prensa:"P4",turno:"Dia",offset:1,posicao:"PROXIMA",numero:2,label:"P4 · Turno 2"}
 ];
 var MONTAGEM_RESERVE_LANES = [
-  {key:"P7_R3",prensa:"P7",turno:"Dia",offset:1,posicao:"PROXIMA",numero:3,label:"P7"},
-  {key:"P4_R3",prensa:"P4",turno:"Dia",offset:1,posicao:"PROXIMA",numero:3,label:"P4"}
+  {key:"P7_R3",prensa:"P7",turno:"Noite",offset:1,posicao:"FUTURA",numero:3,label:"P7"},
+  {key:"P4_R3",prensa:"P4",turno:"Noite",offset:1,posicao:"FUTURA",numero:3,label:"P4"}
 ];
 var MONTAGEM_ALL_LANES=MONTAGEM_LANES.concat(MONTAGEM_RESERVE_LANES);
 function montagemEmptyColumns(){return {P7_T1:[],P7_T2:[],P4_T1:[],P4_T2:[],P7_R3:[],P4_R3:[]};}
@@ -2624,10 +2632,16 @@ function montagemParseB03(wb){
     if(MONTAGEM_B03_COLS.every(function(name){return cols[normalizeHeader(name)]!==undefined;})){header=i;map=cols;break;}
   }
   if(header<0) throw new Error("Cabeçalhos obrigatórios da B03 CART ausentes. Confira a versão da Master.");
-  var candidates=[],pending=[],seen={},excluded=0,gateCount=0,pressCount=0;
+  var candidates=[],pending=[],coverage=[],seen={},excluded=0,gateCount=0,pressCount=0;
   function value(row,name){var j=map[normalizeHeader(name)];return row[j]==null?"":String(row[j]).trim();}
   for(var r=header+1;r<grid.length;r++){
     var row=grid[r]||[],status=value(row,"STATUS_PCP"),gate=baseAppReadNumCell(sheet,r,map[normalizeHeader("PROGRAMÁVEL AGORA?")]);
+    var pedidoAll=value(row,"PEDIDO_ID"),itemAll=value(row,"ITEM"),pressAll=value(row,"PRENSA"),clientAll=value(row,"CLIENTE (DA CENTRAL)"),
+      saldoAll=baseAppReadNumCell(sheet,r,map[normalizeHeader("SALDO A PRODUZIR KG (SD_KG)")]),
+      bzAll=baseAppReadNumCell(sheet,r,map[normalizeHeader("KG A EXTRUDAR LÍQUIDO")]);
+    if(pedidoAll&&itemAll&&clientAll&&["P7","P4"].indexOf(pressAll)>=0&&saldoAll>0&&status!=="CANCELADO")
+      coverage.push({idNecessidade:pedidoAll+"|"+itemAll,cliente:clientAll,prensa:pressAll,
+        blocked:status!=="LIBERADO P/ PCP"||gate!==1||!(bzAll>0),statusPCP:status});
     if(status!=="LIBERADO P/ PCP" || gate!==1){excluded++;continue;}
     gateCount++;
     var pedido=value(row,"PEDIDO_ID"),item=value(row,"ITEM"),codigo=value(row,"FERRAMENTA_ID"),
@@ -2646,7 +2660,7 @@ function montagemParseB03(wb){
       saldoKg:saldo,kgExtrudar:kg,prensasPermitidas:[prensa],liga:value(row,"LIGA"),corte:value(row,"COMPRIMENTO"),
       statusPCP:status,programavelAgora:true});
   }
-  return {candidates:candidates,pending:pending,excluded:excluded,gateCount:gateCount,pressCount:pressCount};
+  return {candidates:candidates,pending:pending,coverage:coverage,excluded:excluded,gateCount:gateCount,pressCount:pressCount};
 }
 function montagemIsoDateCell(cell){
   if(!cell || cell.v==null)return null;
@@ -2667,13 +2681,14 @@ function montagemParseCapacity(wb){
   pgrid.forEach(function(row,r){var name=normalizeHeader(row[1]);if(name)labels[name]=r;});
   function find(label){var r=labels[normalizeHeader(label)];return r===undefined?null:baseAppReadNumCell(param,r,2);}
   function raw(label){var r=labels[normalizeHeader(label)];return r===undefined?null:param["C"+(r+1)];}
-  var hoursDay=find("Horas do turno do dia"),hoursNight=find("Horas do turno da noite"),
+  var hoursDay=find("Horas do turno DIA"),hoursNight=find("Horas do turno NOITE"),
     normal=find("Horas por dia útil — regime normal (10 h dia + 9 h noite)"),
     reinforced=find("Horas por dia útil — regime reforçado (2 turnos × 12 h)"),
+    p7Day=find("Prensa P7 — capacidade líquida"),p4Day=find("Prensa P4 — capacidade líquida"),
     start=montagemIsoDateCell(raw("Reforço de turnos — primeiro dia")),
     end=montagemIsoDateCell(raw("Reforço de turnos — último dia"));
   var nightCell=raw("Turno da noite ativo? (SIM/NÃO)"),nightActive=nightCell&&normalizeHeader(nightCell.v)==="SIM";
-  if(!(hoursDay>0)||!(hoursNight>0)||!(normal>0)||!(reinforced>0)||!start||!end||!nightCell)
+  if(!(hoursDay>0)||!(hoursNight>0)||!(normal>0)||!(reinforced>0)||!(p7Day>0)||!(p4Day>0)||!start||!end||!nightCell)
     throw new Error("Parâmetros de horas/regime da aba 0.PARAM ausentes ou inválidos.");
   var calendar={};
   for(var r=5;r<Math.min(sheetToGrid(cal).length,400);r++){
@@ -2684,15 +2699,30 @@ function montagemParseCapacity(wb){
   }
   if(!Object.keys(calendar).length)throw new Error("Nenhuma capacidade diária válida encontrada em 0.CALEND.");
   return {calendar:calendar,hoursDay:hoursDay,hoursNight:hoursNight,normal:normal,
+    kgHour:{P7:p7Day*1000/normal,P4:p4Day*1000/normal},
     reinforced:reinforced,start:start,end:end,nightActive:nightActive};
 }
+function montagemCapacityDefaults(m){
+  var c=m.capacity,hours={},rate=c&&c.kgHour||{};
+  if(!c)return {hours:hours,rate:{P7:null,P4:null}};
+  MONTAGEM_ALL_LANES.forEach(function(l){
+    var date=montagemLaneDate(m,l),daily=c.calendar[date]&&c.calendar[date][l.prensa],kgHour=rate[l.prensa];
+    var reinforced=date>=c.start&&date<=c.end,dayH=reinforced?c.reinforced/2:c.hoursDay,
+      nightH=c.nightActive?(reinforced?c.reinforced/2:c.hoursNight):0;
+    hours[l.key]=Number.isFinite(daily)&&kgHour>0?
+      Math.round(daily/kgHour*(l.turno==="Dia"?dayH:nightH)/(dayH+nightH)*100)/100:null;
+  });
+  return {hours:hours,rate:{P7:rate.P7||null,P4:rate.P4||null}};
+}
+function montagemResetCapacity(m){m.capacityEdit=montagemCapacityDefaults(m);}
+function montagemCapacityInfo(m,key){
+  var l=montagemLane(key),defaults=montagemCapacityDefaults(m),edit=m.capacityEdit||defaults,
+    hours=edit.hours&&edit.hours[key],rate=edit.rate&&edit.rate[l.prensa];
+  return {hours:hours,kgHour:rate,kg:hours==null||rate==null?null:Math.round(hours*rate*100)/100};
+}
 function montagemCapacity(m,prensa,turno,date){
-  var c=m.capacity,selected=date||m.data,day=c&&c.calendar[selected];
-  if(!day || !Number.isFinite(day[prensa]))return null;
-  var special=selected>=c.start && selected<=c.end;
-  var hours=special?c.reinforced/2:(turno==="Dia"?c.hoursDay:c.hoursNight);
-  if(turno==="Noite" && !c.nightActive)return 0;
-  return Math.round(day[prensa]*hours/(special?c.reinforced:c.normal)*100)/100;
+  var selected=date||m.data,l=MONTAGEM_ALL_LANES.find(function(x){return x.prensa===prensa&&x.turno===turno&&montagemLaneDate(m,x)===selected;});
+  return l?montagemCapacityInfo(m,l.key).kg:null;
 }
 function montagemLoadB03(file){
   var m=state.montagem;if(!m||!file)return;
@@ -2701,13 +2731,13 @@ function montagemLoadB03(file){
   ensureXLSX(function(){var reader=new FileReader();
     reader.onload=function(e){try{
       var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}),result=montagemParseB03(wb),capacity=montagemParseCapacity(wb);
-      m.candidates=result.candidates;m.cards=montagemBuildCards(result.candidates);m.pending=result.pending;
+      m.candidates=result.candidates;m.cards=montagemBuildCards(result.candidates);m.pending=result.pending;m.coverage=result.coverage;
       m.sourceValidated=result.candidates.length>0;m.sourceName=file.name;
-      m.capacity=capacity;m.step="editar";
+      m.capacity=capacity;montagemResetCapacity(m);m.step="editar";
       m.excluded=result.excluded;m.gateCount=result.gateCount;m.pressCount=result.pressCount;
       m.columns=montagemEmptyColumns();m.tipo={};m.links={};
       if(!m.sourceValidated)m.error="Nenhuma necessidade com BZ positivo e prensa válida na B03 CART.";
-    }catch(err){m.candidates=[];m.cards=[];m.pending=[];m.capacity=null;m.sourceValidated=false;m.step="carregar";m.error=err&&err.message||"Erro ao ler B03 CART.";}
+    }catch(err){m.candidates=[];m.cards=[];m.pending=[];m.coverage=[];m.capacity=null;m.capacityEdit=null;m.sourceValidated=false;m.step="carregar";m.error=err&&err.message||"Erro ao ler B03 CART.";}
     m.loading=false;render();};
     reader.onerror=function(){m.loading=false;m.error="Erro ao ler arquivo.";render();};
     reader.readAsArrayBuffer(file);
@@ -2763,7 +2793,7 @@ function montagemMove(m,id,to,index,fromKey){
   }
   var rows=from?m.columns[from.key]:null,fromIndex=rows?rows.indexOf(id):-1;
   if(rows)rows.splice(fromIndex,1);
-  if(lane){var target=m.columns[lane.key],at=index==null?target.length:index;
+  if(lane){var target=m.columns[lane.key],at=!from?target.length:index==null?target.length:index;
     if(from && from.key===lane.key && fromIndex<at)at--;
     target.splice(Math.max(0,Math.min(at,target.length)),0,id);
   }
@@ -2785,15 +2815,15 @@ function montagemSetType(m,key,id,type){
     }
     m.tipo[key+"|"+id]="RESERVA";m.conflict=null;m.error="";return true;
   }
-  if(m.columns[next.key].includes(id)){
-    m.conflict={id:id,key:key,next:next.key};
-    m.error="O mesmo pedido/item ficaria como Principal nos turnos 1 e 2. Escolha explicitamente qual posição manter.";
-    return false;
-  }
-  m.tipo[key+"|"+id]="PRINCIPAL";m.conflict=null;m.error="";return true;
+  // Desligar a Reserva retira só a ocorrência T1; a posição T2 é própria.
+  m.columns[key]=m.columns[key].filter(function(x){return x!==id;});
+  delete m.tipo[key+"|"+id];m.conflict=null;m.error="";return true;
 }
 function montagemResolveConflict(m,choice){
   var p=m.conflict;if(!p)return;
+  if(p.kind==="transferT2" && choice==="transfer"){
+    montagemMove(m,p.id,p.to,null,p.from);m.conflict=null;m.error="";return;
+  }
   if(p.kind==="removeR3"){
     if(choice==="remove")m.columns[p.from]=m.columns[p.from].filter(function(id){return id!==p.id;});
     m.conflict=null;m.error="";m.step="editar";return;
@@ -2815,19 +2845,37 @@ function montagemStats(m,key){
   }
   return s;
 }
+function montagemClientCoverage(m,prensa,cliente){
+  var normalize=function(x){return String(x||"").trim().replace(/\s+/g," ").toLocaleLowerCase("pt-BR");},name=normalize(cliente),
+    all=new Set(),blocked=[],placed=new Set();
+  (m.coverage||[]).forEach(function(n){if(n.prensa===prensa&&normalize(n.cliente)===name){
+    all.add(n.idNecessidade);if(n.blocked)blocked.push(n);
+  }});
+  montagemCards(m).forEach(function(card){if(card.prensa!==prensa||!montagemLocations(m,card.id).length)return;
+    card.needs.forEach(function(n){if(normalize(n.cliente)===name&&(!all.size||all.has(n.idNecessidade)))placed.add(n.idNecessidade);});
+  });
+  return {placed:placed.size,total:all.size||montagemCards(m).filter(function(c){return c.prensa===prensa;}).reduce(function(sum,c){
+    return sum+c.needs.filter(function(n){return normalize(n.cliente)===name;}).length;
+  },0),blocked:blocked};
+}
 function montagemRecords(m,posicao){
   var out=[],tomorrow=montagemNextDate(m.data);
   function append(l,secao,slot,date,turno,linked,ids){
     (ids||m.columns[l.key]||[]).forEach(function(id){var card=montagemCandidate(m,id);if(!card)return;
       card.needs.forEach(function(c){
         var link=linked==="T2_T3"?"T2_T3|"+m.data+"|"+c.idNecessidade:
-          m.links&&m.links[id]&&((slot==="ATUAL"&&secao==="RESERVA")||(slot==="PROXIMA"&&secao==="PRINCIPAL"))?
+          m.links&&m.links[id]&&m.columns[l.prensa+"_T1"].includes(id)&&
+            montagemType(m,l.prensa+"_T1",id)==="RESERVA"&&
+            ((slot==="ATUAL"&&secao==="RESERVA")||(slot==="PROXIMA"&&secao==="PRINCIPAL"))?
             "T1_T2|"+m.data+"|"+c.idNecessidade:null;
+        var capKey=slot==="ATUAL"?l.prensa+"_T1":slot==="FUTURA"?l.prensa+"_R3":l.prensa+"_T2",
+          cap=montagemCapacityInfo(m,capKey);
         out.push({_excelRow:out.length+1,posicao:slot,origem:"MONTAGEM B03",dataProgramacao:date,
           dataBaseMontagem:m.data,turno:turno,turnoBruto:turno,prensa:l.prensa,ferramenta:c.codigo,cliente:c.cliente,
           quantidadeKg:Number(c.kgExtrudar),saldoKgInformado:c.saldoKg,corte:c.corte||"",liga:c.liga||"",observacao:c.observacao||"",
           secao:secao,ordemOrigem:out.length+1,chaveOrigem:c.idNecessidade+"|"+slot+"|"+secao,
           idNecessidade:c.idNecessidade,pedido:c.pedido,item:c.item,vinculoProgramacao:link,
+          capacidadeHoras:cap.hours,capacidadeKgHora:cap.kgHour,capacidadeKg:cap.kg,
           turnoOrigem:secao==="RESERVA"?(turno==="Noite"?"Dia":"Noite"):null});});
     });
   }
@@ -2891,6 +2939,7 @@ function montagemCardClients(c){
 function montagemCard(m,c,laneKey){
   var loc=laneKey&&laneKey!=="queue"?montagemLane(laneKey):null,id=esc(c.id),
     reserva=loc&&montagemType(m,laneKey,c.id)==="RESERVA",clients=montagemCardClients(c);
+  clients.forEach(function(x){x.coverage=montagemClientCoverage(m,c.prensa,x.name);});
   var others=montagemCards(m).filter(function(x){return x.codigo===c.codigo && x.id!==c.id;});
   var reasons=[];
   if(others.some(function(x){return x.prensa!==c.prensa;}))reasons.push("prensa");
@@ -2899,27 +2948,32 @@ function montagemCard(m,c,laneKey){
   return '<div class="montagem-card '+(loc?(reserva?'reserva':'principal'):'')+'" draggable="true" data-montagem-card="'+id+'" data-montagem-from="'+esc(laneKey||"queue")+'">'+
     '<div class="card-top"><span class="card-code"><strong title="'+esc(c.codigo)+'">'+esc(c.codigo)+'</strong><small>'+esc(c.prensa)+' · '+esc(c.liga||"—")+'</small></span><span class="card-kg">'+fmtKg(c.kgExtrudar)+' kg</span></div>'+
     '<div class="card-foot">'+(clients.length>1?
-      '<button type="button" class="card-client" data-action="montagem-clients" aria-expanded="false" title="Ver clientes de '+esc(c.codigo)+'"><span class="client-name">'+esc(clients[0].name)+'</span><span class="client-count">+'+(clients.length-1)+' clientes</span></button>':
-      '<span class="card-client" title="'+esc(clients[0]?clients[0].name:"")+'">'+esc(clients[0]?clients[0].name:"")+'</span>')+
+      '<button type="button" class="card-client" data-action="montagem-clients" aria-expanded="false" title="Ver clientes de '+esc(c.codigo)+'"><span class="client-name">'+esc(clients[0].name)+'</span><span class="client-progress">'+clients[0].coverage.placed+'/'+clients[0].coverage.total+'</span><span class="client-count">+'+(clients.length-1)+' clientes</span></button>':
+      '<span class="card-client" title="'+esc(clients[0]?clients[0].name:"")+'"><span class="client-name">'+esc(clients[0]?clients[0].name:"")+'</span><span class="client-progress">'+(clients[0]?clients[0].coverage.placed+'/'+clients[0].coverage.total:'')+'</span></span>')+
     (clients.length>1?'<div class="montagem-client-popover" popover="auto"><strong>Clientes · '+esc(c.codigo)+'</strong>'+
-      clients.map(function(x){return '<div class="client-row"><span>'+esc(x.name)+'</span><span>'+fmtKg(x.kg)+' kg · '+x.needs+' '+(x.needs===1?'item':'itens')+'</span></div>';}).join('')+'</div>':'')+
+      clients.map(function(x){return '<div class="client-row"><span>'+esc(x.name)+' · '+x.coverage.placed+'/'+x.coverage.total+
+        (x.coverage.blocked.length?' · bloqueado: '+esc(x.coverage.blocked.map(function(b){return b.idNecessidade+' ('+b.statusPCP+')';}).join(', ')):'')+
+        '</span><span>'+fmtKg(x.kg)+' kg · '+x.needs+' '+(x.needs===1?'item':'itens')+'</span></div>';}).join('')+'</div>':'')+
     '<details><summary>'+c.needs.length+' '+(c.needs.length===1?'item':'itens')+(reasons.length?' · separado':'')+'</summary><div class="montagem-card-extra">'+
-      '<div>Cliente: '+esc(c.clientes.join(' · '))+'</div>'+(reasons.length?'<div class="separation">Separado por '+esc(reasons.join('/'))+' diferente</div>':'')+
+      '<div>Cobertura: '+clients.map(function(x){return esc(x.name)+' '+x.coverage.placed+'/'+x.coverage.total+
+        (x.coverage.blocked.length?' · bloqueado '+esc(x.coverage.blocked.map(function(b){return b.idNecessidade+' '+b.statusPCP;}).join(', ')):'');}).join('; ')+'</div>'+(reasons.length?'<div class="separation">Separado por '+esc(reasons.join('/'))+' diferente</div>':'')+
       c.needs.map(function(n){return '<div class="need-detail">Pedido '+esc(n.pedido)+' / item '+esc(n.item)+' · '+fmtKg(n.kgExtrudar)+' kg · saldo '+(n.saldoKg==null?'—':fmtKg(n.saldoKg))+' kg</div>';}).join('')+'</div></details>'+
     '<div class="montagem-card-actions">'+
       (loc?'<button type="button" data-action="montagem-up" data-id="'+id+'" data-key="'+esc(laneKey)+'" title="Voltar uma posição" aria-label="Voltar '+esc(c.codigo)+' uma posição">↑</button><button type="button" data-action="montagem-down" data-id="'+id+'" data-key="'+esc(laneKey)+'" title="Avançar uma posição" aria-label="Avançar '+esc(c.codigo)+' uma posição">↓</button>'+
-        (laneKey.endsWith("_T1")?'<button type="button" class="type-btn '+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" data-key="'+esc(laneKey)+'" aria-pressed="'+reserva+'" title="Alternar Principal e Reserva">'+(reserva?'Reserva':'Principal')+'</button>':
-          '<span class="type-label">'+(laneKey.endsWith("_R3")?'Reserva T2':'Principal')+'</span>'):"")+
+        (laneKey.endsWith("_T1")?'<button type="button" class="type-btn '+(reserva?'reserva-on':'')+'" data-action="montagem-type" data-id="'+id+'" data-key="'+esc(laneKey)+'" aria-pressed="'+reserva+'" title="'+(reserva?'Desativar Reserva e retirar somente do Turno 1':'Ativar Reserva e criar Principal no Turno 2')+'">'+(reserva?'Reserva':'Principal')+'</button>':
+          '<span class="type-label">'+(laneKey.endsWith("_R3")?'Reserva T2':'Principal')+'</span>'+
+          (laneKey.endsWith("_T2")&&!m.columns[c.prensa+"_T1"].includes(c.id)?'<button type="button" data-action="montagem-transfer" data-id="'+id+'" data-key="'+esc(laneKey)+'" title="Transferir Principal para Turno 1">→ T1</button>':'')):"")+
     '</div></div></div>';
 }
 function montagemSummary(m,l){
   var s=montagemStats(m,l.key),date=montagemLaneDate(m,l),cap=montagemCapacity(m,l.prensa,l.turno,date),
+    capInfo=montagemCapacityInfo(m,l.key),
     pct=cap>0?100*s.principal/cap:cap===0&&s.principal===0?0:null,over=cap!=null&&s.principal>cap,
     color=cap==null?"":pct==null||pct>110?"over":pct>=100?"good":"low";
   return '<div class="montagem-summary '+color+'"><div class="montagem-summary-top"><strong>'+esc(l.prensa)+' · Turno '+l.numero+'</strong><small>'+esc(fmtDateBR(date))+' · '+esc(l.turno)+'</small></div>'+
     '<div class="montagem-summary-line"><span>'+s.n+' ferramenta'+(s.n===1?'':'s')+'</span><span>Principal <b>'+fmtKg(s.principal)+' kg</b></span></div>'+
-    '<div class="montagem-summary-line"><span>Reserva <b>'+fmtKg(s.reserva)+' kg</b></span><span>Cap. <b>'+(cap==null?'—':fmtKg(cap)+' kg')+'</b></span></div>'+
-    '<div class="montagem-summary-bottom"><span>'+(over?'Excede '+fmtKg(s.principal-cap)+' kg':cap==null?'Capacidade indisponível':'Faltam '+fmtKg(Math.max(0,cap-s.principal))+' kg')+'</span><b>'+ (cap===0&&over?'Excede':pct==null?'—':Math.round(pct)+'%')+'</b></div>'+
+    '<div class="montagem-summary-line"><span>Reserva <b>'+fmtKg(s.reserva)+' kg</b></span><span>Cap. <b>'+(cap==null?'—':fmtKg(cap)+' kg')+'</b>'+(capInfo.hours===0?' · 0 h efetivas':'')+'</span></div>'+
+    '<div class="montagem-summary-bottom"><span>'+(over?'Excede '+fmtKg(s.principal-cap)+' kg':cap==null?'Capacidade indisponível':capInfo.hours===0?'Turno sem horas efetivas':'Faltam '+fmtKg(Math.max(0,cap-s.principal))+' kg')+'</span><b>'+ (cap===0&&over?'Excede':pct==null?'—':Math.round(pct)+'%')+'</b></div>'+
     '<div class="bar" aria-hidden="true"><span style="width:'+(pct==null?0:Math.max(0,Math.min(100,pct)))+'%"></span></div></div>';
 }
 function montagemAvailableSummary(m){
@@ -2930,13 +2984,21 @@ function montagemAvailableSummary(m){
     press.map(function(x){return '<div class="montagem-summary-line '+(m.filtroPrensa===x.name?'selected':'')+'"><span>'+x.name+' · '+x.n+' ferramentas</span><b>'+fmtKg(x.kg)+' kg</b></div>';}).join('')+
     '<div class="montagem-summary-bottom"><span>'+available.length+' no total</span><b>'+fmtKg(press[0].kg+press[1].kg)+' kg</b></div></div>';
 }
+function montagemCapacityControl(m){
+  var edit=m.capacityEdit||montagemCapacityDefaults(m);
+  return '<details class="montagem-capacity" '+(m.capacityOpen?'open':'')+'><summary>Capacidade dos turnos</summary><div class="montagem-capacity-panel">'+
+    '<div class="montagem-capacity-note">Horas efetivas iniciais derivadas de 0.CALEND e 0.PARAM. Ajustes valem só para esta montagem; capacidade = horas × kg/h líquido.</div>'+
+    '<div class="montagem-capacity-grid">'+MONTAGEM_ALL_LANES.map(function(l){var h=edit.hours[l.key];return '<label>'+esc(l.prensa)+' · T'+l.numero+' · '+esc(l.turno)+' <input type="number" min="0" max="24" step="0.25" data-capacity-hours="'+l.key+'" value="'+(h==null?'':h)+'" aria-label="Horas '+esc(l.prensa)+' Turno '+l.numero+'"></label>';}).join('')+
+    ['P7','P4'].map(function(p){var rate=edit.rate[p];return '<label>'+p+' · kg/h líquido <input type="number" min="0.01" step="0.01" data-capacity-rate="'+p+'" value="'+(rate==null?'':Math.round(rate*100)/100)+'" aria-label="Kg por hora '+p+'"></label>';}).join('')+
+    '</div><div class="montagem-capacity-note">Zero no calendário resulta em 0 h. Informe horas efetivas aqui para programar um turno nessa data.</div></div></details>';
+}
 function renderMontagemPage(){
   var m=state.montagem;if(!m)return "";
   var cards=montagemCards(m),total=montagemStats(m),body='';
   var head='<header class="montagem-page-head"><h1>Montar programação</h1>'+
     (m.step!=="carregar"?'<label>Data <input type="date" id="montagem-data" value="'+esc(m.data)+'" '+(m.step==="editar"?'':'disabled')+'></label>':'')+
     '<span class="montagem-source" title="'+esc(m.sourceName||"Carregue a Master")+'">Master: '+esc(m.sourceName||"aguardando arquivo")+'</span>'+
-    (m.step==="editar"?'<span class="montagem-grand" title="Necessidades únicas colocadas no quadro">'+total.n+' ferramentas · '+fmtKg(total.kg)+' kg BZ</span>'+
+    (m.step==="editar"?'<span class="montagem-grand" title="Necessidades únicas colocadas no quadro">'+total.n+' ferramentas · '+fmtKg(total.kg)+' kg BZ</span>'+montagemCapacityControl(m)+
       (m.pending&&m.pending.length?'<details class="montagem-pendencias"><summary>'+m.pending.length+' pendência'+(m.pending.length===1?'':'s')+'</summary><div class="montagem-pendencias-list">'+m.pending.map(function(c){return '<div>'+esc(c.codigo)+' · pedido '+esc(c.pedido)+' / item '+esc(c.item)+' · '+esc(c.reason)+' · BZ '+(c.kgExtrudar==null?'vazio':fmtKg(c.kgExtrudar))+' kg</div>';}).join('')+'</div></details>':''):'')+
     '<div class="montagem-page-actions">'+(m.step==="editar"?'<button type="button" class="btn btn-ghost" data-action="montagem-reload">Trocar Master</button>':'')+
     '<button type="button" class="btn btn-ghost" data-action="montagem-close">Voltar ao painel</button></div></header>';
@@ -2950,6 +3012,7 @@ function renderMontagemPage(){
   body='';
   if(m.step==="previa"){
     body+='<div class="warn-msg">Sequência: Hoje Noite → Amanhã Dia → Amanhã Noite. Revise as posições e substituições; o Histórico conserva as versões anteriores.</div>';
+    body+='<div class="hist-detail-row"><b>Capacidades usadas:</b> '+MONTAGEM_ALL_LANES.map(function(l){var v=montagemCapacityInfo(m,l.key);return esc(l.prensa)+' T'+l.numero+' '+esc(fmtDateBR(montagemLaneDate(m,l)))+' '+esc(l.turno)+': '+(v.hours==null?'—':v.hours+' h')+' × '+(v.kgHour==null?'—':fmtKg(v.kgHour)+' kg/h')+' = '+(v.kg==null?'—':fmtKg(v.kg)+' kg');}).join(' · ')+'</div>';
     ["ATUAL","PROXIMA","FUTURA"].filter(function(pos){return m.plan[pos];}).forEach(function(pos){var p=m.plan[pos];body+='<div class="hist-detail-row"><b>'+esc(pos)+' · '+esc(p.turno)+' · '+esc(fmtDateBR(p.data))+'</b> · '+(p.totais.P7.n+p.totais.P4.n)+' ocorrência(s) · '+fmtKg(p.totais.P7.kg+p.totais.P4.kg)+' kg · '+esc(p.situacao)+(p.existing?' · substitui '+esc(p.existing.id):'')+
       (p.diff?' · '+p.diff.added+' entradas, '+p.diff.removed+' saídas, variação '+fmtKg(p.diff.kgDelta)+' kg':'')+'</div>'+
       p.records.map(function(r){return '<div class="hist-row-sub">'+esc(r.prensa)+' · '+esc(r.secao)+' · #'+r.ordemOrigem+' · '+esc(r.ferramenta)+' · pedido '+esc(r.pedido)+'/'+esc(r.item)+' · '+fmtKg(r.quantidadeKg)+' kg'+(r.vinculoProgramacao?' · vínculo '+esc(r.vinculoProgramacao.split("|")[0]):'')+'</div>';}).join('');});
@@ -2974,9 +3037,12 @@ function renderMontagemPage(){
       '</div></div>'+
       '<section class="montagem-reserve3"><div class="montagem-reserve3-head"><span>Reserva para amanhã à noite · Turno 3</span><small>Reserva do Turno 2 · Principal '+esc(fmtDateBR(montagemNextDate(m.data)))+' Noite</small></div>'+
       '<div class="montagem-reserve3-grid">'+MONTAGEM_RESERVE_LANES.map(function(l){var s=montagemStats(m,l.key);
-        return '<div class="montagem-reserve3-lane"><div class="montagem-reserve3-title">'+l.label+' · '+s.n+' ferramentas · '+fmtKg(s.kg)+' kg BZ</div>'+
-          '<div class="montagem-reserve3-list" data-montagem-axis="x" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c,l.key):'';}).join('')+'</div></div>';}).join('')+'</div></section>'+
-      (m.conflict?'<div class="montagem-conflict" role="alert">'+(m.conflict.kind==="removeR3"?
+        var cap=montagemCapacityInfo(m,l.key),pct=cap.kg>0?Math.round(s.kg/cap.kg*100):null;
+        return '<div class="montagem-reserve3-lane"><div class="montagem-reserve3-title">'+l.label+' · '+s.n+' ferramentas · '+fmtKg(s.kg)+' kg BZ · capacidade '+(cap.kg==null?'—':fmtKg(cap.kg)+' kg')+' · '+(pct==null?'—':pct+'%')+(cap.hours===0?' · 0 h efetivas':'')+'</div>'+
+          '<div class="montagem-reserve3-list" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c,l.key):'';}).join('')+'</div></div>';}).join('')+'</div></section>'+
+      (m.conflict?'<div class="montagem-conflict" role="alert">'+(m.conflict.kind==="transferT2"?
+        'Transferir este Principal do Turno 2 para o fim do Turno 1? A posição do Turno 2 será retirada explicitamente. '+
+        '<button type="button" data-action="montagem-conflict" data-choice="transfer">Confirmar transferência</button>':m.conflict.kind==="removeR3"?
         'Devolver à fila retira as duas aparições vinculadas: Reserva T2 e Principal T3. '+
         '<button type="button" data-action="montagem-conflict" data-choice="remove">Confirmar devolução à fila</button>':
         'O mesmo pedido/item ficaria como Principal nos dois turnos. Escolha: '+
@@ -3029,6 +3095,7 @@ function montagemPublish(){
             programacaoId:s.id,data:e.data,turno:e.turno,papel:e.papel,vigente:true,
             substituiId:e.existing?e.existing.id:null,substituidaPorId:null,conteudoHash:e.hash,
             origemBase:"B03_CART",origemAba:e.origem,dataBaseMontagem:m.data,sequenciaMontagem:"Noite-Dia-Noite",
+            capacidadesMontagem:MONTAGEM_ALL_LANES.reduce(function(out,l){out[l.key]=montagemCapacityInfo(m,l.key);return out;},{}),
             criadaEm:state.db.serverTimestamp(),criadaPor:{uid:state.user.uid,nome:state.user.nome},
             substituidaEm:null,encerradaEm:null,encerradaPor:null,totais:e.totais
           });
@@ -3351,7 +3418,15 @@ function bindApp(){
       candidates:[],cards:[],sourceValidated:false,error:"",busy:false};render();
   });
   var montagemData=document.getElementById("montagem-data");
-  if(montagemData) montagemData.addEventListener("change",function(){state.montagem.data=montagemData.value;render();});
+  if(montagemData) montagemData.addEventListener("change",function(){state.montagem.data=montagemData.value;montagemResetCapacity(state.montagem);render();});
+  var capDetails=app.querySelector('.montagem-capacity');
+  if(capDetails)capDetails.addEventListener('toggle',function(){state.montagem.capacityOpen=capDetails.open;});
+  app.querySelectorAll('[data-capacity-hours],[data-capacity-rate]').forEach(function(el){el.addEventListener('change',function(){
+    var m=state.montagem,h=el.getAttribute('data-capacity-hours'),p=el.getAttribute('data-capacity-rate'),v=Number(el.value);
+    if(!el.value||!Number.isFinite(v)||v<0||(h&&v>24)||(p&&v===0)){m.error='Informe horas entre 0 e 24 e kg/h líquido positivo.';render();return;}
+    if(h)m.capacityEdit.hours[h]=v;else m.capacityEdit.rate[p]=v;
+    m.error='';m.capacityOpen=true;render();
+  });});
   var montagemBusca=document.getElementById("montagem-busca");
   if(montagemBusca) montagemBusca.addEventListener("input",function(){state.montagem.busca=montagemBusca.value;render();});
   var montagemPrensa=document.getElementById("montagem-prensa");
@@ -3360,7 +3435,7 @@ function bindApp(){
   if(montagemFile) montagemFile.addEventListener("change",function(){if(montagemFile.files&&montagemFile.files[0])montagemLoadB03(montagemFile.files[0]);});
   function montagemClick(action,fn){var el=app.querySelector('[data-action="'+action+'"]'); if(el) el.addEventListener("click",fn);}
   montagemClick("montagem-close",function(){if(state.montagem.busy)return;state.montagem=null;render();});
-  montagemClick("montagem-reload",function(){state.montagem.step="carregar";state.montagem.sourceValidated=false;state.montagem.candidates=[];state.montagem.cards=[];state.montagem.capacity=null;render();});
+  montagemClick("montagem-reload",function(){state.montagem.step="carregar";state.montagem.sourceValidated=false;state.montagem.candidates=[];state.montagem.cards=[];state.montagem.coverage=[];state.montagem.capacity=null;state.montagem.capacityEdit=null;render();});
   app.querySelectorAll('[data-montagem-card]').forEach(function(el){
     el.addEventListener("dragstart",function(e){var id=el.getAttribute("data-montagem-card");
       state.montagem.draggingId=id;state.montagem.draggingFrom=el.getAttribute("data-montagem-from");
@@ -3409,6 +3484,10 @@ function bindApp(){
   app.querySelectorAll('[data-action="montagem-type"]').forEach(function(el){el.addEventListener("click",function(){
     var m=state.montagem,id=el.getAttribute("data-id"),key=el.getAttribute("data-key");
     montagemSetType(m,key,id,montagemType(m,key,id)==="RESERVA"?"PRINCIPAL":"RESERVA");render();
+  });});
+  app.querySelectorAll('[data-action="montagem-transfer"]').forEach(function(el){el.addEventListener('click',function(){
+    var m=state.montagem,from=el.getAttribute('data-key'),id=el.getAttribute('data-id');
+    m.conflict={kind:'transferT2',from:from,to:from.replace('_T2','_T1'),id:id};m.error='';render();
   });});
   app.querySelectorAll('[data-action="montagem-conflict"]').forEach(function(el){el.addEventListener("click",function(){
     montagemResolveConflict(state.montagem,el.getAttribute("data-choice"));render();
@@ -4773,6 +4852,7 @@ function renderHistoricoDetailRow(t){
       esc(t.prensa)+' · '+esc(fmtDateBR(t.dataProgramacao))+' · '+(t.turno==="Dia"?"☀ Dia":"☾ Noite")+
       (t.ordemProgramacao?' · #'+t.ordemProgramacao:"")+' · '+fmtKg(t.quantidadeKg)+' kg · '+(t.tipo==="Reserva"?"Reserva":"Principal") +
       (t.vinculoProgramacao?' · vínculo '+esc(t.vinculoProgramacao.split("|")[0]):"") +
+      (t.capacidadeKgHora!=null?' · capacidade usada '+fmtKg(t.capacidadeHoras)+' h × '+fmtKg(t.capacidadeKgHora)+' kg/h = '+fmtKg(t.capacidadeKg)+' kg':"") +
       (info.teveUrgencia ? ' · <span style="color:var(--st-quebrada);font-weight:700;">🚨 teve urgência</span>' : '') +
     '</div>' +
     (t.cliente ? '<div class="hist-row-sub hint">Cliente: '+esc(t.cliente)+'</div>' : '') +
@@ -5237,7 +5317,8 @@ function computeConteudoHash(records){
   var linhas = records.map(function(r){
     return [r.prensa, r.ferramenta, r.cliente||"", r.quantidadeKg, r.corte||"", r.liga||"", r.observacao||"", r.secao,
       r.origem==="MONTAGEM B03" ? r.chaveOrigem : "",r.origem==="MONTAGEM B03" ? r.ordemOrigem : "",
-      r.origem==="MONTAGEM B03" ? r.saldoKgInformado : ""].join("§");
+      r.origem==="MONTAGEM B03" ? r.saldoKgInformado : "",
+      r.origem==="MONTAGEM B03" ? [r.capacidadeHoras,r.capacidadeKgHora,r.capacidadeKg].join("/") : ""].join("§");
   });
   linhas.sort();
   return baseAppHashString(linhas.join("¶"));
@@ -5379,6 +5460,7 @@ function baseAppBuildFerramentaDoc(rec, programacaoId, now){
     origemBase: rec.origem==="MONTAGEM B03" ? "B03_CART" : rec.origem==="MONTAGEM APP" ? "MONTAGEM_APP" : "BASE_APP",
     ...(rec.origem==="MONTAGEM B03" ? {idNecessidade:rec.idNecessidade,pedido:rec.pedido,item:rec.item,
       ordemProgramacao:rec.ordemOrigem,saldoKgInformado:rec.saldoKgInformado,
+      capacidadeHoras:rec.capacidadeHoras,capacidadeKgHora:rec.capacidadeKgHora,capacidadeKg:rec.capacidadeKg,
       ...(rec.vinculoProgramacao ? {vinculoProgramacao:rec.vinculoProgramacao} : {}),
       ...(rec.turnoOrigem ? {turnoOrigem:rec.turnoOrigem} : {})} : {})
   };
