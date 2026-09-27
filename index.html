@@ -535,7 +535,8 @@ table.compact-table .ct-obs{max-width:220px;overflow:hidden;text-overflow:ellips
 .montagem-board-scroll{width:100%;overflow-x:auto;padding-bottom:3px;}
 .montagem-board{display:grid;grid-template-columns:minmax(200px,1.13fr) repeat(4,minmax(205px,1fr));grid-template-rows:auto auto;gap:6px;min-width:1044px;align-items:stretch;}
 .montagem-lane{display:flex;flex-direction:column;min-height:410px;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px;}
-.montagem-lane.queue .montagem-list{height:0;min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;}
+.montagem-queue-viewport{position:relative;flex:1;min-height:0;}
+.montagem-lane.queue .montagem-list{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;}
 .montagem-lane.turn .montagem-list{flex:none;overflow:visible;min-height:0;}
 .montagem-lane.drag-over{outline:3px solid var(--accent);}
 .montagem-lane-head{font-size:12px;font-weight:800;padding:2px 3px 5px;border-bottom:1px solid var(--border);white-space:nowrap;}
@@ -3288,17 +3289,17 @@ function renderMontagemPage(){
     var selected=montagemSelectedCards(m),selectedKg=selected.reduce(function(sum,c){return sum+c.kgExtrudar;},0);
     body+='<div class="montagem-board-scroll"><div class="montagem-board">'+
       montagemAvailableSummary(m)+MONTAGEM_LANES.map(function(l){return montagemSummary(m,l);}).join('')+
-      '<section class="montagem-lane queue"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' na fila</small></div>'+
+      '<section class="montagem-lane queue" data-montagem-drop="queue"><div class="montagem-lane-head">Disponíveis<small>'+ (cards.length-total.n)+' na fila</small></div>'+
       '<div class="montagem-queue-controls"><input id="montagem-busca" type="search" placeholder="Ferramenta, cliente, pedido…" value="'+esc(m.busca||'')+'" aria-label="Buscar disponíveis">'+
       '<select id="montagem-prensa" aria-label="Filtrar prensa">'+['Todas','P7','P4'].map(function(p){return '<option '+(m.filtroPrensa===p?'selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
       '<div class="montagem-select-tools"><button type="button" data-action="montagem-select-mode" aria-pressed="'+!!m.selectionMode+'">'+(m.selectionMode?'Fechar seleção':'Selecionar')+'</button>'+
       (m.selectionMode?'<span class="selected-count">'+selected.length+' cards · '+fmtKg(selectedKg)+' kg BZ</span>':'')+
       (selected.length?'<button type="button" data-action="montagem-move-selected" aria-expanded="'+!!m.bulkMenuOpen+'">Mover selecionados</button>':'')+'</div>'+
       (selected.length&&m.bulkMenuOpen?'<div class="montagem-bulk-destinations" role="group" aria-label="Destino dos cards selecionados">'+MONTAGEM_ALL_LANES.map(function(l){return '<button type="button" data-action="montagem-bulk-dest" data-key="'+l.key+'">'+esc(l.label)+'</button>';}).join('')+'</div>':'')+
-      '<div class="montagem-list" data-montagem-scroll="queue" data-montagem-drop="queue">'+queue.map(function(c){return montagemCard(m,c,"queue");}).join('')+'</div></section>'+
+      '<div class="montagem-queue-viewport"><div class="montagem-list" data-montagem-scroll="queue">'+queue.map(function(c){return montagemCard(m,c,"queue");}).join('')+'</div></div></section>'+
       MONTAGEM_LANES.map(function(l){
-        return '<section class="montagem-lane turn"><div class="montagem-lane-head">'+l.label+'<small>'+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · '+esc(fmtDateBR(montagemLaneDate(m,l)))+'</small></div>'+
-          '<div class="montagem-list" data-montagem-scroll="'+l.key+'" data-montagem-drop="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c,l.key):'';}).join('')+'</div></section>';}).join('')+
+        return '<section class="montagem-lane turn" data-montagem-drop="'+l.key+'"><div class="montagem-lane-head">'+l.label+'<small>'+esc(l.offset?'Amanhã':'Hoje')+' '+esc(l.turno)+' · '+esc(fmtDateBR(montagemLaneDate(m,l)))+'</small></div>'+
+          '<div class="montagem-list" data-montagem-scroll="'+l.key+'">'+m.columns[l.key].map(function(id){var c=montagemCandidate(m,id);return c?montagemCard(m,c,l.key):'';}).join('')+'</div></section>';}).join('')+
       '</div></div>'+
       '<section class="montagem-reserve3"><div class="montagem-reserve3-head"><span>Reserva para amanhã à noite · Turno 3</span><small>Reserva do Turno 2 · Principal '+esc(fmtDateBR(montagemNextDate(m.data)))+' Noite</small></div>'+
       '<div class="montagem-reserve3-grid">'+MONTAGEM_RESERVE_LANES.map(function(l){var s=montagemStats(m,l.key);
