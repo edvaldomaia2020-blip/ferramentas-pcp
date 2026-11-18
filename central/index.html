@@ -7,7 +7,7 @@
 <iframe id="panel" title="CONCILIAÇÃO DO METAL — CONSULTA" sandbox="allow-scripts allow-downloads" hidden></iframe>
 <style id="header-tools-style">header{gap:12px;padding:12px 18px}header h1{margin-right:auto}#header-tools{display:flex;flex-basis:100%;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #ffffff30}#tools-toggle{white-space:nowrap;background:#246b78}#tools-close{background:transparent;border:1px solid #ffffff70;margin-left:auto}#header-tools[hidden]{display:none!important}@media(max-width:650px){header h1{font-size:17px}#tools-close{margin-left:0}}</style>
 <script src="./cloud-menu.js?v=6"></script>
-<script src="./cloud-views.js?v=6"></script>
+<script src="./cloud-views.js?v=7"></script>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserSessionPersistence,EmailAuthProvider,reauthenticateWithCredential}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
@@ -79,10 +79,11 @@ async function robotProgress(){
  }catch(e){clearTimeout(robotTimer);el('run-robots').disabled=false;box.textContent='ATUALIZADOR NÃO CONECTADO. No computador PCP, abra INICIAR_ATUALIZADOR.bat na pasta atualizada. Depois clique ANDAMENTO DOS ROBÔS. Detalhe: '+e.message;}
 }
 let startingRobots=false;
-async function confirmRobotPassword(){
+async function confirmRobotPassword(title='Iniciar atualização',description='Confirme sua senha de entrada para iniciar os robôs. Deixe o computador livre durante a coleta.'){
  const user=auth.currentUser;if(user?.uid!==OWNER||!user.email)throw Error('Entre com seu acesso pessoal.');
  const dialog=document.createElement('dialog');dialog.style.cssText='max-width:420px;width:90%;border:0;border-radius:10px;padding:24px;color:#19344f';
  dialog.innerHTML='<form method="dialog"><h2>Iniciar atualização</h2><p>Confirme sua senha de entrada para iniciar os robôs. Deixe o computador livre durante a coleta.</p><label>Senha de entrada<input type="password" autocomplete="current-password" required autofocus></label><p role="alert" style="color:#a12622"></p><div style="display:flex;gap:12px;justify-content:flex-end"><button type="button" data-cancel>Cancelar</button><button type="submit">Confirmar e iniciar</button></div></form>';
+ dialog.querySelector('h2').textContent=title;dialog.querySelector('p').textContent=description;
  document.body.append(dialog);
  return new Promise((resolve,reject)=>{
   let settled=false,checking=false;
@@ -109,6 +110,16 @@ el('run-robots').onclick=async()=>{
   await robotCall('/run','POST');await robotProgress();
  }catch(e){el('robot-status').hidden=false;el('robot-status').textContent='NÃO INICIADO: '+e.message;}
  finally{startingRobots=false;if(!robotTimer)el('run-robots').disabled=false;}
+};
+window.centralCloud.closing=async(path,body)=>{
+ if(auth.currentUser?.uid!==OWNER)throw Error('Somente seu acesso pessoal pode usar o controle de fechamento.');
+ if(['/collect','/execute'].includes(path)){
+  const executing=path==='/execute';
+  if(!await confirmRobotPassword(executing?'Executar fechamentos autorizados':'Coletar bases do fechamento',executing?'Esta ação fecha no Acesys somente os itens com SIM válido exibidos no controle. Confirme sua senha para executar.':'Esta ação coleta as fontes de fechamento. Não fecha pedidos. Confirme sua senha para coletar.'))throw Error('Cancelado. Nenhuma execução iniciada.');
+ }
+ const token=await auth.currentUser.getIdToken();
+ const response=await fetch('http://127.0.0.1:8770'+path,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+token,...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(20000)});
+ const result=await response.json();if(!response.ok)throw Error(result.error||'Falha no controle de fechamento.');return result;
 };
 el('edit-panel').onclick=()=>{location.hash='ajustes'};
 el('robot-progress').onclick=robotProgress;
