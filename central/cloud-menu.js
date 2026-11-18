@@ -3,6 +3,7 @@
  const online=new Set(['painel','resumo','planejamento','materiais']);
  const local={fechamento:'/fechamento',dia:'/gestao#dia',previsao:'/gestao#previsao',programacao:'/gestao#programacao',pendencias:'/gestao#pendencias',historico:'/gestao#historico'};
  const labels=Object.fromEntries(sections.flatMap(s=>s[2]).map(x=>[x[1],x[0]]));
+ labels.ajustes='EDITAR PAINEL';
  let logged=false,owner=false,frameReady=false;
  const nav=document.createElement('aside');nav.id='cloud-menu';nav.hidden=true;
  nav.innerHTML='<button id="cloud-collapse" aria-label="RECOLHER MENU" aria-expanded="true">☰ RECOLHER MENU</button><a class="brand" href="#inicio">EXTRUTECH<small>CENTRAL PCP</small></a><nav aria-label="MENU DOS MÓDULOS"><a href="#inicio">INÍCIO</a>'+sections.map(([name,id,rows])=>'<button class="group" data-group="'+id+'" aria-expanded="false" aria-controls="cloud-'+id+'">'+name+' <span>▸</span></button><div class="submenu" id="cloud-'+id+'" hidden>'+rows.map(([name,key])=>'<a href="'+(key==='app'?'../':'#'+key)+'"'+(key==='app'?' target="_blank" rel="noopener"':'')+'>'+name+'</a>').join('')+'</div>').join('')+'</nav><small>CONSULTA ONLINE<br>GESTÃO ONLINE · ROBÔS NO PCP</small>';
