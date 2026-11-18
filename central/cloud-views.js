@@ -44,7 +44,7 @@
    next._gestao.programacao[e.chave+'@'+(e.data||'sem-data')]=e;slots(next,next._gestao.programacao);item.prensa=e.prensa;item.status=e.status;
   }else if(body.action==='retirar_programacao'){
    if(!next._gestao.programacao[body.allocation])throw Error('Alocação não encontrada.');delete next._gestao.programacao[body.allocation];
-  }else throw Error('Ação inválida.');
+  }else if(body.action!=='confirmar_publicacao')throw Error('Ação inválida.');
   next._cloud_history=[{at:new Date().toISOString(),action:body.action,reason:body.obs},...(next._cloud_history||[])].slice(0,200);return next;
  }
  let active='',host=null,context=null,filter='',press='',day=dayNow();
