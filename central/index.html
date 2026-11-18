@@ -7,7 +7,7 @@
 <iframe id="panel" title="CONCILIAÇÃO DO METAL — CONSULTA" sandbox="allow-scripts allow-downloads" hidden></iframe>
 <style id="header-tools-style">header{gap:12px;padding:12px 18px}header h1{margin-right:auto}#header-tools{display:flex;flex-basis:100%;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #ffffff30}#tools-toggle{white-space:nowrap;background:#246b78}#tools-close{background:transparent;border:1px solid #ffffff70;margin-left:auto}#header-tools[hidden]{display:none!important}@media(max-width:650px){header h1{font-size:17px}#tools-close{margin-left:0}}</style>
 <script src="./cloud-menu.js?v=6"></script>
-<script src="./cloud-views.js?v=7"></script>
+<script src="./cloud-views.js?v=8"></script>
 <style>#robot-completion{position:fixed;right:20px;bottom:20px;z-index:10000;width:min(440px,calc(100vw - 40px));background:white;border:3px solid #167c55;border-radius:10px;padding:18px;box-shadow:0 8px 40px #0005;color:#19344f;font-size:16px}#robot-completion.warn{border-color:#bf8615}#robot-completion.fail{border-color:#b42318}#robot-completion h2{font-size:21px;margin:0 0 10px}#robot-completion p{white-space:pre-wrap;line-height:1.5}#robot-completion button{float:right}#robot-completion-log{max-height:180px;overflow:auto;margin-top:12px}</style>
 <section id="robot-completion" role="alert" aria-live="assertive" hidden><h2></h2><p></p><button type="button">ENTENDI</button><div style="clear:both"></div><details><summary>Avisos desta sessão</summary><div id="robot-completion-log"></div></details></section>
 <script>
@@ -89,6 +89,10 @@ function finishWatch(key,s){const w=robotWatches[key];w.pending=false;w.errors=0
  let name,outcome,message;
  if(key==='conciliacao'){name='Conciliação — coleta das bases';const stage=String(s.etapa||'');outcome=stage.includes('FALHA')?'fail':stage==='PUBLICADO E CONFERIDO'?'ok':'warn';message=stage==='PUBLICADO E CONFERIDO'?'Bases coletadas e painel publicado. Versão '+s.online_revision+'.':stage.includes('REVIS')?'A coleta terminou, mas há '+Number(s.conflicts||0)+' pendência(s) para revisar. A publicação anterior foi preservada.':(s.erro||stage||'Confira o resultado no andamento dos robôs.');}
  else{const op=s.operacao||{},collect=(op.tipo||w.kind)==='coleta';name=collect?'Fechamento Acesys — coleta das bases':'Fechamento Acesys — execução';outcome=op.exit_code===0?(collect&&s.erro?'warn':'ok'):'fail';message=op.exit_code!==0?'O robô encerrou com falha (código '+op.exit_code+'). Confira o controle antes de repetir.':collect?(s.erro||'Bases coletadas. Lista atualizada: '+(s.todos||[]).length+' item(ns). Confira e salve suas autorizações.'):'Execução encerrada. Consulte o histórico e faça uma nova coleta para confirmar quais itens saíram da carteira.';}
+ if(key==='fechamento'&&(s.operacao?.tipo||w.kind)==='execucao'){
+  const progress=window.centralCloud.closingProgress(s);
+  if(progress.tracked){message+='\nFechados com sucesso: '+progress.sucesso+' de '+progress.total+'.\nPrecisam de conferência: '+progress.conferir+'. Não executados: '+progress.restantes+'.';if(progress.sucesso<progress.total&&outcome==='ok')outcome='warn';}
+ }
  window.robotFeedback.completed(name,outcome,message);
 }
 async function pollRobotFeedback(){
@@ -140,6 +144,17 @@ el('run-robots').onclick=async()=>{
  }catch(e){el('robot-status').hidden=false;el('robot-status').textContent='NÃO INICIADO: '+e.message;}
  finally{startingRobots=false;if(!robotTimer)el('run-robots').disabled=false;}
 };
+window.centralCloud.closingProgress=s=>{
+ let round=null;try{round=JSON.parse(sessionStorage.getItem('pcp-closing-round')||'null')}catch(e){}
+ const history=s.execucoes?.historico||[];
+ if(!round?.itens?.length)return {tracked:false,sucesso:Number(s.execucoes?.ultima_rodada?.itens||0),historico_total:new Set(history.flatMap(r=>(r.itens||[]).map(i=>String(r.pedido)+'/'+String(i)))).size};
+ const targets=new Set(round.itens),success=new Set(),confirmed=new Set(),review=new Set();
+ for(const r of history)for(const i of r.itens||[]){const key=String(r.pedido)+'/'+String(i);if(!targets.has(key))continue;success.add(key);if(String(r.status).startsWith('CONFIRMADO'))confirmed.add(key);if(String(r.status).startsWith('REVISAR'))review.add(key);}
+ const uncertain=new Set((s.execucoes?.envios_pendentes||[]).filter(k=>targets.has(k)&&!success.has(k)));
+ for(const row of s.todos||[]){if(!targets.has(row.chave))continue;if(row.estado==='JÁ APLICADO')success.add(row.chave);else if(String(row.estado).includes('EXECUÇÃO ANTERIOR'))uncertain.add(row.chave);}
+ const total=targets.size,pending=Math.max(0,total-success.size-uncertain.size),running=s.operacao?.tipo==='execucao'&&s.operacao.running;
+ return {tracked:true,total,sucesso:success.size,confirmados:confirmed.size,revisar:review.size,conferir:uncertain.size,restantes:pending,running,percent:total?Math.round(100*success.size/total):0};
+};
 window.centralCloud.closing=async(path,body)=>{
  if(auth.currentUser?.uid!==OWNER)throw Error('Somente seu acesso pessoal pode usar o controle de fechamento.');
  if(['/collect','/execute'].includes(path)){
@@ -148,7 +163,7 @@ window.centralCloud.closing=async(path,body)=>{
  }
  const token=await auth.currentUser.getIdToken();
  const response=await fetch('http://127.0.0.1:8770'+path,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+token,...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(20000)});
- const result=await response.json();if(!response.ok)throw Error(result.error||'Falha no controle de fechamento.');if(path==='/collect'||path==='/execute')watchStarted('fechamento',path==='/collect'?'coleta':'execucao');return result;
+ const result=await response.json();if(!response.ok)throw Error(result.error||'Falha no controle de fechamento.');if(path==='/execute'){try{sessionStorage.setItem('pcp-closing-round',JSON.stringify({itens:body.itens,at:new Date().toISOString()}))}catch(e){}}if(path==='/collect'||path==='/execute')watchStarted('fechamento',path==='/collect'?'coleta':'execucao');return result;
 };
 el('edit-panel').onclick=()=>{location.hash='ajustes'};
 el('robot-notices').onclick=()=>window.robotFeedback.open();
