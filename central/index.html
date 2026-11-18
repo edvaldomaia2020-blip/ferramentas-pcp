@@ -1,16 +1,17 @@
 <!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EXTRUTECH — CENTRAL PCP</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#edf2f7;color:#19344f;font:15px 'Segoe UI',Arial}header{display:flex;gap:16px;align-items:center;background:#132f4e;color:white;padding:14px 20px;flex-wrap:wrap}h1{font-size:20px;margin:0}a{color:inherit}button{padding:10px;border:0;border-radius:5px;background:#246b78;color:white;cursor:pointer}#login{max-width:420px;background:white;border-radius:10px;margin:50px auto;padding:25px}label{display:block;margin:15px 0}input{display:block;width:100%;padding:12px;margin-top:6px}#message{padding:14px;margin:0;background:#dcebe9}iframe{display:block;width:100%;height:calc(100vh - 110px);border:0;background:white}[hidden]{display:none!important}</style>
-<header><h1>EXTRUTECH — CENTRAL PCP</h1><a href="../">PCP CORREÇÃO</a><button id="reload" hidden>ATUALIZAR CONSULTA</button><button id="logout" hidden>SAIR</button></header>
+<header><h1>EXTRUTECH — CENTRAL PCP</h1><a href="../">PCP CORREÇÃO</a><button id="reload" hidden>ATUALIZAR CONSULTA</button><button id="publish" hidden>PUBLICAR POSIÇÃO SALVA</button><input id="publication-file" type="file" accept="application/json,.json" hidden><button id="logout" hidden>SAIR</button></header>
 <p id="message" role="status">Entre com seu usuário do app. Consulta online; edições permanecem na Central local.</p>
 <form id="login"><h2>ENTRAR</h2><label>USUÁRIO OU E-MAIL<input id="email" autocomplete="username" required></label><label>SENHA<input id="password" type="password" autocomplete="current-password" required></label><button>ACESSAR PAINEL</button></form>
 <iframe id="panel" title="CONCILIAÇÃO DO METAL — CONSULTA" sandbox="allow-scripts allow-downloads" hidden></iframe>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserSessionPersistence}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
-import{getFirestore,getDoc,doc}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+import{getFirestore,getDoc,doc,runTransaction}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
 const app=initializeApp({apiKey:'AIzaSyAol3VoiDrcoJe6BdSzDFFU13OZkcwo8SI',authDomain:'pcp-correcao.firebaseapp.com',projectId:'pcp-correcao',appId:'1:232457047221:web:2d6840dd9953f38f81c2fc'});
 const auth=getAuth(app),db=getFirestore(app),el=id=>document.getElementById(id);
 let generation=0;
+const OWNER='71NNy4zqPjdG1Hmmy882bvhoy1x2';
 async function load(){const gen=++generation;el('message').textContent='CARREGANDO PUBLICAÇÃO…';el('panel').hidden=true;try{
  const snap=await getDoc(doc(db,'central_pcp','atual'));if(!snap.exists())throw Error('Ainda não existe uma publicação. O painel local foi preservado.');
  const m=snap.data();if(m.formato!=='html-gzip-base64-v1'||!Number.isInteger(m.partes)||m.partes<1||m.partes>30||!/^[a-f0-9]{32}$/.test(m.publicacao))throw Error('Publicação inválida.');
@@ -24,6 +25,22 @@ async function load(){const gen=++generation;el('message').textContent='CARREGAN
  el('message').textContent='CONSULTA · VERSÃO '+m.revision+' · PUBLICADA EM '+new Date(m.publicadoEm).toLocaleString('pt-BR')+' · Bases conforme os horários informados no painel.';
  }catch(e){if(gen===generation)el('message').textContent=e.code==='permission-denied'?'SEM ACESSO: confirme o perfil e as regras com o PCP.':e.message;}}
 el('login').onsubmit=async e=>{e.preventDefault();let name=el('email').value.trim();if(!name.includes('@'))name+='@ferramentas.local';try{await setPersistence(auth,browserSessionPersistence);await signInWithEmailAndPassword(auth,name,el('password').value);el('password').value='';}catch(e){el('message').textContent='Não foi possível entrar. Confira usuário e senha.';}};
-onAuthStateChanged(auth,async user=>{generation++;el('panel').hidden=true;el('panel').srcdoc='';el('login').hidden=!!user;el('logout').hidden=!user;el('reload').hidden=!user;if(user)await load();else el('message').textContent='Entre com seu usuário PCP ou diretoria autorizado.';});
+onAuthStateChanged(auth,async user=>{generation++;el('panel').hidden=true;el('panel').srcdoc='';el('login').hidden=!!user;el('logout').hidden=!user;el('reload').hidden=!user;el('publish').hidden=user?.uid!==OWNER;if(user)await load();else el('message').textContent='Entre com seu usuário pessoal ou de consulta autorizado.';});
 el('logout').onclick=()=>signOut(auth);el('reload').onclick=load;
+el('publish').onclick=()=>el('publication-file').click();
+el('publication-file').onchange=async()=>{const file=el('publication-file').files[0];if(!file)return;el('publish').disabled=true;try{
+ if(auth.currentUser?.uid!==OWNER)throw Error('Somente Edvaldo pode publicar.');
+ if(file.size>6000000)throw Error('Arquivo muito grande.');
+ const data=JSON.parse(await file.text()),m=data.metadata;
+ if(m?.formato!=='html-gzip-base64-v1'||!Number.isInteger(m.revision)||!Array.isArray(data.chunks)||data.chunks.length<1||data.chunks.length>30||data.chunks.some(x=>typeof x!=='string'||x.length>180000))throw Error('Arquivo de publicação inválido.');
+ const zipped=Uint8Array.from(atob(data.chunks.join('')),c=>c.charCodeAt(0));
+ const raw=await new Response(new Blob([zipped]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+ const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',raw))].map(x=>x.toString(16).padStart(2,'0')).join('');
+ if(hash!==m.sha256)throw Error('Arquivo não passou na conferência.');
+ const ref=doc(db,'central_pcp','atual'),before=await getDoc(ref),beforeId=before.exists()?before.data().publicacao:null;
+ const id=crypto.randomUUID().replaceAll('-',''),meta={publicacao:id,sha256:hash,partes:data.chunks.length,revision:m.revision,publicadoEm:new Date().toISOString(),formato:m.formato};
+ el('message').textContent='PUBLICANDO POSIÇÃO SALVA… Esta operação não coleta bases novas.';
+ await runTransaction(db,async tx=>{const actual=await tx.get(ref);if((actual.exists()?actual.data().publicacao:null)!==beforeId)throw Error('Outra publicação ocorreu. Confira antes de repetir.');for(let i=0;i<data.chunks.length;i++)tx.set(doc(db,'central_publicacoes',id,'partes',String(i)),{conteudo:data.chunks[i]});tx.set(doc(db,'central_publicacoes',id),meta);tx.set(ref,meta);});
+ await load();
+ }catch(e){el('message').textContent='NÃO PUBLICADO: '+(e.code==='permission-denied'?'Acesso de escrita negado.':e.message);}finally{el('publish').disabled=false;el('publication-file').value='';}};
 </script></html>
