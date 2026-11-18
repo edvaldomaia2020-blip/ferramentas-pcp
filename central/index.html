@@ -9,7 +9,7 @@
 <script src="./cloud-views.js?v=5"></script>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
-import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserSessionPersistence}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserSessionPersistence,EmailAuthProvider,reauthenticateWithCredential}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
 import{getFirestore,getDoc,getDocs,collection,query,orderBy,limit,doc,runTransaction}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
 const app=initializeApp({apiKey:'AIzaSyAol3VoiDrcoJe6BdSzDFFU13OZkcwo8SI',authDomain:'pcp-correcao.firebaseapp.com',projectId:'pcp-correcao',appId:'1:232457047221:web:2d6840dd9953f38f81c2fc'});
 const auth=getAuth(app),db=getFirestore(app),el=id=>document.getElementById(id);
@@ -74,7 +74,38 @@ async function robotProgress(){
  if(s.running){clearTimeout(robotTimer);robotTimer=setTimeout(robotProgress,3000);}else{clearTimeout(robotTimer);if(s.etapa==='PUBLICADO E CONFERIDO')await load();}
  }catch(e){clearTimeout(robotTimer);el('run-robots').disabled=false;box.textContent='ATUALIZADOR NÃO CONECTADO. No computador PCP, abra INICIAR_ATUALIZADOR.bat na pasta atualizada. Depois clique ANDAMENTO DOS ROBÔS. Detalhe: '+e.message;}
 }
-el('run-robots').onclick=async()=>{el('run-robots').disabled=true;el('robot-status').hidden=false;el('robot-status').textContent='INICIANDO VERIFICAÇÃO DOS ROBÔS…';try{await robotCall('/run','POST');await robotProgress();}catch(e){el('run-robots').disabled=false;el('robot-status').textContent='NÃO INICIADO: '+e.message+' · Abra INICIAR_ATUALIZADOR.bat no computador PCP e tente novamente.';}};
+let startingRobots=false;
+async function confirmRobotPassword(){
+ const user=auth.currentUser;if(user?.uid!==OWNER||!user.email)throw Error('Entre com seu acesso pessoal.');
+ const dialog=document.createElement('dialog');dialog.style.cssText='max-width:420px;width:90%;border:0;border-radius:10px;padding:24px;color:#19344f';
+ dialog.innerHTML='<form method="dialog"><h2>Iniciar atualização</h2><p>Confirme sua senha de entrada para iniciar os robôs. Deixe o computador livre durante a coleta.</p><label>Senha de entrada<input type="password" autocomplete="current-password" required autofocus></label><p role="alert" style="color:#a12622"></p><div style="display:flex;gap:12px;justify-content:flex-end"><button type="button" data-cancel>Cancelar</button><button type="submit">Confirmar e iniciar</button></div></form>';
+ document.body.append(dialog);
+ return new Promise((resolve,reject)=>{
+  let settled=false,checking=false;
+  const finish=(ok)=>{if(settled)return;settled=true;dialog.querySelector('input').value='';dialog.close();dialog.remove();resolve(ok);};
+  dialog.querySelector('[data-cancel]').onclick=()=>finish(false);
+  dialog.addEventListener('cancel',e=>{e.preventDefault();finish(false)});
+  dialog.querySelector('form').onsubmit=async e=>{
+   e.preventDefault();if(checking)return;checking=true;const submit=dialog.querySelector('button[type="submit"]');submit.disabled=true;
+   const field=dialog.querySelector('input');const password=field.value;field.value='';
+   try{await reauthenticateWithCredential(user,EmailAuthProvider.credential(user.email,password));
+    if(settled||auth.currentUser?.uid!==user.uid)return;
+    await user.getIdToken(true);finish(true);
+   }catch(error){if(!settled){dialog.querySelector('[role="alert"]').textContent='Senha não confirmada. Confira sua senha e tente novamente.';field.focus();}}
+   finally{checking=false;if(!settled)submit.disabled=false;}
+  };
+  dialog.showModal();
+ });
+}
+el('run-robots').onclick=async()=>{
+ if(startingRobots)return;startingRobots=true;el('run-robots').disabled=true;
+ try{
+  if(!await confirmRobotPassword())return;
+  el('robot-status').hidden=false;el('robot-status').textContent='INICIANDO VERIFICAÇÃO DOS ROBÔS…';
+  await robotCall('/run','POST');await robotProgress();
+ }catch(e){el('robot-status').hidden=false;el('robot-status').textContent='NÃO INICIADO: '+e.message;}
+ finally{startingRobots=false;if(!robotTimer)el('run-robots').disabled=false;}
+};
 el('robot-progress').onclick=robotProgress;
 el('verify-position').onclick=async()=>{el('verify-position').disabled=true;try{await window.centralCloud.save({action:'confirmar_publicacao',obs:'Posição conferida para consulta da diretoria; números e horários das fontes preservados.'});el('message').textContent+=' · GRAVAÇÃO ONLINE CONFERIDA.';}catch(e){el('message').textContent='Não foi possível confirmar: '+e.message;}finally{el('verify-position').disabled=false;}};
 el('share').onclick=async()=>{try{await navigator.clipboard.writeText('https://edvaldomaia2020-blip.github.io/ferramentas-pcp/central/#painel');el('message').textContent='LINK COPIADO. Envie à diretoria. Cada pessoa precisa de um usuário autorizado de consulta; não compartilhe sua senha pessoal.';}catch(e){el('message').textContent='Link: https://edvaldomaia2020-blip.github.io/ferramentas-pcp/central/#painel · exige usuário autorizado.';}};
