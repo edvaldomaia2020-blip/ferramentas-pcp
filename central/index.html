@@ -4,6 +4,7 @@
 <p id="message" role="status">Entre com seu usuário do app. Consulta online; edições permanecem na Central local.</p>
 <form id="login"><h2>ENTRAR</h2><label>USUÁRIO OU E-MAIL<input id="email" autocomplete="username" required></label><label>SENHA<input id="password" type="password" autocomplete="current-password" required></label><button>ACESSAR PAINEL</button></form>
 <iframe id="panel" title="CONCILIAÇÃO DO METAL — CONSULTA" sandbox="allow-scripts allow-downloads" hidden></iframe>
+<script src="./cloud-menu.js?v=1"></script>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,setPersistence,browserSessionPersistence}from'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
@@ -21,11 +22,12 @@ async function load(){const gen=++generation;el('message').textContent='CARREGAN
  const raw=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
  const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',raw))].map(x=>x.toString(16).padStart(2,'0')).join('');
  if(hash!==m.sha256)throw Error('Falha na conferência do arquivo.');if(gen!==generation||!auth.currentUser)return;
- el('panel').srcdoc=new TextDecoder().decode(raw);el('panel').hidden=false;
+ const bridge='<style>.pg-nav{display:none!important}</style><script>window.addEventListener("message",e=>{if(e.source!==parent||e.data?.type!=="central-view"||!["painel","resumo","planejamento","materiais"].includes(e.data.page))return;document.querySelectorAll(".pg-tab").forEach(b=>{if(b.dataset.pg===e.data.page)b.click()})});window.addEventListener("DOMContentLoaded",()=>parent.postMessage({type:"central-ready"},"*"));<\/script>';
+ el('panel').srcdoc=new TextDecoder().decode(raw).replace('</html>',bridge+'</html>');el('panel').hidden=false;window.centralMenu?.loaded();
  el('message').textContent='CONSULTA · VERSÃO '+m.revision+' · PUBLICADA EM '+new Date(m.publicadoEm).toLocaleString('pt-BR')+' · Bases conforme os horários informados no painel.';
  }catch(e){if(gen===generation)el('message').textContent=e.code==='permission-denied'?'SEM ACESSO: confirme o perfil e as regras com o PCP.':e.message;}}
 el('login').onsubmit=async e=>{e.preventDefault();let name=el('email').value.trim();if(!name.includes('@'))name+='@ferramentas.local';try{await setPersistence(auth,browserSessionPersistence);await signInWithEmailAndPassword(auth,name,el('password').value);el('password').value='';}catch(e){el('message').textContent='Não foi possível entrar. Confira usuário e senha.';}};
-onAuthStateChanged(auth,async user=>{generation++;el('panel').hidden=true;el('panel').srcdoc='';el('login').hidden=!!user;el('logout').hidden=!user;el('reload').hidden=!user;el('publish').hidden=user?.uid!==OWNER;if(user)await load();else el('message').textContent='Entre com seu usuário pessoal ou de consulta autorizado.';});
+onAuthStateChanged(auth,async user=>{generation++;el('panel').hidden=true;el('panel').srcdoc='';el('login').hidden=!!user;el('logout').hidden=!user;el('reload').hidden=!user;el('publish').hidden=user?.uid!==OWNER;window.centralMenu?.auth(user,user?.uid===OWNER);if(user)await load();else el('message').textContent='Entre com seu usuário pessoal ou de consulta autorizado.';});
 el('logout').onclick=()=>signOut(auth);el('reload').onclick=load;
 el('publish').onclick=()=>el('publication-file').click();
 el('publication-file').onchange=async()=>{const file=el('publication-file').files[0];if(!file)return;el('publish').disabled=true;try{
