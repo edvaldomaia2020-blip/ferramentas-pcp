@@ -31,10 +31,31 @@
    const row=days.get(id)||{data:e.data,prensa:e.prensa,carga:0,capacidade:cap};row.carga+=kg;row.saldo=cap-row.carga;if(row.saldo<-.0001)throw Error('Carga acima da capacidade real de '+e.prensa+' em '+e.data+'.');days.set(id,row);
   }return [...days.values()].sort((a,b)=>(a.data+a.prensa).localeCompare(b.data+b.prensa));
  }
+ const stages=[['FILA DE EMBALAGEM','fila_embalagem','Fila de embalagem'],['FILA DE PINTURA','fila_pintura','Fila de pintura'],['EMBALADO EM ESTOQUE','embalado_estoque','Embalado em estoque'],['FATURAMENTO PREVISTO','faturamento_previsto','Faturamento previsto'],['ESTOQUE SEM CLIENTE','estoque_sem_cliente','Estoque sem cliente'],['AGUARDANDO LIBERAÇÃO COMERCIAL','aguardando_liberacao','Aguardando liberação']];
+ function recalcStages(next){
+  const summary=next.resumo[0],oldPaint=Number(summary.fila_pintura||0);
+  for(const [stage,key,label]of stages){const total=Math.round(next.quadros.filter(x=>x.quadro===stage).reduce((s,x)=>s+Number(x.kg||0),0)*1000)/1000;summary[key]=total;const mass=next.massa.find(x=>x.bloco==='FISICO_PERFIL'&&x.rotulo===label);if(!mass)throw Error('Etapa sem correspondência na conciliação.');mass.kg=total;}
+  summary.carteira_pintura_kg=Number(summary.carteira_pintura_kg||0)+summary.fila_pintura-oldPaint;
+  const r=next.resumo_diario?.reuniao,cap=Number(r?.pintura_kgh||450)*Number(r?.turnos_dia||2)*Number(r?.horas_turno||10);summary.carteira_pintura_dias=summary.carteira_pintura_kg/cap;
+  const physical=next.massa.filter(x=>x.bloco.startsWith('FISICO_')).reduce((s,x)=>s+Number(x.kg||0),0),theory=Number(next.massa.find(x=>x.bloco==='TEORICO')?.kg);if(!Number.isFinite(theory))throw Error('Saldo teórico indisponível.');
+  summary.diferenca_massa=Math.round((theory-physical)*1000)/1000;summary.diferenca_massa_pct=theory?100*summary.diferenca_massa/theory:0;
+  for(const x of next.massa){if(x.bloco==='RESULTADO'&&x.rotulo.startsWith('Mapeado'))x.kg=physical;if(x.bloco==='RESULTADO'&&x.rotulo.startsWith('Diferen')){x.kg=summary.diferenca_massa;x.detalhe='Após ajustes manuais da análise';}}
+  next._cloud_status={...next._cloud_status,diferenca_kg:summary.diferenca_massa,conciliacao:Math.abs(summary.diferenca_massa)<.001?'SEM DIFERENÇA':'DIVERGENCIA EM APURACAO'};
+ }
  function action(data,body){
   const next=structuredClone(data);next._gestao??={};next._gestao.faturamento??={};next._gestao.programacao??={};
   if(!String(body.obs||'').trim())throw Error('Informe o motivo.');
-  if(body.action==='faturamento'){
+  if(['mover_material','excluir_analise'].includes(body.action)){
+   const origin=next.quadros.find(x=>x.quadro===body.origem&&x.cliente===body.cliente);if(!origin||!stages.some(x=>x[0]===body.origem))throw Error('Linha não encontrada na etapa selecionada.');
+   const kg=body.action==='excluir_analise'?Number(origin.kg):Number(body.kg);if(!Number.isFinite(kg)||kg<=0||kg>Number(origin.kg)+.00001)throw Error('Quantidade deve ser positiva e não superar o saldo da origem.');
+   if(body.action==='mover_material'){
+    if(body.destino===body.origem||!stages.some(x=>x[0]===body.destino))throw Error('Escolha outra etapa de destino.');
+    let target=next.quadros.find(x=>x.quadro===body.destino&&x.cliente===body.cliente);if(!target){target={quadro:body.destino,cliente:body.cliente,kg:0};next.quadros.push(target)}target.kg=Math.round((Number(target.kg)+kg)*1000)/1000;
+   }
+   origin.kg=Math.round((Number(origin.kg)-kg)*1000)/1000;next.quadros=next.quadros.filter(x=>x!==origin||origin.kg>0);recalcStages(next);
+   body={...body,obs:body.cliente+' · '+kg+' kg · '+body.origem+(body.destino?' → '+body.destino:' · excluído desta etapa')+' · '+body.obs};
+  }else if(body.action==='faturamento'){
+
    if(!/^\d+$/.test(body.pedido)||!String(body.cliente||'').trim()||!/^\d{4}-\d{2}-\d{2}$/.test(body.dia)||!Number.isFinite(Number(body.kg))||Number(body.kg)<0)throw Error('Confira pedido, cliente, data e quantidade.');
    next._gestao.faturamento[body.dia]??={};next._gestao.faturamento[body.dia][body.pedido]={pedido:body.pedido,cliente:body.cliente,kg:Number(body.kg),incluir:body.incluir===true,obs:body.obs};
   }else if(body.action==='programacao'){
@@ -53,7 +74,18 @@
  async function render(key,target,ctx){active=key;host=target;context=ctx;const d=ctx.data||{};if(!d.resumo_diario){host.innerHTML='<p class="cv-note">Aguarde o carregamento da posição publicada.</p>';return}
   const owner=ctx.owner;host.innerHTML='<p id="cv-status" role="status"></p>';
   const append=s=>host.insertAdjacentHTML('beforeend',s);
-  if(['dia','previsao'].includes(key)){
+  if(key==='ajustes'){
+   append('<h2>EDITAR PAINEL</h2><p class="cv-note">Mover material conserva o total físico. Excluir da análise retira o saldo da linha escolhida e recalcula a diferença. Estas ações não alteram SAP, Acesys, notas fiscais nem a carteira por pedido. O histórico permite restaurar uma publicação anterior.</p>');
+   if(!owner){append('<p>Somente o acesso pessoal de Edvaldo pode editar.</p>');return;}
+   const rows=(d.quadros||[]).filter(x=>Number(x.kg)>0&&stages.some(s=>s[0]===x.quadro));
+   append('<form class="cv-form" id="cv-metal"><div class="cv-tools"><label>Pesquisar cliente<input id="cv-metal-search" placeholder="Nome do cliente"></label><label>Cliente e etapa de origem<select name="origem"></select></label><label>Ação<select name="operacao"><option value="mover_material">Mover material</option><option value="excluir_analise">Excluir linha da análise</option></select></label><label data-move>Destino<select name="destino">'+stages.map(x=>'<option>'+esc(x[0])+'</option>').join('')+'</select></label><label data-move>Quantidade kg<input name="kg" type="number" step=".001" min=".001" required></label><label>Motivo<input name="obs" required></label><button>SALVAR E PUBLICAR</button></div><p id="cv-metal-balance"></p></form>');
+   const form=host.querySelector('#cv-metal'),origin=form.elements.origem;
+   function picked(){const row=rows[Number(origin.value)];if(!row)return;form.elements.kg.value=row.kg;form.elements.kg.max=row.kg;host.querySelector('#cv-metal-balance').textContent='Saldo da linha: '+num(row.kg)+' kg. '+(form.elements.operacao.value==='excluir_analise'?'A exclusão afeta somente esta etapa.':'Escolha a quantidade que vai mudar de etapa.');}
+   function options(){const q=host.querySelector('#cv-metal-search').value.toLocaleUpperCase('pt-BR');origin.innerHTML=rows.map((x,i)=>({x,i})).filter(({x})=>x.cliente.toLocaleUpperCase('pt-BR').includes(q)).map(({x,i})=>'<option value="'+i+'">'+esc(x.cliente+' · '+x.quadro+' · '+num(x.kg)+' kg')+'</option>').join('');picked();}
+   host.querySelector('#cv-metal-search').oninput=options;origin.onchange=picked;form.elements.operacao.onchange=()=>{const move=form.elements.operacao.value==='mover_material';form.querySelectorAll('[data-move]').forEach(x=>x.hidden=!move);form.elements.kg.required=move;picked()};options();
+   form.onsubmit=e=>{e.preventDefault();const row=rows[Number(origin.value)];if(!row)return show('Selecione uma linha.');const action=form.elements.operacao.value;if(action==='excluir_analise'&&!confirm('Excluir '+row.cliente+' da etapa '+row.quadro+' ('+num(row.kg)+' kg)? O total físico da análise será reduzido.'))return;save({action,origem:row.quadro,cliente:row.cliente,kg:Number(form.elements.kg.value),...(action==='mover_material'?{destino:form.elements.destino.value}:{}),obs:form.elements.obs.value});};
+  }else if(['dia','previsao'].includes(key)){
+
    const b=billing(d,day),sum=f=>b.pedidos.reduce((s,x)=>s+Number(x[f]||0),0);
    append('<h2>'+(key==='dia'?'FATURAMENTO DO DIA':'PREVISÃO DE FATURAMENTO')+'</h2><div class="cv-tools"><label>Data<input id="cv-day" type="date" value="'+day+'"></label></div><p class="cv-note">Fonte: '+esc(b.fonte||'conforme horário da base')+'. Comparação por pedido. Notas sem pedido não baixam outro pedido do mesmo cliente. A previsão por pedido é separada dos ajustes do quadro físico.</p><div class="cv-cards">'+[['Previsto',sum('kg')],['Faturado na base',b.notas.reduce((s,x)=>s+Number(x.kg),0)],['Falta nos previstos',sum('saldo_kg')]].map(([l,v])=>'<div class="cv-card">'+l+'<b>'+num(v)+' kg</b></div>').join('')+'</div>');
    append(table(['Pedido','Cliente','Previsto kg','Faturado kg','Falta kg'],b.pedidos.map(x=>[esc(x.pedido),esc(x.cliente),num(x.kg),num(x.faturado_kg),num(x.saldo_kg)])));
