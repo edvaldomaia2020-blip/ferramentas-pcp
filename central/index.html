@@ -15,7 +15,7 @@ const app=initializeApp({apiKey:'AIzaSyAol3VoiDrcoJe6BdSzDFFU13OZkcwo8SI',authDo
 const auth=getAuth(app),db=getFirestore(app),el=id=>document.getElementById(id);
 let generation=0,cloudSnapshot=null,cloudMeta=null,cloudHtml=null,saving=false;
 const OWNER='71NNy4zqPjdG1Hmmy882bvhoy1x2';
-async function load(){const gen=++generation;el('message').textContent='CARREGANDO PUBLICAÇÃO…';el('panel').hidden=true;try{
+async function load(){const gen=++generation;el('message').textContent='CARREGANDO PUBLICAÇÃO…';el('panel').style.visibility='hidden';try{
  const snap=await getDoc(doc(db,'central_pcp','atual'));if(!snap.exists())throw Error('Ainda não existe uma publicação. O painel local foi preservado.');
  const m=snap.data();if(m.formato!=='html-gzip-base64-v1'||!Number.isInteger(m.partes)||m.partes<1||m.partes>30||!/^[a-f0-9]{32}$/.test(m.publicacao))throw Error('Publicação inválida.');
  const parts=await Promise.all(Array.from({length:m.partes},(_,i)=>getDoc(doc(db,'central_publicacoes',m.publicacao,'partes',String(i)))));
@@ -26,7 +26,7 @@ async function load(){const gen=++generation;el('message').textContent='CARREGAN
  if(hash!==m.sha256)throw Error('Falha na conferência do arquivo.');if(gen!==generation||!auth.currentUser)return;
  cloudHtml=new TextDecoder().decode(raw);cloudMeta=m;const parsed=new DOMParser().parseFromString(cloudHtml,'text/html');cloudSnapshot=JSON.parse(parsed.getElementById('pcp-base').textContent);window.centralCloud.context={data:cloudSnapshot,meta:cloudMeta,owner:auth.currentUser?.uid===OWNER};
  const bridge='<style>.pg-nav{display:none!important}</style><script>window.addEventListener("message",e=>{if(e.source!==parent||e.data?.type!=="central-view"||!["painel","resumo","planejamento","materiais"].includes(e.data.page))return;document.querySelectorAll(".pg-tab").forEach(b=>{if(b.dataset.pg===e.data.page)b.click()})});window.addEventListener("DOMContentLoaded",()=>parent.postMessage({type:"central-ready"},"*"));<\/script>';
- el('panel').srcdoc=new TextDecoder().decode(raw).replace('</html>',bridge+'</html>');el('panel').hidden=false;window.centralMenu?.loaded();
+ el('panel').hidden=false;el('panel').srcdoc=new TextDecoder().decode(raw).replace('</html>',bridge+'</html>');window.centralMenu?.loaded();el('panel').style.visibility='visible';
  el('message').textContent='CONSULTA · VERSÃO '+m.revision+' · PUBLICADA EM '+new Date(m.publicadoEm).toLocaleString('pt-BR')+' · Bases conforme os horários informados no painel.';
  }catch(e){if(gen===generation)el('message').textContent=e.code==='permission-denied'?'SEM ACESSO: confirme o perfil e as regras com o PCP.':e.message;}}
 window.centralCloud={context:null,async history(){const rows=await getDocs(query(collection(db,'central_publicacoes'),orderBy('publicadoEm','desc'),limit(20)));return rows.docs.map(x=>x.data());},async save(body){
