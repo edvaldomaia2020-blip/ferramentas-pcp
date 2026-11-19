@@ -45,7 +45,17 @@
  function action(data,body){
   const next=structuredClone(data);next._gestao??={};next._gestao.faturamento??={};next._gestao.programacao??={};
   if(!String(body.obs||'').trim())throw Error('Informe o motivo.');
-  if(['mover_material','excluir_analise'].includes(body.action)){
+  if(body.action==='editar_quantidade'){
+   const origin=next.quadros.find(x=>x.quadro===body.origem&&x.cliente===body.cliente);
+   if(!origin||!stages.some(x=>x[0]===body.origem))throw Error('Linha não encontrada na etapa selecionada.');
+   if(body.kg===null||String(body.kg).trim()==='')throw Error('Informe a nova quantidade.');
+   const kg=Number(body.kg),before=Number(origin.kg);
+   if(!Number.isFinite(kg)||kg<0)throw Error('A nova quantidade deve ser zero ou maior.');
+   origin.kg=Math.round(kg*1000)/1000;
+   next.quadros=next.quadros.filter(x=>x!==origin||origin.kg>0);
+   recalcStages(next);
+   body={...body,obs:body.cliente+' · '+body.origem+' · quantidade: '+before+' → '+origin.kg+' kg · '+body.obs};
+  }else if(['mover_material','excluir_analise'].includes(body.action)){
    const origin=next.quadros.find(x=>x.quadro===body.origem&&x.cliente===body.cliente);if(!origin||!stages.some(x=>x[0]===body.origem))throw Error('Linha não encontrada na etapa selecionada.');
    const kg=body.action==='excluir_analise'?Number(origin.kg):Number(body.kg);if(!Number.isFinite(kg)||kg<=0||kg>Number(origin.kg)+.00001)throw Error('Quantidade deve ser positiva e não superar o saldo da origem.');
    if(body.action==='mover_material'){
@@ -75,14 +85,14 @@
   const owner=ctx.owner;host.innerHTML='<p id="cv-status" role="status"></p>';
   const append=s=>host.insertAdjacentHTML('beforeend',s);
   if(key==='ajustes'){
-   append('<h2>EDITAR PAINEL</h2><p class="cv-note">Mover material conserva o total físico. Excluir da análise retira o saldo da linha escolhida e recalcula a diferença. Estas ações não alteram SAP, Acesys, notas fiscais nem a carteira por pedido. O histórico permite restaurar uma publicação anterior.</p>');
+   append('<h2>EDITAR PAINEL</h2><p class="cv-note">Editar quantidade altera o saldo da linha escolhida e recalcula os totais e a diferença. Mover material conserva o total físico. Excluir da análise retira o saldo da linha. Estas ações não alteram SAP, Acesys, notas fiscais nem a carteira por pedido. O histórico permite restaurar uma publicação anterior.</p>');
    if(!owner){append('<p>Somente o acesso pessoal de Edvaldo pode editar.</p>');return;}
    const rows=(d.quadros||[]).filter(x=>Number(x.kg)>0&&stages.some(s=>s[0]===x.quadro));
-   append('<form class="cv-form" id="cv-metal"><div class="cv-tools"><label>Pesquisar cliente<input id="cv-metal-search" placeholder="Nome do cliente"></label><label>Cliente e etapa de origem<select name="origem"></select></label><label>Ação<select name="operacao"><option value="mover_material">Mover material</option><option value="excluir_analise">Excluir linha da análise</option></select></label><label data-move>Destino<select name="destino">'+stages.map(x=>'<option>'+esc(x[0])+'</option>').join('')+'</select></label><label data-move>Quantidade kg<input name="kg" type="number" step=".001" min=".001" required></label><label>Motivo<input name="obs" required></label><button>SALVAR E PUBLICAR</button></div><p id="cv-metal-balance"></p></form>');
+   append('<form class="cv-form" id="cv-metal"><div class="cv-tools"><label>Pesquisar cliente<input id="cv-metal-search" placeholder="Nome do cliente"></label><label>Cliente e etapa de origem<select name="origem"></select></label><label>Ação<select name="operacao"><option value="editar_quantidade">Editar quantidade</option><option value="mover_material">Mover material</option><option value="excluir_analise">Excluir linha da análise</option></select></label><label data-move>Destino<select name="destino">'+stages.map(x=>'<option>'+esc(x[0])+'</option>').join('')+'</select></label><label data-quantity>Quantidade kg<input name="kg" type="number" step=".001" min="0" required></label><label>Motivo<input name="obs" required></label><button>SALVAR E PUBLICAR</button></div><p id="cv-metal-balance"></p></form>');
    const form=host.querySelector('#cv-metal'),origin=form.elements.origem;
-   function picked(){const row=rows[Number(origin.value)];if(!row)return;form.elements.kg.value=row.kg;form.elements.kg.max=row.kg;host.querySelector('#cv-metal-balance').textContent='Saldo da linha: '+num(row.kg)+' kg. '+(form.elements.operacao.value==='excluir_analise'?'A exclusão afeta somente esta etapa.':'Escolha a quantidade que vai mudar de etapa.');}
+   function picked(){const row=rows[Number(origin.value)];if(!row)return;const action=form.elements.operacao.value,move=action==='mover_material',editing=action==='editar_quantidade';form.elements.kg.value=row.kg;form.elements.kg.min=move?'.001':'0';if(move)form.elements.kg.max=row.kg;else form.elements.kg.removeAttribute('max');form.querySelectorAll('[data-move]').forEach(x=>x.hidden=!move);form.querySelector('[data-quantity]').hidden=!(move||editing);form.elements.kg.required=move||editing;host.querySelector('#cv-metal-balance').textContent='Quantidade atual: '+num(row.kg)+' kg. '+(editing?'Informe a nova quantidade total desta linha. Pode aumentar, reduzir ou zerar.':action==='excluir_analise'?'A exclusão afeta somente esta etapa.':'Escolha a quantidade que vai mudar de etapa.');}
    function options(){const q=host.querySelector('#cv-metal-search').value.toLocaleUpperCase('pt-BR');origin.innerHTML=rows.map((x,i)=>({x,i})).filter(({x})=>x.cliente.toLocaleUpperCase('pt-BR').includes(q)).map(({x,i})=>'<option value="'+i+'">'+esc(x.cliente+' · '+x.quadro+' · '+num(x.kg)+' kg')+'</option>').join('');picked();}
-   host.querySelector('#cv-metal-search').oninput=options;origin.onchange=picked;form.elements.operacao.onchange=()=>{const move=form.elements.operacao.value==='mover_material';form.querySelectorAll('[data-move]').forEach(x=>x.hidden=!move);form.elements.kg.required=move;picked()};options();
+   host.querySelector('#cv-metal-search').oninput=options;origin.onchange=picked;form.elements.operacao.onchange=picked;options();
    form.onsubmit=e=>{e.preventDefault();const row=rows[Number(origin.value)];if(!row)return show('Selecione uma linha.');const action=form.elements.operacao.value;if(action==='excluir_analise'&&!confirm('Excluir '+row.cliente+' da etapa '+row.quadro+' ('+num(row.kg)+' kg)? O total físico da análise será reduzido.'))return;save({action,origem:row.quadro,cliente:row.cliente,kg:Number(form.elements.kg.value),...(action==='mover_material'?{destino:form.elements.destino.value}:{}),obs:form.elements.obs.value});};
   }else if(['dia','previsao'].includes(key)){
 
