@@ -3,6 +3,7 @@
 <header><h1>EXTRUTECH — CENTRAL PCP</h1><a href="../">PCP CORREÇÃO</a><button id="tools-toggle" type="button" aria-expanded="false" aria-controls="header-tools" hidden>FERRAMENTAS ▾</button><div id="header-tools" hidden><button id="connect-robots" hidden>01 — CONECTAR ROBÔS</button><button id="share" hidden>LINK PARA DIRETORIA</button><button id="run-robots" hidden>ATUALIZAR TUDO</button><button id="edit-panel" hidden>EDITAR PAINEL</button><button id="robot-progress" hidden>ANDAMENTO DOS ROBÔS</button><button id="verify-position" hidden>CONFIRMAR POSIÇÃO</button><button id="backup" hidden>BAIXAR POSIÇÃO ONLINE</button><button id="reload" hidden>ATUALIZAR CONSULTA</button><button id="publish" hidden>PUBLICAR POSIÇÃO SALVA</button><input id="publication-file" type="file" accept="application/json,.json" hidden><button id="logout" hidden>SAIR</button><button id="robot-notices" hidden>AVISOS DOS ROBÔS</button><button id="tools-close" type="button">RECOLHER FERRAMENTAS ▴</button></div></header>
 <p id="message" role="status">Entre com seu usuário do app. Consulta e gestão online; acesso conforme seu perfil.</p>
 <p id="robot-status" role="status" hidden style="padding:14px;margin:0;background:#fff3d5;white-space:pre-wrap"></p>
+<dialog id="robot-progress-dialog" aria-labelledby="robot-progress-title" style="width:min(820px,94vw);max-height:85vh;border:0;border-radius:10px;padding:24px;color:#19344f"><h2 id="robot-progress-title">ANDAMENTO DOS ROBÔS</h2><p id="robot-progress-detail" role="status" aria-live="polite" style="white-space:pre-wrap;line-height:1.5">Consultando atualizador…</p><div style="display:flex;gap:10px;justify-content:flex-end"><button id="robot-progress-refresh" type="button">ATUALIZAR ANDAMENTO</button><button id="robot-progress-close" type="button">FECHAR</button></div></dialog>
 <form id="login"><h2>ENTRAR</h2><label>USUÁRIO OU E-MAIL<input id="email" autocomplete="username" required></label><label>SENHA<input id="password" type="password" autocomplete="current-password" required></label><button>ACESSAR PAINEL</button></form>
 <iframe id="panel" title="CONCILIAÇÃO DO METAL — CONSULTA" sandbox="allow-scripts allow-downloads" hidden></iframe>
 <style id="header-tools-style">header{gap:12px;padding:12px 18px}header h1{margin-right:auto}#header-tools{display:flex;flex-basis:100%;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #ffffff30}#tools-toggle{white-space:nowrap;background:#246b78}#tools-close{background:transparent;border:1px solid #ffffff70;margin-left:auto}#header-tools[hidden]{display:none!important}@media(max-width:650px){header h1{font-size:17px}#tools-close{margin-left:0}}</style>
@@ -106,10 +107,10 @@ async function pollRobotFeedback(){
  }));scheduleRobotFeedback();
 }
 async function robotProgress(){
- const box=el('robot-status');box.hidden=false;
- try{const s=await robotCall('/status');box.textContent='ROBÔS · '+s.etapa+(s.at?' · '+new Date(s.at).toLocaleString('pt-BR'):'')+(s.erro?'\n'+s.erro:'')+(s.online_revision?'\nVersão online '+s.online_revision:'');el('run-robots').disabled=s.running;
+ const box=el('robot-status');box.hidden=false;box.textContent='Consultando atualizador…';setRobotProgressDetail(box.textContent);
+ try{const s=await robotCall('/status');box.textContent='ROBÔS · '+s.etapa+(s.at?' · '+new Date(s.at).toLocaleString('pt-BR'):'')+(s.erro?'\n'+s.erro:'')+(s.online_revision?'\nVersão online '+s.online_revision:'');setRobotProgressDetail(box.textContent+(s.running?'\n\nEM EXECUÇÃO — aguarde a conclusão.':'\n\nSEM COLETA EM EXECUÇÃO.')+(s.detalhes?'\n\nDETALHES DA RODADA\n'+s.detalhes:''));el('run-robots').disabled=s.running;
  if(s.running){clearTimeout(robotTimer);robotTimer=setTimeout(robotProgress,3000);}else{clearTimeout(robotTimer);if(s.etapa==='PUBLICADO E CONFERIDO')await load();}
- }catch(e){clearTimeout(robotTimer);el('run-robots').disabled=false;box.textContent='ATUALIZADOR NÃO CONECTADO. No computador PCP, abra INICIAR_ATUALIZADOR.bat na pasta atualizada. Depois clique ANDAMENTO DOS ROBÔS. Detalhe: '+e.message;}
+ }catch(e){clearTimeout(robotTimer);el('run-robots').disabled=false;box.textContent='ATUALIZADOR NÃO CONECTADO. No computador PCP, abra INICIAR_ATUALIZADOR.bat na pasta atualizada. Depois clique ANDAMENTO DOS ROBÔS. Detalhe: '+e.message;setRobotProgressDetail(box.textContent);}
 }
 let startingRobots=false;
 async function confirmRobotPassword(title='Iniciar atualização',description='Confirme sua senha de entrada para iniciar os robôs. Deixe o computador livre durante a coleta.'){
@@ -183,7 +184,11 @@ el('connect-robots').onclick=async()=>{
  }finally{button.disabled=false;}
 };
 el('robot-notices').onclick=()=>window.robotFeedback.open();
-el('robot-progress').onclick=robotProgress;
+function setRobotProgressDetail(text){el('robot-progress-detail').textContent=text;}
+function openRobotProgress(){const dialog=el('robot-progress-dialog');setRobotProgressDetail('Consultando atualizador…');if(!dialog.open)dialog.showModal();robotProgress();}
+el('robot-progress').onclick=openRobotProgress;
+el('robot-progress-refresh').onclick=robotProgress;
+el('robot-progress-close').onclick=()=>el('robot-progress-dialog').close();
 el('verify-position').onclick=async()=>{el('verify-position').disabled=true;try{await window.centralCloud.save({action:'confirmar_publicacao',obs:'Posição conferida para consulta da diretoria; números e horários das fontes preservados.'});el('message').textContent+=' · GRAVAÇÃO ONLINE CONFERIDA.';}catch(e){el('message').textContent='Não foi possível confirmar: '+e.message;}finally{el('verify-position').disabled=false;}};
 el('share').onclick=async()=>{try{await navigator.clipboard.writeText('https://edvaldomaia2020-blip.github.io/ferramentas-pcp/central/#painel');el('message').textContent='LINK COPIADO. Envie à diretoria. Cada pessoa precisa de um usuário autorizado de consulta; não compartilhe sua senha pessoal.';}catch(e){el('message').textContent='Link: https://edvaldomaia2020-blip.github.io/ferramentas-pcp/central/#painel · exige usuário autorizado.';}};
 el('backup').onclick=()=>{if(!cloudSnapshot||auth.currentUser?.uid!==OWNER)return;const url=URL.createObjectURL(new Blob([JSON.stringify({metadata:cloudMeta,data:cloudSnapshot},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='CENTRAL_ONLINE_V'+cloudMeta.revision+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
