@@ -115,6 +115,7 @@ function renderRobotSteps(s){
  summary.textContent=steps.length?done+' de '+steps.length+' etapas concluídas'+(p.reconstruido?' · resultados recuperados do registro desta rodada':''):'';
  if(s.running&&age!==null)summary.textContent+=' · Último registro há '+age+'s'+(age>=60?' — processo ativo, aguardando novo registro. Isso não confirma travamento.':'');
  if(!s.running&&s.etapa!=='PUBLICADO E CONFERIDO')summary.textContent+=' · A atualização não está em execução. Confira o resultado acima.';
+ if(s.avisos?.length)summary.textContent+='\nATENÇÃO: '+s.avisos.join(' | ');
  const names={pendente:'Aguardando',executando:'Em execução',concluido:'Concluído',falha:'FALHA'};
  steps.forEach((step,i)=>{const row=document.createElement('div');row.style.cssText='padding:10px 12px;border-left:5px solid '+({concluido:'#218349',executando:'#167da0',falha:'#bd3028',pendente:'#b8c2cc'}[step.estado]||'#b8c2cc')+';background:#f1f5f8;border-radius:4px';const title=document.createElement('strong');title.textContent=(i+1)+'. '+step.nome+' — '+(names[step.estado]||step.estado);row.append(title);const detail=document.createElement('div');detail.style.cssText='font-size:14px;margin-top:4px';detail.textContent=(step.detalhe||'')+(step.estado==='executando'&&step.inicio?' · há '+duration(step.inicio):'');row.append(detail);holder.append(row);});
  el('robot-progress-log').textContent=s.detalhes||'Nenhum registro detalhado disponível para esta rodada.';
