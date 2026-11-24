@@ -91,6 +91,8 @@ function finishWatch(key,s){const w=robotWatches[key];w.pending=false;w.errors=0
  let name,outcome,message;
  if(key==='conciliacao'){name='Conciliação — coleta das bases';const stage=String(s.etapa||'');outcome=stage.includes('FALHA')?'fail':stage==='PUBLICADO E CONFERIDO'?'ok':'warn';message=stage==='PUBLICADO E CONFERIDO'?'Bases coletadas e painel publicado. Versão '+s.online_revision+'.':stage.includes('REVIS')?'A coleta terminou, mas há '+Number(s.conflicts||0)+' pendência(s) para revisar. A publicação anterior foi preservada.':(s.erro||stage||'Confira o resultado no andamento dos robôs.');}
  else{const op=s.operacao||{},collect=(op.tipo||w.kind)==='coleta';name=collect?'Fechamento Acesys — coleta das bases':'Fechamento Acesys — execução';outcome=op.exit_code===0?(collect&&s.erro?'warn':'ok'):'fail';message=op.exit_code!==0?'O robô encerrou com falha (código '+op.exit_code+'). Confira o controle antes de repetir.':collect?(s.erro||'Bases coletadas. Lista atualizada: '+(s.todos||[]).length+' item(ns). Confira e salve suas autorizações.'):'Execução encerrada. Consulte o histórico e faça uma nova coleta para confirmar quais itens saíram da carteira.';}
+ // 24/11/2026 (PCP): status de atualização dos 4 painéis, gravado pelo robô em automacao.json (status_paineis.py)
+ if(key==='conciliacao'&&Array.isArray(s.paineis)&&s.paineis.length)message+='\nSTATUS DOS PAINÉIS:\n'+s.paineis.map(p=>(p.status==='ATUALIZADO'?'✓ ':'✗ ')+p.painel+': '+p.status+(p.detalhe?' — '+p.detalhe:'')).join('\n');
  if(key==='fechamento'&&(s.operacao?.tipo||w.kind)==='execucao'){
   const progress=window.centralCloud.closingProgress(s);
   if(progress.tracked){message+='\nFechados com sucesso: '+progress.sucesso+' de '+progress.total+'.\nPrecisam de conferência: '+progress.conferir+'. Não executados: '+progress.restantes+'.';if(progress.sucesso<progress.total&&outcome==='ok')outcome='warn';}
@@ -115,7 +117,7 @@ function renderRobotSteps(s){
  summary.textContent=steps.length?done+' de '+steps.length+' etapas concluídas'+(p.reconstruido?' · resultados recuperados do registro desta rodada':''):'';
  if(s.running&&age!==null)summary.textContent+=' · Último registro há '+age+'s'+(age>=60?' — processo ativo, aguardando novo registro. Isso não confirma travamento.':'');
  if(!s.running&&s.etapa!=='PUBLICADO E CONFERIDO')summary.textContent+=' · A atualização não está em execução. Confira o resultado acima.';
- if(s.avisos?.length)summary.textContent+='\nATENÇÃO: '+s.avisos.join(' | ');
+ if(s.avisos?.length)summary.textContent+='\nATENÇÃO: '+s.avisos.join(' | ');if(s.paineis_texto)summary.textContent+='\nSTATUS DOS PAINÉIS:\n'+s.paineis_texto;
  const names={pendente:'Aguardando',executando:'Em execução',concluido:'Concluído',falha:'FALHA'};
  steps.forEach((step,i)=>{const row=document.createElement('div');row.style.cssText='padding:10px 12px;border-left:5px solid '+({concluido:'#218349',executando:'#167da0',falha:'#bd3028',pendente:'#b8c2cc'}[step.estado]||'#b8c2cc')+';background:#f1f5f8;border-radius:4px';const title=document.createElement('strong');title.textContent=(i+1)+'. '+step.nome+' — '+(names[step.estado]||step.estado);row.append(title);const detail=document.createElement('div');detail.style.cssText='font-size:14px;margin-top:4px';detail.textContent=(step.detalhe||'')+(step.estado==='executando'&&step.inicio?' · há '+duration(step.inicio):'');row.append(detail);holder.append(row);});
  el('robot-progress-log').textContent=s.detalhes||'Nenhum registro detalhado disponível para esta rodada.';
