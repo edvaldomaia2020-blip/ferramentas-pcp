@@ -58,10 +58,35 @@
 .pvx .col table{font-size:11px;border-collapse:collapse}.pvx .col td{padding:3px 4px;border-bottom:1px solid #EEF1F5}.pvx .col tr:nth-child(even) td{background:#F6F8FB}.pvx .col td.n{font-weight:700;color:var(--navy)}.pvx .col td.vz{color:#8A94A3;text-align:center;font-weight:400}
 .pvx .col .rl{font-size:9px;font-weight:700;color:#fff;background:var(--ok);padding:2px 6px;border-radius:3px;margin-top:5px;align-self:flex-start}.pvx .col table.r td{color:#185E2A}.pvx .col table.r td.n{color:var(--ok)}
 .pvx .band{background:linear-gradient(90deg,#1F3864,#2F5597)}
+.pvx .imp{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:11px;color:var(--sub)}.pvx .btnf{flex-direction:row;font-size:11px;font-weight:700;padding:5px 10px;border-radius:3px;background:var(--ok);color:#fff;cursor:pointer}
 .pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
  let draft=null,draftOf=null,dirty=false;
 
+ /* Importa a planilha "PRÉVIA DE FATURAMENTO" (abas PROGRAMAÇÃO, FILAS, BASE_CALC) para o rascunho:
+    programação com datas, regras e o previsto que a própria planilha calculou (para os dias já passados). */
+ let xlsxLib=null;
+ function carregarXlsx(){if(window.XLSX)return Promise.resolve(window.XLSX);xlsxLib??=new Promise((ok,ko)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=()=>{xlsxLib=null;ko(Error('não foi possível carregar o leitor de Excel'))};document.head.append(sc)});return xlsxLib}
+ async function importarPlanilha(file){
+  const X=await carregarXlsx(),wb=X.read(await file.arrayBuffer(),{cellDates:true});
+  const sh=n=>{const w=wb.Sheets[n];if(!w)throw Error('aba '+n+' não encontrada');return w};
+  const pr=sh('PROGRAMAÇÃO'),fi=sh('FILAS'),bc=sh('BASE_CALC');
+  const v=(w,a)=>w[a]?.v,ds=x=>x instanceof Date?new Date(Date.UTC(x.getFullYear(),x.getMonth(),x.getDate(),12)).toISOString().slice(0,10):null;
+  const ini=ds(v(pr,'C10'));if(!ini)throw Error('INÍCIO PRODUÇÃO (C10) vazio');
+  const util=i=>{const t=new Date(ini+'T12:00:00Z');let n=1;while(n<i){t.setUTCDate(t.getUTCDate()+1);if(t.getUTCDay()%6)n++}return t.toISOString().slice(0,10)};
+  const programacao=[];
+  for(let r=18;r<=160;r++){const b=v(pr,'B'+r),y=Number(v(pr,'Y'+r));if(typeof b!=='number'||!(y>0))continue;const p7=Number(v(pr,'G'+r))||0,p4=Number(v(pr,'H'+r))||0;if(p7+p4<=0)continue;
+   const m=ds(v(pr,'N'+r));programacao.push({dia:util(y),pedido:String(b),p7,p4,...(m?{faturarEm:m}:{})})}
+  const col=(c,a,b)=>{const o=[];for(let r=a;r<=b;r++){const x=v(pr,c+r);if(x!==undefined&&x!==null&&String(x).trim())o.push(String(x).trim())}return o};
+  const fora={};for(let r=8;r<=15;r++){const a=v(pr,'AD'+r),c=v(pr,'AE'+r);if(a&&c)fora[String(a)]=String(c)}
+  const carteira=[];for(let r=6;r<=1005;r++){const a=v(bc,'A'+r);if(a===undefined||a===''||a===null)continue;carteira.push({pedido:String(a),cliente:v(bc,'C'+r),entrega:ds(v(bc,'F'+r)),kg:Number(v(bc,'G'+r))||0,prensa:v(bc,'H'+r)||'',natural:v(bc,'I'+r)==='NATURAL'})}
+  const filas=[];for(let r=6;r<=55;r++){const b=v(fi,'B'+r);if(!b)continue;filas.push({fila:b,cliente:v(fi,'C'+r),pedido:String(v(fi,'D'+r)??''),kg:Number(v(fi,'E'+r))||0,prioridade:v(fi,'F'+r),faturarEm:ds(v(fi,'Q'+r))})}
+  const ult=ds(v(pr,'C11'));
+  const r=P.calcular({parametros:{inicio:ini,ultimoDiaFaturamento:ult,diasMin:6,dNatural:Number(v(pr,'C12'))||1,capP7:Number(v(pr,'E6'))||0,capP4:Number(v(pr,'E7'))||0,capPintura:Number(v(pr,'E8'))||9000},
+   carteira,feriados:[],filas,programacao:programacao.map(x=>({...x})),agrupados:col('Y',8,15),foraCarteira:fora,prioridadePintura:col('AG',8,15)});
+  const previsto={};for(const d of r.dias){const m=new Map();d.faturamentoItens.forEach(i=>{const k=curto(i.cliente);m.set(k,(m.get(k)||0)+i.kg)});if(m.size)previsto[d.data]=[...m].map(([cliente,kg])=>({cliente,kg:Math.round(kg)})).sort((a,b)=>b.kg-a.kg)}
+  return {manual:{programacao,agrupados:col('Y',8,15),prioridadePintura:col('AG',8,15),foraCarteira:fora,...(ult?{ultimoDiaFaturamento:ult}:{})},previsto,total:r.resumo.previstoKg};
+ }
  function render(host,ctx,u){
   const {esc,num,save}=u,d=ctx.data,owner=ctx.owner;
   if(!P){host.insertAdjacentHTML('beforeend','<p class="cv-error">Motor da prévia não carregou. Recarregue a página.</p>');return}
@@ -81,7 +106,8 @@
   const ultimoUtil=Math.max(15,...r.dias.map((x,i)=>x.faturamento>0||x.p7||x.p4||x.pintura?i+1:0));
   const dias=r.dias.slice(0,ultimoUtil);
   let h='<div class="pvx">';
-  h+='<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><p>Período até <b>'+esc(br(ult))+'</b></p></div>';
+  h+='<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><div class="imp"><label class="btnf">IMPORTAR PLANILHA DE PRÉVIA<input type="file" id="pv-xlsx" accept=".xlsx,.xlsm" hidden></label><span>Período até <b>'+esc(br(ult))+'</b></span></div></div>';
+  if(!draft.programacao.length&&!Object.keys(draft.previsto||{}).length)h+='<div class="dirty">Ainda não há programação gravada no site. Use IMPORTAR PLANILHA DE PRÉVIA para carregar a programação, as regras e o previsto dos dias já passados; depois SALVAR E PUBLICAR.</div>';
   if(semAcab)h+='<div class="warn">A carteira publicada não informa natural/pintado: tudo está sendo tratado como natural.</div>';
   if(dirty)h+='<div class="dirty">Alterações ainda não publicadas. '+(owner?'Use SALVAR E PUBLICAR no fim da página.':'Somente o acesso do Edvaldo grava.')+'</div>';
   // quadro semanal (formato da planilha): previsto por cliente; dias passados = previsto gravado × realizado (NF Aureon)
@@ -147,6 +173,9 @@
    draft.agrupados=lines(f.agrupados.value);draft.prioridadePintura=lines(f.prioridade.value);
    const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}draft.foraCarteira=fora;
    if(f.ultimo.value)draft.ultimoDiaFaturamento=f.ultimo.value;again()};
+  host.querySelector('#pv-xlsx').onchange=async e=>{const f=e.target.files[0];if(!f)return;u.show('Lendo a planilha…',true);
+   try{const x=await importarPlanilha(f);Object.assign(draft,x.manual);draft.previsto={...(draft.previsto||{}),...x.previsto};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação e previsto de '+Object.keys(x.previsto).length+' dias. Confira e use SALVAR E PUBLICAR.',true)}
+   catch(err){u.show('Não foi possível importar: '+err.message)}};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
    const prev={};for(const [k,v]of Object.entries(draft.previsto||{}))if(k<hoje&&k>=soma(s1,-35))prev[k]=v;
