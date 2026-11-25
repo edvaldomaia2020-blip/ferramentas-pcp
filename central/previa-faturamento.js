@@ -16,6 +16,7 @@
  const DAY=86400000;
  const iso=d=>new Date(d).toISOString().slice(0,10);
  const parse=s=>{const t=Date.parse(String(s).slice(0,10)+'T00:00:00Z');if(Number.isNaN(t))throw Error('Data inválida: '+s);return t};
+ const ddmm=s=>s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'';
  const up=s=>String(s??'').toLocaleUpperCase('pt-BR').trim();
  const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
  const contains=(text,list)=>{const t=up(text);return list.some(x=>up(x)&&t.includes(up(x)))};
@@ -33,7 +34,7 @@
  }
 
  function calcular(input){
-  const cfg=Object.assign({diasMin:15,dNatural:1,fator:0.90},input.parametros||{});
+  const cfg=Object.assign({diasMin:15,dNatural:1,fator:1},input.parametros||{});
   const capPint=num(cfg.capPintura);if(capPint<=0)throw Error('Capacidade da pintura não informada.');
   const cap={P7:num(cfg.capP7),P4:num(cfg.capP4),Pintura:capPint};
   const agrupados=(input.agrupados||[]).filter(x=>up(x));
@@ -129,8 +130,8 @@
    if(l.naCarteira&&l.p7>0&&l.carteiraP7===0)a.push('FERRAMENTA SEM CADASTRO NA P7');
    if(l.naCarteira&&l.p4>0&&l.carteiraP4===0)a.push('FERRAMENTA SEM CADASTRO NA P4');
    if(l.regra==='AGUARDA 100%')a.push('AGUARDA FECHAR 100% (falta '+Math.round(l.falta)+' kg)');
-   if(l.faturaDia&&l.tecnico&&l.faturaDia>l.tecnico&&!l.faturarEm)a.push('FATURA JUNTO EM '+l.faturaEm+(l.agrupa?' (AGRUPADO CLIENTE)':' (FIM DO PEDIDO)'));
-   if(l.faturaEm&&ultimo&&l.faturaEm>ultimo)a.push('FATURA DEPOIS DE '+ultimo);
+   if(l.faturaDia&&l.tecnico&&l.faturaDia>l.tecnico&&!l.faturarEm)a.push('FATURA JUNTO EM '+ddmm(l.faturaEm)+(l.agrupa?' (AGRUPADO CLIENTE)':' (FIM DO PEDIDO)'));
+   if(l.faturaEm&&ultimo&&l.faturaEm>ultimo)a.push('FATURA DEPOIS DE '+ddmm(ultimo));
    if(l.faturaEm&&l.entrega&&l.faturaEm>l.entrega)a.push('ATRASA ENTREGA');
    l.alertas=a;
   });
@@ -188,7 +189,7 @@
  function daPublicacao(d,manual){
   manual=manual||{};
   const prog=d.programacao||{},reu=d.resumo_diario?.reuniao||{};
-  const fator=0.90; // regra travada: capacidade das prensas = bruta × aproveitamento × 90%
+  const fator=1; // Edvaldo 25/11: na prévia de faturamento NÃO aplicar os 90% (pedidos saem com até 10% de excedente); a Carga vs Capacidade segue com 90%
   const caps=capacidades(prog.linhas||{P7:{kgh:950,aprov:0.85,horas:20},P4:{kgh:440,aprov:0.85,horas:20},Pintura:{kgh:450,aprov:1,horas:20}},fator);
   const itens=(prog.itens&&prog.itens.length?prog.itens:(d.resumo_diario?.carteira_atual?.itens||[]));
   const carteira=itens.map(x=>({pedido:x.pedido,cliente:x.cliente,kg:x.kg,prensa:x.prensa,entrega:x.entrega,

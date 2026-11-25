@@ -1,51 +1,141 @@
 /* Tela PRÉVIA DE FATURAMENTO da Central (substitui a planilha de prévia).
    Edição fica num rascunho no navegador e recalcula na hora; SALVAR E PUBLICAR grava tudo de uma vez
-   em _gestao.previa (somente o acesso do Edvaldo). */
+   em _gestao.previa (somente o acesso do Edvaldo). Visual no padrão da Carga vs Capacidade (.cvx). */
 (()=>{
  'use strict';
  const P=window.previaFaturamento;
  const dayNow=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+ /* Nome curto do cliente: 1º nome + 2º nome (completo até 10 letras, senão abreviado); ignora DE/DA/DO/E. */
+ const curto=n=>{if(/^NÃO ESTÁ NA CARTEIRA/i.test(String(n||'')))return 'FORA DA CARTEIRA';const w=String(n||'').replace(/[()]/g,' ').trim().toLocaleUpperCase('pt-BR').split(/\s+/).filter(x=>x&&!['DE','DA','DO','DOS','DAS','E','&','-'].includes(x));if(!w.length)return '(sem cliente)';if(w.length===1)return w[0];const b=w[1];return w[0]+' '+(b.length<=10?b:b[0]+'.')};
  const br=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
  const wd=d=>d?['dom','seg','ter','qua','qui','sex','sáb'][new Date(d+'T12:00:00Z').getUTCDay()]+' '+br(d):'';
- const pct=x=>Math.round(100*x)+'%';
  const css=document.createElement('style');
- css.textContent='.pv-sit{font-weight:700;white-space:nowrap}.pv-ESTOUROU{color:#9b211c}.pv-QUASE{color:#9a6a00}.pv-FECHADO{color:#12634b}.pv-ABERTO{color:#1f5f99}.pv-alert{color:#9b211c;font-size:12px}.pv-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin:16px 0}.pv-day{background:white;border:1px solid #ccd8e5;border-radius:6px;padding:12px;font-size:13px}.pv-day h4{margin:0 0 6px}.pv-day ul{margin:6px 0 0;padding-left:18px}.pv-day li{margin:2px 0}.pv-cfg textarea{width:100%;min-height:110px;font:inherit;padding:8px;border:1px solid #9fb3c9}.pv-cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.pv-dirty{background:#fff3d5;padding:10px;border-left:4px solid #b28629;font-weight:600}.cv-table td input{width:110px;padding:6px}';
+ css.textContent=`.pvx{--ink:#1B2430;--sub:#4A5565;--line:#D5DBE3;--bg:#F4F6F9;--navy:#1F3864;--ok:#1E7B34;--okbg:#E7F4EA;--bad:#B42318;--badbg:#FDECEA;--warn:#9A5B00;--warnbg:#FFF4E0;--p7:#1F3864;--p4:#2E6B5E;--pt:#8A4B08;--ft:#16786b;
+ color:var(--ink);font-family:"Segoe UI",Calibri,Arial,sans-serif;font-size:12px;line-height:1.3;display:flex;flex-direction:column;gap:10px;max-width:1280px}
+.pvx *{box-sizing:border-box}
+.pvx .hd{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:4px 13px;border-bottom:2px solid var(--navy);padding-bottom:5px}
+.pvx .hd h2{margin:0;font-size:19px;color:var(--navy)}.pvx .hd p{margin:2px 0 0;color:var(--sub);font-size:11px}
+.pvx .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.pvx .kpi{background:#fff;border:1px solid var(--line);border-top:4px solid var(--c,var(--navy));border-radius:4px;padding:7px 9px}
+.pvx .kpi span{display:block;font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:.2px}
+.pvx .kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.15}.pvx .kpi small{font-size:11px;color:var(--sub)}
+.pvx .band{background:var(--navy);color:#fff;font-weight:700;font-size:12px;padding:5px 8px;border-radius:2px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.pvx .band span{font-weight:400;color:#C9D4E8;font-size:11px}
+.pvx .wrap{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:#fff}
+.pvx table{border-collapse:collapse;width:100%;font-size:12px}
+.pvx th{background:var(--bg);color:var(--sub);font-size:10px;font-weight:600;text-align:left;padding:5px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
+.pvx td{padding:4px 7px;border-bottom:1px solid #E8ECF1;vertical-align:middle;font-variant-numeric:tabular-nums}
+.pvx td.n,.pvx th.n{text-align:right}
+.pvx tr.dia{cursor:pointer}.pvx tr.dia:hover td{background:#F7F9FC}.pvx tr.depois td{color:#8A94A3}
+.pvx tr.det td{background:#FAFBFD;padding:6px 10px 8px 28px;font-size:11px;color:var(--sub)}
+.pvx .m{display:flex;align-items:center;gap:6px;min-width:120px}.pvx .m .bar{flex:1;height:7px;background:#E6EAF0;border-radius:4px;overflow:hidden}.pvx .m .bar i{display:block;height:100%;background:var(--c)}.pvx .m .bar.over i{background:var(--bad)}.pvx .m em{font-style:normal;font-size:11px;width:34px;text-align:right}.pvx .m em.over{color:var(--bad);font-weight:700}
+.pvx .pill{display:inline-block;font-weight:700;font-size:10px;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.pvx .pill.ESTOUROU{background:var(--badbg);color:var(--bad)}.pvx .pill.QUASE{background:var(--warnbg);color:var(--warn)}.pvx .pill.FECHADO{background:var(--okbg);color:var(--ok)}.pvx .pill.ABERTO{background:#E8EDF6;color:var(--navy)}
+.pvx .ft{font-weight:700}.pvx .chips{display:flex;flex-wrap:wrap;gap:4px 10px}.pvx .chips span{white-space:nowrap}.pvx .chips b{color:var(--ink)}
+.pvx .note{font-size:10px;color:var(--sub);background:var(--bg);border-radius:4px;padding:5px 8px}
+.pvx .warn{font-size:12px;font-weight:600;color:var(--bad);background:var(--badbg);border-left:4px solid var(--bad);padding:6px 10px;border-radius:4px}
+.pvx .dirty{font-size:12px;font-weight:600;color:var(--warn);background:var(--warnbg);border-left:4px solid #B28629;padding:6px 10px;border-radius:4px}
+.pvx details{background:#fff;border:1px solid var(--line);border-radius:4px}.pvx details>summary{cursor:pointer;padding:7px 10px;font-weight:700;color:var(--navy);font-size:12px}.pvx details>summary span{font-weight:400;color:var(--sub);font-size:11px;margin-left:6px}.pvx details[open]>summary{border-bottom:1px solid var(--line)}
+.pvx details .in{padding:8px 10px;display:flex;flex-direction:column;gap:8px}.pvx details .wrap{border:0}
+.pvx form.row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:end}.pvx label{font-size:10px;color:var(--sub);display:flex;flex-direction:column;gap:2px}
+.pvx input,.pvx select,.pvx textarea{font:inherit;font-size:12px;padding:4px 6px;border:1px solid #B8C4D3;border-radius:3px;margin:0}.pvx input[type=number]{width:90px}.pvx td input{width:96px}
+.pvx button{font:inherit;font-size:11px;font-weight:700;padding:5px 10px;border-radius:3px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}.pvx button.lnk{background:#fff;color:var(--bad);border-color:#E3B4AF;padding:2px 7px}.pvx button.sec{background:#fff;color:var(--navy)}
+.pvx .al{color:var(--bad);font-size:11px}.pvx .ok{color:var(--ok);font-size:11px}
+.pvx .cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.pvx .cfg textarea{min-height:90px;width:100%}
+.pvx .board{display:grid;grid-template-columns:repeat(5,minmax(175px,1fr));gap:7px;overflow-x:auto}
+.pvx .col{background:#fff;border:1px solid var(--line);border-top:5px solid #7F93B5;border-radius:4px;padding:0 0 6px;display:flex;flex-direction:column;gap:4px;min-width:175px;box-shadow:0 1px 2px rgba(20,40,80,.06)}
+.pvx .col>*:not(.ch):not(table){margin:0 7px}.pvx .col table{width:calc(100% - 8px);margin:2px 4px 0}
+.pvx .col.hoje{border-top-color:#2F5597;box-shadow:0 0 0 2px #2F5597}.pvx .col.ok{border-top-color:var(--ok)}.pvx .col.bad{border-top-color:var(--bad)}.pvx .col.fut{border-top-color:var(--navy)}.pvx .col.feriado{opacity:.6}
+.pvx .col .ch{display:flex;justify-content:space-between;align-items:center;gap:4px;background:#E8EDF6;padding:5px 7px;border-bottom:1px solid var(--line)}.pvx .col.ok .ch{background:var(--okbg)}.pvx .col.bad .ch{background:var(--badbg)}.pvx .col.hoje .ch{background:#DCE6F7}
+.pvx .col .ch b{font-size:13px;color:var(--navy);text-transform:uppercase;letter-spacing:.3px}
+.pvx .tag{font-size:9px;font-weight:700;background:#2F5597;color:#fff;padding:2px 6px;border-radius:3px;white-space:nowrap}.pvx .tag.off{background:#8A94A3}.pvx .tag.tok{background:var(--ok)}.pvx .tag.tbad{background:var(--bad)}
+.pvx .blk{border-radius:4px;padding:5px 8px;display:flex;flex-direction:column;gap:1px}.pvx .blk span{font-size:9px;font-weight:700;letter-spacing:.4px}.pvx .blk b{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}.pvx .blk b small{font-size:11px;font-weight:600}
+.pvx .blk.prev{background:linear-gradient(135deg,#1F3864,#2F5597);color:#fff}.pvx .blk.prev span{color:#C9D4E8}
+.pvx .blk.real{background:var(--okbg);border-left:5px solid var(--ok);color:var(--ink)}.pvx .col.bad .blk.real{background:var(--badbg);border-left-color:var(--bad)}.pvx .blk.real span{color:var(--ok)}.pvx .col.bad .blk.real span{color:var(--bad)}.pvx .col.hoje .blk.real{background:#fff;border:1px solid var(--line);border-left:5px solid #2F5597}.pvx .col.hoje .blk.real span{color:#2F5597}
+.pvx .blk em{font-style:normal;font-size:11px;font-weight:700;align-self:flex-start;padding:1px 6px;border-radius:3px}.pvx .blk em.pos{background:var(--ok);color:#fff}.pvx .blk em.neg{background:var(--bad);color:#fff}
+.pvx .pbar{height:7px;background:#E6EAF0;border-radius:4px;overflow:hidden}.pvx .pbar i{display:block;height:100%;background:var(--bad)}.pvx .pbar.cheio i{background:var(--ok)}.pvx .col.hoje .pbar i{background:#2F5597}
+.pvx .acc{font-size:10px;color:var(--sub)}.pvx .acc b{color:var(--ink)}
+.pvx .occ{display:flex;gap:4px;flex-wrap:wrap;font-size:10px;color:var(--sub)}.pvx .oc{font-weight:700;font-size:10px;padding:1px 5px;border-radius:3px;color:#fff}.pvx .oc.p7{background:var(--p7)}.pvx .oc.p4{background:var(--p4)}.pvx .oc.pt{background:var(--pt)}.pvx .oc.over{background:var(--bad)}
+.pvx .col table{font-size:11px;border-collapse:collapse}.pvx .col td{padding:3px 4px;border-bottom:1px solid #EEF1F5}.pvx .col tr:nth-child(even) td{background:#F6F8FB}.pvx .col td.n{font-weight:700;color:var(--navy)}.pvx .col td.vz{color:#8A94A3;text-align:center;font-weight:400}
+.pvx .col .rl{font-size:9px;font-weight:700;color:#fff;background:var(--ok);padding:2px 6px;border-radius:3px;margin-top:5px;align-self:flex-start}.pvx .col table.r td{color:#185E2A}.pvx .col table.r td.n{color:var(--ok)}
+.pvx .band{background:linear-gradient(90deg,#1F3864,#2F5597)}
+.pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
  let draft=null,draftOf=null,dirty=false;
 
  function render(host,ctx,u){
-  const {esc,num,table,save}=u,d=ctx.data,owner=ctx.owner;
+  const {esc,num,save}=u,d=ctx.data,owner=ctx.owner;
   if(!P){host.insertAdjacentHTML('beforeend','<p class="cv-error">Motor da prévia não carregou. Recarregue a página.</p>');return}
   const pub=ctx.meta?.publicacao||'';
   if(draftOf!==pub||!draft){draft=structuredClone(d._gestao?.previa||{});draftOf=pub;dirty=false}
   draft.programacao??=[];draft.agrupados??=P.AGRUPADOS_PADRAO.slice();draft.prioridadePintura??=[];draft.foraCarteira??={};draft.prioridadeFila??={};draft.faturarEmFila??={};
-  const hoje=dayNow();
-  const manual={...draft,inicio:draft.inicio&&draft.inicio>hoje?draft.inicio:hoje,programacao:draft.programacao.filter(x=>x.dia>=(draft.inicio&&draft.inicio>hoje?draft.inicio:hoje))};
+  const hoje=dayNow(),ini=draft.inicio&&draft.inicio>hoje?draft.inicio:hoje;
+  const manual={...draft,inicio:ini,programacao:draft.programacao.filter(x=>x.dia>=ini)};
   const passadas=draft.programacao.length-manual.programacao.length;
   let input,r;
   try{input=P.daPublicacao(d,manual);r=P.calcular(input)}catch(e){host.insertAdjacentHTML('beforeend','<p class="cv-error">Não foi possível calcular a prévia: '+esc(e.message)+'</p>');return}
   const semAcab=input.carteira.length&&!(d.programacao?.itens?.length)&&!(d.resumo_diario?.carteira_atual?.itens||[]).some(x=>x.pintura!==undefined||x.cor||x.beneficiamento);
-  const add=s=>host.insertAdjacentHTML('beforeend',s);
   const cap=r.parametros.cap,ult=r.ultimoDiaFaturamento,res=r.resumo;
-  add('<h2>PRÉVIA DE FATURAMENTO</h2><p class="cv-note">Mesmas regras da planilha de prévia: natural fatura no dia útil seguinte à produção; pintado entra na fila da pintura ('+num(cap.Pintura)+' kg/dia, fila atual primeiro) e fatura no dia seguinte ao fim da pintura; pedido normal só fatura com 100% programado, na data da última produção; clientes agrupados faturam tudo junto; data manual vence. Capacidade das prensas com 90%: P7 '+num(Math.round(cap.P7))+' kg/dia · P4 '+num(Math.round(cap.P4))+' kg/dia. Calendário com pelo menos 15 dias úteis, sem fim de semana, feriado e recesso. Filas atuais vêm da Visão Geral publicada.'+(passadas?' '+passadas+' linha(s) de dias anteriores a hoje não entram (já estão nas filas).':'')+'</p>'+(semAcab?'<p class="cv-error">A carteira publicada não informa natural/pintado: tudo está sendo tratado como natural.</p>':'')+(dirty?'<p class="pv-dirty">Há alterações não publicadas nesta tela. '+(owner?'Use SALVAR E PUBLICAR para gravar.':'Somente o acesso do Edvaldo grava.')+'</p>':''));
-  add('<div class="cv-cards">'+[['Faturamento previsto até '+br(ult),num(Math.round(res.previstoKg))+' kg'],['Pedidos (programação)',res.pedidos],['Clientes (programação)',res.clientes],['Maior dia',res.maiorDia?num(Math.round(res.maiorDia.faturamento))+' kg · '+wd(res.maiorDia.data):'—'],['Aguardando fechar 100%',num(Math.round(res.aguardando100Kg))+' kg'],['Fatura após '+br(ult),num(Math.round(res.depoisDoPeriodoKg))+' kg'],['Já produzido (filas) no período',num(Math.round(res.jaProduzidoKg))+' kg']].map(([l,v])=>'<div class="cv-card">'+esc(l)+'<b>'+esc(v)+'</b></div>').join('')+'</div>');
-  const sit=s=>'<span class="pv-sit pv-'+s.split(' ').pop()+'">'+esc(s)+'</span>';
-  add('<h3>FATURAMENTO POR DIA</h3>'+table(['Dia','Situação','P7 kg','P4 kg','Pintura kg (fila + novo)','Faturamento kg','Acumulado kg'],r.dias.map(x=>[esc(wd(x.data))+(ult&&x.data>ult?' <small>(após '+esc(br(ult))+')</small>':''),sit(x.situacao),num(Math.round(x.p7))+' · '+pct(x.ocupacao.P7),num(Math.round(x.p4))+' · '+pct(x.ocupacao.P4),num(Math.round(x.pinturaFila))+' + '+num(Math.round(x.pinturaNovo))+' · '+pct(x.ocupacao.Pintura),'<b>'+num(Math.round(x.faturamento))+'</b>',num(Math.round(x.acumulado))])));
-  add('<h3>O QUE FATURA EM CADA DIA</h3><div class="pv-days">'+r.dias.filter(x=>x.faturamentoItens.length).map(x=>'<div class="pv-day"><h4>'+esc(wd(x.data))+' · '+num(Math.round(x.faturamento))+' kg</h4><ul>'+x.faturamentoItens.map(i=>'<li>'+esc((i.pedido?i.pedido+' · ':'')+i.cliente)+' · '+num(Math.round(i.kg))+' kg <small>('+esc(i.origem==='PROGRAMAÇÃO'?'programação':i.origem.toLowerCase())+')</small></li>').join('')+'</ul></div>').join('')+'</div>');
+  const t=kg=>(Math.round((kg||0)/100)/10).toLocaleString('pt-BR',{minimumFractionDigits:1})+' t',kg=x=>num(Math.round(x||0));
+  const meter=(o,c)=>{const p=Math.round(100*o),w=Math.min(100,p);return '<div class="m" style="--c:'+c+'"><div class="bar'+(p>100?' over':'')+'"><i style="width:'+w+'%"></i></div><em'+(p>100?' class="over"':'')+'>'+p+'%</em></div>'};
+  const sitTxt={ESTOUROU:'ESTOUROU','QUASE CHEIO':'QUASE CHEIO','DIA FECHADO':'FECHADO',ABERTO:'ABERTO'};
+  const ultimoUtil=Math.max(15,...r.dias.map((x,i)=>x.faturamento>0||x.p7||x.p4||x.pintura?i+1:0));
+  const dias=r.dias.slice(0,ultimoUtil);
+  let h='<div class="pvx">';
+  h+='<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><p>Período até <b>'+esc(br(ult))+'</b></p></div>';
+  if(semAcab)h+='<div class="warn">A carteira publicada não informa natural/pintado: tudo está sendo tratado como natural.</div>';
+  if(dirty)h+='<div class="dirty">Alterações ainda não publicadas. '+(owner?'Use SALVAR E PUBLICAR no fim da página.':'Somente o acesso do Edvaldo grava.')+'</div>';
+  // quadro semanal (formato da planilha): previsto por cliente; dias passados = previsto gravado × realizado (NF Aureon)
+  const fmt=x=>num(Math.round(x||0));
+  const porCliente=itens=>{const m=new Map();for(const i of itens){const k=curto(i.cliente);m.set(k,(m.get(k)||0)+Number(i.kg||0))}return [...m].map(([cliente,kg])=>({cliente,kg})).sort((a,b)=>b.kg-a.kg)};
+  const calc=new Map(r.dias.map(x=>[x.data,x]));
+  const prevGravado=draft.previsto||{};
+  const ign=new Set((d.materiais?.excluir_nf||[]).map(String));
+  const realDe=dt=>porCliente((d.materiais?.linhas||[]).filter(n=>String(n.data||'').slice(0,10)===dt&&!ign.has(String(n.nota))&&Number(n.kg)>0));
+  const off=new Set(input.feriados||[]);
+  const seg=s=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)};
+  const soma=(s,n)=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
+  const prevDe=dt=>dt<hoje?porCliente(prevGravado[dt]||[]):porCliente(calc.get(dt)?.faturamentoItens||[]);
+  const semana=(ini,titulo)=>{
+   const ds=[0,1,2,3,4].map(i=>soma(ini,i));
+   let accP=0,accR=0;
+   const cols=ds.map(dt=>{
+    const p=prevDe(dt),tp=p.reduce((s,x)=>s+x.kg,0),passou=dt<=hoje,rr=passou?realDe(dt):[],tr=rr.reduce((s,x)=>s+x.kg,0),c=calc.get(dt);
+    accP+=tp;accR+=tr;
+    const st=dt<hoje?(tr>=tp-1?'ok':'bad'):dt===hoje?'hoje':'fut';
+    let o='<div class="col '+st+(off.has(dt)?' feriado':'')+'"><div class="ch"><b>'+esc(wd(dt))+'</b>'+(dt===hoje?'<span class="tag">HOJE</span>':'')+(off.has(dt)?'<span class="tag off">SEM EXPEDIENTE</span>':'')+(dt<hoje&&(tp||tr)?'<span class="tag '+(tr>=tp-1?'tok':'tbad')+'">'+(tr>=tp-1?'✓ BATEU':'✕ FALTOU')+'</span>':'')+'</div>';
+    o+='<div class="blk prev"><span>PREVISTO</span><b>'+fmt(tp)+' <small>kg</small></b></div>';
+    if(passou)o+='<div class="blk real"><span>REALIZADO'+(dt===hoje?' ATÉ AGORA':'')+'</span><b>'+fmt(tr)+' <small>kg</small></b>'+(dt<hoje&&(tp||tr)?'<em class="'+(tr>=tp?'pos':'neg')+'">'+(tr>=tp?'+':'')+fmt(tr-tp)+' kg'+(tp?' · '+Math.round(100*tr/tp)+'%':'')+'</em>':'')+'</div>';
+    if(passou&&tp>0)o+='<div class="pbar'+(tr>=tp?' cheio':'')+'"><i style="width:'+Math.min(100,Math.round(100*tr/tp))+'%"></i></div>';
+    o+='<div class="acc">Acumulado <b>'+fmt(accP)+'</b>'+(passou?' · real <b>'+fmt(accR)+'</b>':'')+'</div>';
+    if(c&&dt>=hoje)o+='<div class="occ">'+[['P7','p7',c.ocupacao.P7],['P4','p4',c.ocupacao.P4],['PINT','pt',c.ocupacao.Pintura]].map(([n,k,v])=>'<span class="oc '+k+(v>1?' over':'')+'">'+n+' '+Math.round(100*v)+'%</span>').join('')+'</div>';
+    if(dt<hoje&&!prevGravado[dt])o+='<div class="occ">previsto não gravado neste dia</div>';
+    o+='<table><tbody>'+p.map(x=>'<tr><td>'+esc(x.cliente)+'</td><td class="n">'+fmt(x.kg)+'</td></tr>').join('')+(p.length?'':'<tr><td colspan="2" class="vz">—</td></tr>')+'</tbody></table>';
+    if(passou&&rr.length)o+='<div class="rl">Realizado (NF)</div><table class="r"><tbody>'+rr.map(x=>'<tr><td>'+esc(x.cliente)+'</td><td class="n">'+fmt(x.kg)+'</td></tr>').join('')+'</tbody></table>';
+    return o+'</div>'});
+   return '<div class="band">'+titulo+'<span>previsto '+fmt(accP)+' kg'+(accR?' · realizado '+fmt(accR)+' kg':'')+'</span></div><div class="board">'+cols.join('')+'</div>';
+  };
+  const s1=seg(hoje),s2=soma(s1,7),s3=soma(s1,14);
+  h+=semana(s1,'SEMANA '+br(s1)+' A '+br(soma(s1,4)));
+  h+='<details><summary>SEMANA '+br(s2)+' A '+br(soma(s2,4))+'<span>abrir segunda semana</span></summary><div class="in">'+semana(s2,'SEMANA '+br(s2)+' A '+br(soma(s2,4)))+'</div></details>';
+  h+='<details><summary>SEMANA '+br(s3)+' A '+br(soma(s3,4))+'<span>abrir terceira semana</span></summary><div class="in">'+semana(s3,'SEMANA '+br(s3)+' A '+br(soma(s3,4)))+'</div></details>';
+  h+='<div class="kpis">'+[['Previsto até '+br(ult),fmt(res.previstoKg)+' kg'],['Aguardando fechar 100%',fmt(res.aguardando100Kg)+' kg'],['Fatura depois de '+br(ult),fmt(res.depoisDoPeriodoKg)+' kg'],['Pedidos · clientes (programação)',res.pedidos+' · '+res.clientes]].map(([l,v])=>'<div class="kpi"><span>'+esc(l)+'</span><b>'+esc(v)+'</b></div>').join('')+'</div>';
   // programação
-  const dias=r.dias.map(x=>x.data);
   const carteira=new Map();input.carteira.forEach(c=>{const p=String(c.pedido);if(!carteira.has(p))carteira.set(p,c.cliente)});
-  add('<h3>PROGRAMAÇÃO P7 / P4</h3><form class="cv-form" id="pv-add"><div class="cv-tools"><label>Dia<select name="dia">'+dias.slice(0,Math.max(15,dias.length)).map(x=>'<option value="'+x+'">'+esc(wd(x))+'</option>').join('')+'</select></label><label>Pedido<input name="pedido" required pattern="[0-9]+" list="pv-ped"></label><datalist id="pv-ped">'+[...carteira].map(([p,c])=>'<option value="'+esc(p)+'">'+esc(c)+'</option>').join('')+'</datalist><label>P7 kg<input name="p7" type="number" min="0" step="1"></label><label>P4 kg<input name="p4" type="number" min="0" step="1"></label><label>Faturar em (manual)<input name="faturarEm" type="date"></label><button>INCLUIR NA PRÉVIA</button></div></form>');
-  const linhas=r.linhas;
-  add(table(['Dia','Pedido','Cliente','Entrega','Carteira P7/P4','P7 kg','P4 kg','Acabamento','Pinta até','Fatura em','Status / alertas',''],linhas.map(l=>[esc(wd(l.data)),esc(l.pedido),esc(l.cliente),esc(br(l.entrega)),num(Math.round(l.carteiraP7))+' / '+num(Math.round(l.carteiraP4)),num(l.p7),num(l.p4),esc(l.acabamento),esc(br(l.pintaAte)),esc(l.faturaEm?br(l.faturaEm):l.regra)+(l.faturarEm?' <small>(manual)</small>':''),l.alertas.length?'<span class="pv-alert">'+l.alertas.map(esc).join('<br>')+'</span>':'OK','<button type="button" data-pv-del="'+l.ordem+'">REMOVER</button>'])));
+  const comAlerta=r.linhas.filter(l=>l.alertas.length).length;
+  h+='<details open><summary>PROGRAMAÇÃO P7 / P4<span>'+r.linhas.length+' linhas'+(comAlerta?' · '+comAlerta+' com alerta':'')+(passadas?' · '+passadas+' de dias passados fora da conta (já estão nas filas)':'')+'</span></summary><div class="in">';
+  h+='<form class="row" id="pv-add"><label>Dia<select name="dia">'+dias.map(x=>'<option value="'+x.data+'">'+esc(wd(x.data))+'</option>').join('')+'</select></label><label>Pedido<input name="pedido" required pattern="[0-9]+" list="pv-ped" style="width:90px"></label><datalist id="pv-ped">'+[...carteira].map(([p,c])=>'<option value="'+esc(p)+'">'+esc(c)+'</option>').join('')+'</datalist><label>P7 kg<input name="p7" type="number" min="0" step="1"></label><label>P4 kg<input name="p4" type="number" min="0" step="1"></label><label>Faturar em (manual)<input name="faturarEm" type="date"></label><button>INCLUIR</button></form>';
+  h+='<div class="wrap"><table><thead><tr><th>Dia</th><th>Pedido</th><th>Cliente</th><th class="n">P7</th><th class="n">P4</th><th>Acab.</th><th>Fatura</th><th>Alertas</th><th></th></tr></thead><tbody>'+r.linhas.map(l=>'<tr><td>'+esc(wd(l.data))+'</td><td>'+esc(l.pedido)+'</td><td>'+esc(l.cliente)+'</td><td class="n">'+(l.p7?kg(l.p7):'')+'</td><td class="n">'+(l.p4?kg(l.p4):'')+'</td><td>'+esc(l.acabamento.slice(0,3))+(l.pintaAte?' <small>pinta '+esc(br(l.pintaAte))+'</small>':'')+'</td><td><b>'+esc(l.faturaEm?br(l.faturaEm):l.regra)+'</b>'+(l.faturarEm?' <small>manual</small>':'')+'</td><td>'+(l.alertas.length?'<span class="al">'+l.alertas.map(esc).join(' · ')+'</span>':'<span class="ok">OK</span>')+'</td><td><button type="button" class="lnk" data-pv-del="'+l.ordem+'">remover</button></td></tr>').join('')+'</tbody></table></div></div></details>';
   // filas
-  add('<h3>FILAS ATUAIS (JÁ PRODUZIDO)</h3>'+table(['Fila','Cliente','kg','Prioridade pintura','Pinta até','Faturar em (manual)','Fatura em','Regra'],r.filas.map(f=>{const k=f.fila+'|'+f.cliente;return [esc(f.fila),esc(f.cliente),num(Math.round(f.kg)),f.fila==='PINTURA'?'<input type="number" min="1" step="1" data-pv-prio="'+esc(f.cliente)+'" value="'+esc(draft.prioridadeFila[f.cliente]??'')+'" placeholder="99">':'',esc(br(f.pintaAte)),'<input type="date" data-pv-fat="'+esc(k)+'" value="'+esc(draft.faturarEmFila[k]||'')+'">',esc(f.faturaEm?wd(f.faturaEm):f.regra),esc(f.regra)]})));
-  // pendentes e sugestões
-  add('<h3>PEDIDOS PENDENTES (entrega até '+esc(br(ult))+' com saldo não programado)</h3>'+table(['Pedido','Cliente','Entrega','Situação','Saldo kg','P7','P4','Natural','Pintado','Programado','Falta'],r.pendentes.map(x=>[esc(x.pedido),esc(x.cliente),esc(br(x.entrega)),x.atrasado?'<span class="pv-alert">ATRASADO</span>':'NO PRAZO',num(Math.round(x.saldo)),num(Math.round(x.P7)),num(Math.round(x.P4)),num(Math.round(x.natural)),num(Math.round(x.pintado)),num(Math.round(x.programado)),'<b>'+num(Math.round(x.falta))+'</b>'])));
-  for(const pr of ['P7','P4']){const s=r.sugestoes[pr],falta=s.reduce((a,x)=>a+x.falta,0);add('<details><summary><b>SUGESTÕES '+pr+'</b> · '+s.length+' pedidos · falta programar '+num(Math.round(falta))+' kg = '+(cap[pr]?(falta/cap[pr]).toLocaleString('pt-BR',{maximumFractionDigits:1}):'—')+' dias de prensa</summary>'+table(['Pedido','Cliente','Entrega','Acabamento','Saldo '+pr,'Programado','Falta'],s.slice(0,150).map(x=>[esc(x.pedido),esc(x.cliente),esc(br(x.entrega))+(x.entrega&&x.entrega<dias[0]?' <span class="pv-alert">atrasado</span>':''),esc(x.acabamento),num(Math.round(x.saldo)),num(Math.round(x.programado)),'<b>'+num(Math.round(x.falta))+'</b>'])))+'</details>'}
-  // configurações
-  add('<h3>REGRAS EDITÁVEIS</h3><form class="cv-form" id="pv-cfg"><div class="pv-cfg"><label>Clientes com faturamento agrupado (um por linha; basta parte do nome)<textarea name="agrupados">'+esc(draft.agrupados.join('\n'))+'</textarea></label><label>Prioridade na pintura (pedido ou parte do nome do cliente, um por linha)<textarea name="prioridade">'+esc(draft.prioridadePintura.join('\n'))+'</textarea></label><label>Pedidos fora da carteira (pedido;cliente, um por linha)<textarea name="fora">'+esc(Object.entries(draft.foraCarteira).map(([k,v])=>k+';'+v).join('\n'))+'</textarea></label><div><label>Último dia de faturamento do mês<input name="ultimo" type="date" value="'+esc(draft.ultimoDiaFaturamento||ult||'')+'"></label><p><button type="submit">APLICAR REGRAS</button></p></div></div></form>');
-  add('<div class="cv-tools">'+(owner?'<label>Motivo<input id="pv-obs" placeholder="Ex.: programação de 26/11"></label><button id="pv-save">SALVAR E PUBLICAR PRÉVIA</button>':'')+'<button id="pv-reset" type="button">DESCARTAR ALTERAÇÕES</button></div>');
+  const totFila=r.filas.reduce((s,f)=>s+f.kg,0);
+  h+='<details><summary>FILAS ATUAIS (já produzido)<span>'+r.filas.length+' linhas · '+t(totFila)+' · vêm da Visão Geral</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Fila</th><th>Cliente</th><th class="n">kg</th><th>Prioridade pintura</th><th>Faturar em (manual)</th><th>Fatura</th></tr></thead><tbody>'+r.filas.map(f=>{const k=f.fila+'|'+f.cliente;return '<tr><td>'+esc(f.fila.toLowerCase())+'</td><td>'+esc(f.cliente)+'</td><td class="n">'+kg(f.kg)+'</td><td>'+(f.fila==='PINTURA'?'<input type="number" min="1" step="1" data-pv-prio="'+esc(f.cliente)+'" value="'+esc(draft.prioridadeFila[f.cliente]??'')+'" placeholder="99">':'')+'</td><td><input type="date" data-pv-fat="'+esc(k)+'" value="'+esc(draft.faturarEmFila[k]||'')+'"></td><td><b>'+esc(f.faturaEm?wd(f.faturaEm):f.regra)+'</b></td></tr>'}).join('')+'</tbody></table></div></div></details>';
+  // pendentes
+  h+='<details><summary>PEDIDOS PENDENTES<span>'+r.pendentes.length+' pedidos com entrega até '+esc(br(ult))+' ainda sem programar · '+t(r.pendentes.reduce((s,x)=>s+x.falta,0))+'</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th class="n">P7</th><th class="n">P4</th><th class="n">Pintado</th><th class="n">Falta programar</th></tr></thead><tbody>'+r.pendentes.map(x=>'<tr><td>'+esc(x.pedido)+'</td><td>'+esc(x.cliente)+'</td><td>'+esc(br(x.entrega))+(x.atrasado?' <span class="al">atrasado</span>':'')+'</td><td class="n">'+kg(x.P7)+'</td><td class="n">'+kg(x.P4)+'</td><td class="n">'+kg(x.pintado)+'</td><td class="n"><b>'+kg(x.falta)+'</b></td></tr>').join('')+'</tbody></table></div></div></details>';
+  for(const pr of ['P7','P4']){const s=r.sugestoes[pr],falta=s.reduce((a,x)=>a+x.falta,0);
+   h+='<details><summary>SUGESTÕES '+pr+'<span>'+s.length+' pedidos · falta '+t(falta)+' = '+(cap[pr]?(falta/cap[pr]).toLocaleString('pt-BR',{maximumFractionDigits:1}):'—')+' dias de prensa · entrega mais antiga primeiro</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th>Acab.</th><th class="n">Saldo</th><th class="n">Programado</th><th class="n">Falta</th></tr></thead><tbody>'+s.slice(0,150).map(x=>'<tr><td>'+esc(x.pedido)+'</td><td>'+esc(x.cliente)+'</td><td>'+esc(br(x.entrega))+(x.entrega&&x.entrega<dias[0].data?' <span class="al">atrasado</span>':'')+'</td><td>'+esc(x.acabamento.slice(0,3))+'</td><td class="n">'+kg(x.saldo)+'</td><td class="n">'+kg(x.programado)+'</td><td class="n"><b>'+kg(x.falta)+'</b></td></tr>').join('')+'</tbody></table></div></div></details>'}
+  h+='<details><summary>REGRAS EDITÁVEIS<span>clientes agrupados, prioridade na pintura, pedidos fora da carteira, último dia</span></summary><div class="in"><form id="pv-cfg"><div class="cfg"><label>Clientes com faturamento agrupado (um por linha)<textarea name="agrupados">'+esc(draft.agrupados.join('\n'))+'</textarea></label><label>Prioridade na pintura (pedido ou cliente)<textarea name="prioridade">'+esc(draft.prioridadePintura.join('\n'))+'</textarea></label><label>Pedidos fora da carteira (pedido;cliente)<textarea name="fora">'+esc(Object.entries(draft.foraCarteira).map(([k,v])=>k+';'+v).join('\n'))+'</textarea></label><label>Último dia de faturamento<input name="ultimo" type="date" value="'+esc(draft.ultimoDiaFaturamento||ult||'')+'"><button type="submit" style="margin-top:8px">APLICAR</button></label></div></form>';
+  h+='<div class="note">Regras: natural fatura no dia útil seguinte à produção · pintado fatura no dia seguinte ao fim da pintura (fila atual primeiro) · pedido normal só fatura com 100% programado, na última produção · clientes agrupados faturam tudo junto · data manual vence · fora da carteira = natural · calendário sem fim de semana, feriado e recesso.</div></div></details>';
+  h+='<div class="save">'+(owner?'<label>Motivo<input id="pv-obs" placeholder="Ex.: programação de 26/11" style="width:240px"></label><button id="pv-save">SALVAR E PUBLICAR PRÉVIA</button>':'')+'<button id="pv-reset" type="button" class="sec">DESCARTAR ALTERAÇÕES</button></div></div>';
+  host.insertAdjacentHTML('beforeend',h);
   const again=()=>{dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)};
   host.querySelector('#pv-add').onsubmit=e=>{e.preventDefault();const f=e.target.elements,p7=Number(f.p7.value||0),p4=Number(f.p4.value||0);
    if(p7<0||p4<0||p7+p4<=0){u.show('Informe o kg em P7 e/ou P4.');return}
@@ -59,7 +149,9 @@
    if(f.ultimo.value)draft.ultimoDiaFaturamento=f.ultimo.value;again()};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
-   const body={action:'previa',previa:structuredClone(draft),obs};draftOf=null;save(body)};
+   const prev={};for(const [k,v]of Object.entries(draft.previsto||{}))if(k<hoje&&k>=soma(s1,-35))prev[k]=v;
+   for(const x of r.dias)if(x.data>=hoje&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
+   const body={action:'previa',previa:{...structuredClone(draft),previsto:prev},obs};draftOf=null;save(body)};
  }
  /* Validação da gravação (usada por centralViews.action). */
  function validar(p){
@@ -76,7 +168,8 @@
   const prio={};for(const [k,v]of Object.entries(p.prioridadeFila||{}))if(Number.isInteger(Number(v))&&Number(v)>0)prio[k]=Number(v);
   const fat={};for(const [k,v]of Object.entries(p.faturarEmFila||{}))if(okDate(v))fat[k]=v;
   if(p.ultimoDiaFaturamento&&!okDate(p.ultimoDiaFaturamento))throw Error('Último dia de faturamento inválido.');
-  return {programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
+  const previsto={};for(const [k,v]of Object.entries(p.previsto||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))previsto[k]=v.slice(0,200).map(x=>({cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0})).filter(x=>x.kg>0);
+  return {previsto,programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
  }
  window.previaView={render,validar};
 })();
