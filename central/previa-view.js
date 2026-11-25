@@ -39,6 +39,7 @@
 .pvx button{font:inherit;font-size:11px;font-weight:700;padding:5px 10px;border-radius:3px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}.pvx button.lnk{background:#fff;color:var(--bad);border-color:#E3B4AF;padding:2px 7px}.pvx button.sec{background:#fff;color:var(--navy)}
 .pvx .al{color:var(--bad);font-size:11px}.pvx .ok{color:var(--ok);font-size:11px}
 .pvx .cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.pvx .cfg textarea{min-height:90px;width:100%}
+.pvx .board{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:6px;overflow-x:auto}.pvx .col{background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px 7px;display:flex;flex-direction:column;gap:3px;min-width:170px}.pvx .col.hoje{border:2px solid var(--navy)}.pvx .col.passado{background:#FAFBFC}.pvx .col .ch{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:3px}.pvx .col .ch b{font-size:13px;color:var(--navy);text-transform:uppercase}.pvx .tag{font-size:9px;font-weight:700;background:var(--navy);color:#fff;padding:1px 5px;border-radius:3px}.pvx .tag.off{background:#8A94A3}.pvx .tot{display:flex;justify-content:space-between;align-items:baseline;gap:4px}.pvx .tot span{font-size:9px;color:var(--sub);font-weight:700}.pvx .tot b{font-size:16px;color:var(--ft)}.pvx .tot.real b{color:var(--ink)}.pvx .tot em{font-style:normal;font-size:10px;font-weight:700}.pvx .tot em.pos{color:var(--ok)}.pvx .tot em.neg{color:var(--bad)}.pvx .acc,.pvx .occ{font-size:10px;color:var(--sub)}.pvx .col table{font-size:11px;margin-top:3px}.pvx .col td{padding:2px 3px;border-bottom:1px solid #EEF1F5}.pvx .col td.vz{color:#8A94A3;text-align:center}.pvx .col .rl{font-size:9px;font-weight:700;color:var(--ok);margin-top:5px;border-top:1px dashed var(--line);padding-top:3px}.pvx .col table.r td{color:var(--ok)}
 .pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
  let draft=null,draftOf=null,dirty=false;
@@ -65,13 +66,39 @@
   h+='<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><p>Período até <b>'+esc(br(ult))+'</b></p></div>';
   if(semAcab)h+='<div class="warn">A carteira publicada não informa natural/pintado: tudo está sendo tratado como natural.</div>';
   if(dirty)h+='<div class="dirty">Alterações ainda não publicadas. '+(owner?'Use SALVAR E PUBLICAR no fim da página.':'Somente o acesso do Edvaldo grava.')+'</div>';
-  h+='<div class="kpis">'+[['Faturamento previsto','<b>'+t(res.previstoKg)+'</b><small>até '+esc(br(ult))+'</small>','var(--ft)'],['Maior dia',res.maiorDia?'<b>'+t(res.maiorDia.faturamento)+'</b><small>'+esc(wd(res.maiorDia.data))+'</small>':'<b>—</b>','var(--navy)'],['Pedidos · clientes','<b>'+res.pedidos+' · '+res.clientes+'</b><small>da programação</small>','var(--navy)'],['Aguardando 100%','<b>'+t(res.aguardando100Kg)+'</b><small>produzido sem fechar pedido</small>','var(--warn)'],['Fatura depois','<b>'+t(res.depoisDoPeriodoKg)+'</b><small>após '+esc(br(ult))+'</small>','#8A94A3']].map(([l,v,c])=>'<div class="kpi" style="--c:'+c+'"><span>'+l+'</span>'+v+'</div>').join('')+'</div>';
-  h+='<div class="band">FATURAMENTO POR DIA<span>clique no dia para ver os pedidos</span></div><div class="wrap"><table><thead><tr><th>Dia</th><th>Situação</th><th>P7</th><th>P4</th><th>Pintura</th><th class="n">Fatura</th><th class="n">Acumulado</th></tr></thead><tbody>';
-  dias.forEach((x,i)=>{const dep=ult&&x.data>ult;
-   h+='<tr class="dia'+(dep?' depois':'')+'" data-pv-dia="'+i+'"><td><b>'+esc(wd(x.data))+'</b></td><td><span class="pill '+x.situacao.split(' ').pop()+'">'+esc(sitTxt[x.situacao]||x.situacao)+'</span></td><td>'+meter(x.ocupacao.P7,'var(--p7)')+'</td><td>'+meter(x.ocupacao.P4,'var(--p4)')+'</td><td>'+meter(x.ocupacao.Pintura,'var(--pt)')+'</td><td class="n ft">'+(x.faturamento?t(x.faturamento):'—')+'</td><td class="n">'+t(x.acumulado)+'</td></tr>';
-   h+='<tr class="det" data-pv-det="'+i+'" hidden><td colspan="7"><div>Produz P7 '+kg(x.p7)+' kg · P4 '+kg(x.p4)+' kg · pinta '+kg(x.pinturaFila)+' kg da fila + '+kg(x.pinturaNovo)+' kg novos</div>'+(x.faturamentoItens.length?'<div class="chips" style="margin-top:4px">'+x.faturamentoItens.map(i=>'<span>'+esc((i.pedido?i.pedido+' ':'')+i.cliente)+' <b>'+kg(i.kg)+'</b>'+(i.origem!=='PROGRAMAÇÃO'?' <small>('+esc(i.origem.toLowerCase())+')</small>':'')+'</span>').join('')+'</div>':'<div>Nada fatura neste dia.</div>')+'</td></tr>';
-  });
-  h+='</tbody></table></div>';
+  // quadro semanal (formato da planilha): previsto por cliente; dias passados = previsto gravado × realizado (NF Aureon)
+  const fmt=x=>num(Math.round(x||0));
+  const porCliente=itens=>{const m=new Map();for(const i of itens){const k=String(i.cliente||'').trim()||'(sem cliente)';m.set(k,(m.get(k)||0)+Number(i.kg||0))}return [...m].map(([cliente,kg])=>({cliente,kg})).sort((a,b)=>b.kg-a.kg)};
+  const calc=new Map(r.dias.map(x=>[x.data,x]));
+  const prevGravado=draft.previsto||{};
+  const ign=new Set((d.materiais?.excluir_nf||[]).map(String));
+  const realDe=dt=>porCliente((d.materiais?.linhas||[]).filter(n=>String(n.data||'').slice(0,10)===dt&&!ign.has(String(n.nota))&&Number(n.kg)>0));
+  const off=new Set(input.feriados||[]);
+  const seg=s=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)};
+  const soma=(s,n)=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
+  const prevDe=dt=>dt<hoje?(prevGravado[dt]||[]):porCliente(calc.get(dt)?.faturamentoItens||[]);
+  const semana=(ini,titulo)=>{
+   const ds=[0,1,2,3,4].map(i=>soma(ini,i));
+   let accP=0,accR=0;
+   const cols=ds.map(dt=>{
+    const p=prevDe(dt),tp=p.reduce((s,x)=>s+x.kg,0),passou=dt<=hoje,rr=passou?realDe(dt):[],tr=rr.reduce((s,x)=>s+x.kg,0),c=calc.get(dt);
+    accP+=tp;accR+=tr;
+    let o='<div class="col'+(dt===hoje?' hoje':'')+(dt<hoje?' passado':'')+'"><div class="ch"><b>'+esc(wd(dt))+'</b>'+(dt===hoje?'<span class="tag">HOJE</span>':'')+(off.has(dt)?'<span class="tag off">SEM EXPEDIENTE</span>':'')+'</div>';
+    o+='<div class="tot"><span>PREVISTO</span><b>'+fmt(tp)+' kg</b></div>';
+    if(passou)o+='<div class="tot real"><span>REALIZADO</span><b>'+fmt(tr)+' kg</b>'+(dt<hoje&&(tp||tr)?'<em class="'+(tr>=tp?'pos':'neg')+'">'+(tr>=tp?'+':'')+fmt(tr-tp)+'</em>':'')+'</div>';
+    o+='<div class="acc">acumulado: prev. '+fmt(accP)+(passou?' · real. '+fmt(accR):'')+'</div>';
+    if(c&&dt>=hoje)o+='<div class="occ">P7 '+Math.round(100*c.ocupacao.P7)+'% · P4 '+Math.round(100*c.ocupacao.P4)+'% · pint. '+Math.round(100*c.ocupacao.Pintura)+'%</div>';
+    if(dt<hoje&&!prevGravado[dt])o+='<div class="occ">previsto não gravado neste dia</div>';
+    o+='<table><tbody>'+p.map(x=>'<tr><td>'+esc(x.cliente)+'</td><td class="n">'+fmt(x.kg)+'</td></tr>').join('')+(p.length?'':'<tr><td colspan="2" class="vz">—</td></tr>')+'</tbody></table>';
+    if(passou&&rr.length)o+='<div class="rl">Realizado (NF)</div><table class="r"><tbody>'+rr.map(x=>'<tr><td>'+esc(x.cliente)+'</td><td class="n">'+fmt(x.kg)+'</td></tr>').join('')+'</tbody></table>';
+    return o+'</div>'});
+   return '<div class="band">'+titulo+'<span>previsto '+fmt(accP)+' kg'+(accR?' · realizado '+fmt(accR)+' kg':'')+'</span></div><div class="board">'+cols.join('')+'</div>';
+  };
+  const s1=seg(hoje),s2=soma(s1,7),s3=soma(s1,14);
+  h+=semana(s1,'SEMANA '+br(s1)+' A '+br(soma(s1,4)));
+  h+='<details><summary>SEMANA '+br(s2)+' A '+br(soma(s2,4))+'<span>abrir segunda semana</span></summary><div class="in">'+semana(s2,'SEMANA '+br(s2)+' A '+br(soma(s2,4)))+'</div></details>';
+  h+='<details><summary>SEMANA '+br(s3)+' A '+br(soma(s3,4))+'<span>abrir terceira semana</span></summary><div class="in">'+semana(s3,'SEMANA '+br(s3)+' A '+br(soma(s3,4)))+'</div></details>';
+  h+='<div class="kpis">'+[['Previsto até '+br(ult),fmt(res.previstoKg)+' kg'],['Aguardando fechar 100%',fmt(res.aguardando100Kg)+' kg'],['Fatura depois de '+br(ult),fmt(res.depoisDoPeriodoKg)+' kg'],['Pedidos · clientes (programação)',res.pedidos+' · '+res.clientes]].map(([l,v])=>'<div class="kpi"><span>'+esc(l)+'</span><b>'+esc(v)+'</b></div>').join('')+'</div>';
   // programação
   const carteira=new Map();input.carteira.forEach(c=>{const p=String(c.pedido);if(!carteira.has(p))carteira.set(p,c.cliente)});
   const comAlerta=r.linhas.filter(l=>l.alertas.length).length;
@@ -89,7 +116,6 @@
   h+='<div class="note">Regras: natural fatura no dia útil seguinte à produção · pintado fatura no dia seguinte ao fim da pintura (fila atual primeiro) · pedido normal só fatura com 100% programado, na última produção · clientes agrupados faturam tudo junto · data manual vence · fora da carteira = natural · calendário sem fim de semana, feriado e recesso.</div></div></details>';
   h+='<div class="save">'+(owner?'<label>Motivo<input id="pv-obs" placeholder="Ex.: programação de 26/11" style="width:240px"></label><button id="pv-save">SALVAR E PUBLICAR PRÉVIA</button>':'')+'<button id="pv-reset" type="button" class="sec">DESCARTAR ALTERAÇÕES</button></div></div>';
   host.insertAdjacentHTML('beforeend',h);
-  host.querySelectorAll('[data-pv-dia]').forEach(tr=>tr.onclick=()=>{const det=host.querySelector('[data-pv-det="'+tr.dataset.pvDia+'"]');det.hidden=!det.hidden});
   const again=()=>{dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)};
   host.querySelector('#pv-add').onsubmit=e=>{e.preventDefault();const f=e.target.elements,p7=Number(f.p7.value||0),p4=Number(f.p4.value||0);
    if(p7<0||p4<0||p7+p4<=0){u.show('Informe o kg em P7 e/ou P4.');return}
@@ -103,7 +129,9 @@
    if(f.ultimo.value)draft.ultimoDiaFaturamento=f.ultimo.value;again()};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
-   const body={action:'previa',previa:structuredClone(draft),obs};draftOf=null;save(body)};
+   const prev={};for(const [k,v]of Object.entries(draft.previsto||{}))if(k<hoje&&k>=soma(s1,-35))prev[k]=v;
+   for(const x of r.dias)if(x.data>=hoje&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
+   const body={action:'previa',previa:{...structuredClone(draft),previsto:prev},obs};draftOf=null;save(body)};
  }
  /* Validação da gravação (usada por centralViews.action). */
  function validar(p){
@@ -120,7 +148,8 @@
   const prio={};for(const [k,v]of Object.entries(p.prioridadeFila||{}))if(Number.isInteger(Number(v))&&Number(v)>0)prio[k]=Number(v);
   const fat={};for(const [k,v]of Object.entries(p.faturarEmFila||{}))if(okDate(v))fat[k]=v;
   if(p.ultimoDiaFaturamento&&!okDate(p.ultimoDiaFaturamento))throw Error('Último dia de faturamento inválido.');
-  return {programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
+  const previsto={};for(const [k,v]of Object.entries(p.previsto||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))previsto[k]=v.slice(0,200).map(x=>({cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0})).filter(x=>x.kg>0);
+  return {previsto,programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
  }
  window.previaView={render,validar};
 })();
