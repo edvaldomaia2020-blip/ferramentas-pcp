@@ -62,7 +62,7 @@
   const ultimoUtil=Math.max(15,...r.dias.map((x,i)=>x.faturamento>0||x.p7||x.p4||x.pintura?i+1:0));
   const dias=r.dias.slice(0,ultimoUtil);
   let h='<div class="pvx">';
-  h+='<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (com 90%) · pintura '+t(cap.Pintura)+'/dia</p></div><p>Período até <b>'+esc(br(ult))+'</b></p></div>';
+  h+='<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><p>Período até <b>'+esc(br(ult))+'</b></p></div>';
   if(semAcab)h+='<div class="warn">A carteira publicada não informa natural/pintado: tudo está sendo tratado como natural.</div>';
   if(dirty)h+='<div class="dirty">Alterações ainda não publicadas. '+(owner?'Use SALVAR E PUBLICAR no fim da página.':'Somente o acesso do Edvaldo grava.')+'</div>';
   h+='<div class="kpis">'+[['Faturamento previsto','<b>'+t(res.previstoKg)+'</b><small>até '+esc(br(ult))+'</small>','var(--ft)'],['Maior dia',res.maiorDia?'<b>'+t(res.maiorDia.faturamento)+'</b><small>'+esc(wd(res.maiorDia.data))+'</small>':'<b>—</b>','var(--navy)'],['Pedidos · clientes','<b>'+res.pedidos+' · '+res.clientes+'</b><small>da programação</small>','var(--navy)'],['Aguardando 100%','<b>'+t(res.aguardando100Kg)+'</b><small>produzido sem fechar pedido</small>','var(--warn)'],['Fatura depois','<b>'+t(res.depoisDoPeriodoKg)+'</b><small>após '+esc(br(ult))+'</small>','#8A94A3']].map(([l,v,c])=>'<div class="kpi" style="--c:'+c+'"><span>'+l+'</span>'+v+'</div>').join('')+'</div>';

@@ -34,7 +34,7 @@
  }
 
  function calcular(input){
-  const cfg=Object.assign({diasMin:15,dNatural:1,fator:0.90},input.parametros||{});
+  const cfg=Object.assign({diasMin:15,dNatural:1,fator:1},input.parametros||{});
   const capPint=num(cfg.capPintura);if(capPint<=0)throw Error('Capacidade da pintura não informada.');
   const cap={P7:num(cfg.capP7),P4:num(cfg.capP4),Pintura:capPint};
   const agrupados=(input.agrupados||[]).filter(x=>up(x));
@@ -189,7 +189,7 @@
  function daPublicacao(d,manual){
   manual=manual||{};
   const prog=d.programacao||{},reu=d.resumo_diario?.reuniao||{};
-  const fator=0.90; // regra travada: capacidade das prensas = bruta × aproveitamento × 90%
+  const fator=1; // Edvaldo 25/11: na prévia de faturamento NÃO aplicar os 90% (pedidos saem com até 10% de excedente); a Carga vs Capacidade segue com 90%
   const caps=capacidades(prog.linhas||{P7:{kgh:950,aprov:0.85,horas:20},P4:{kgh:440,aprov:0.85,horas:20},Pintura:{kgh:450,aprov:1,horas:20}},fator);
   const itens=(prog.itens&&prog.itens.length?prog.itens:(d.resumo_diario?.carteira_atual?.itens||[]));
   const carteira=itens.map(x=>({pedido:x.pedido,cliente:x.cliente,kg:x.kg,prensa:x.prensa,entrega:x.entrega,
