@@ -211,7 +211,10 @@
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
    const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if(k<hoje&&k>=soma(s1,-35))prev[k]=v;
    for(const x of r.dias)if(x.data>=hoje&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
-   const body={action:'previa',previa:{...structuredClone(draft),previsto:prev},obs};draftOf=null;save(body)};
+   // por pedido: alimenta o quadro "faturamento do dia" de MATERIAIS FATURADOS
+   const ped={};for(const [k,v]of Object.entries(D.pedidosDia||{}))if(k<hoje&&k>=soma(s1,-35))ped[k]=v;
+   for(const x of r.dias)if(x.data>=hoje&&x.data<=soma(s1,25)){const m=new Map();for(const i of x.faturamentoItens){const key=(i.pedido||'')+'|'+i.cliente;const o=m.get(key)||{pedido:String(i.pedido||''),cliente:i.cliente,kg:0,origem:i.origem};o.kg+=Number(i.kg||0);m.set(key,o)}const a=[...m.values()].filter(i=>i.kg>=0.5).map(i=>({...i,kg:Math.round(i.kg*10)/10})).sort((a,b)=>b.kg-a.kg);if(a.length)ped[x.data]=a}
+   const body={action:'previa',previa:{...structuredClone(draft),previsto:prev,pedidosDia:ped},obs};draftOf=null;save(body)};
  }
  /* Validação da gravação (usada por centralViews.action). */
  function validar(p){
@@ -229,7 +232,8 @@
   const fat={};for(const [k,v]of Object.entries(p.faturarEmFila||{}))if(okDate(v))fat[k]=v;
   if(p.ultimoDiaFaturamento&&!okDate(p.ultimoDiaFaturamento))throw Error('Último dia de faturamento inválido.');
   const previsto={};for(const [k,v]of Object.entries(p.previsto||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))previsto[k]=v.slice(0,200).map(x=>({cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0})).filter(x=>x.kg>0);
-  return {previsto,programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
+  const pedidosDia={};for(const [k,v]of Object.entries(p.pedidosDia||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))pedidosDia[k]=v.slice(0,300).map(x=>({pedido:/^\d+$/.test(String(x.pedido||''))?String(x.pedido):'',cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0,origem:String(x.origem||'').slice(0,40)})).filter(x=>x.kg>0);
+  return {previsto,pedidosDia,programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
  }
  window.previaView={render,validar};
 })();
