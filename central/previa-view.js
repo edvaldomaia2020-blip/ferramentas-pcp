@@ -92,15 +92,18 @@
   const previsto={};for(const d of r.dias){const m=new Map();d.faturamentoItens.forEach(i=>{const k=curto(i.cliente);m.set(k,(m.get(k)||0)+i.kg)});if(m.size)previsto[d.data]=[...m].map(([cliente,kg])=>({cliente,kg:Math.round(kg)})).sort((a,b)=>b.kg-a.kg)}
   return {manual:{programacao,agrupados:col('Y',8,15),prioridadePintura:col('AG',8,15),foraCarteira:fora,...(ult?{ultimoDiaFaturamento:ult}:{})},previsto,total:r.resumo.previstoKg};
  }
- function render(host,ctx,u){
+ function render(host,ctx,u,modo){
+  const montar=modo==='montar';
   const {esc,num,save}=u,d=ctx.data,owner=ctx.owner;
   if(!P){host.insertAdjacentHTML('beforeend','<p class="cv-error">Motor da prévia não carregou. Recarregue a página.</p>');return}
   const pub=ctx.meta?.publicacao||'';
+  if(montar&&!owner){host.insertAdjacentHTML('beforeend','<h2>MONTAR PROGRAMAÇÃO</h2><p class="cv-note">Somente o acesso pessoal de Edvaldo monta a programação. A consulta fica em FATURAMENTO › PRÉVIA DE FATURAMENTO.</p>');return}
   if(draftOf!==pub||!draft){draft=structuredClone(d._gestao?.previa||{});draftOf=pub;dirty=false}
-  draft.programacao??=[];draft.agrupados??=P.AGRUPADOS_PADRAO.slice();draft.prioridadePintura??=[];draft.foraCarteira??={};draft.prioridadeFila??={};draft.faturarEmFila??={};
-  const hoje=dayNow(),ini=draft.inicio&&draft.inicio>hoje?draft.inicio:hoje;
-  const manual={...draft,inicio:ini,programacao:draft.programacao.filter(x=>x.dia>=ini)};
-  const passadas=draft.programacao.length-manual.programacao.length;
+  const D=montar?draft:structuredClone(d._gestao?.previa||{});
+  D.programacao??=[];D.agrupados??=P.AGRUPADOS_PADRAO.slice();D.prioridadePintura??=[];D.foraCarteira??={};D.prioridadeFila??={};D.faturarEmFila??={};
+  const hoje=dayNow(),ini=D.inicio&&D.inicio>hoje?D.inicio:hoje;
+  const manual={...D,inicio:ini,programacao:D.programacao.filter(x=>x.dia>=ini)};
+  const passadas=D.programacao.length-manual.programacao.length;
   let input,r;
   try{input=P.daPublicacao(d,manual);r=P.calcular(input)}catch(e){host.insertAdjacentHTML('beforeend','<p class="cv-error">Não foi possível calcular a prévia: '+esc(e.message)+'</p>');return}
   const semAcab=input.carteira.length&&!(d.programacao?.itens?.length)&&!(d.resumo_diario?.carteira_atual?.itens||[]).some(x=>x.pintura!==undefined||x.cor||x.beneficiamento);
@@ -111,15 +114,15 @@
   const ultimoUtil=Math.max(15,...r.dias.map((x,i)=>x.faturamento>0||x.p7||x.p4||x.pintura?i+1:0));
   const dias=r.dias.slice(0,ultimoUtil);
   let h='<div class="pvx">';
-  h+='<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><div class="imp"><label class="btnf">carga inicial: importar planilha antiga<input type="file" id="pv-xlsx" accept=".xlsx,.xlsm" hidden></label><span>Período até <b>'+esc(br(ult))+'</b></span></div></div>';
-  if(!draft.programacao.length&&!Object.keys(draft.previsto||{}).length)h+='<div class="dirty">Ainda não há programação gravada no site. Monte a programação em MONTAR PROGRAMAÇÃO — DIA A DIA e use SALVAR E PUBLICAR. (Opcional: carregar uma única vez a planilha antiga, no botão do topo, para trazer o previsto desta semana.)</div>';
+  h+=montar?'<div class="hd"><div><h2>MONTAR PROGRAMAÇÃO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><div class="imp"><label class="btnf">carga inicial: importar planilha antiga<input type="file" id="pv-xlsx" accept=".xlsx,.xlsm" hidden></label><span>Período até <b>'+esc(br(ult))+'</b></span></div></div>':'<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><div class="imp"><span>Período até <b>'+esc(br(ult))+'</b></span></div></div>';
+  if(!montar&&!D.programacao.length&&!Object.keys(D.previsto||{}).length)h+='<div class="dirty">Ainda não há programação gravada no site. A programação ainda não foi montada. Ela é lançada em FATURAMENTO › MONTAR PROGRAMAÇÃO.</div>';
   if(semAcab)h+='<div class="warn">A carteira publicada não informa natural/pintado: tudo está sendo tratado como natural.</div>';
-  if(dirty)h+='<div class="dirty">Alterações ainda não publicadas. '+(owner?'Use SALVAR E PUBLICAR no fim da página.':'Somente o acesso do Edvaldo grava.')+'</div>';
+  if(montar&&dirty)h+='<div class="dirty">Alterações ainda não publicadas. '+(owner?'Use SALVAR E PUBLICAR no fim da página.':'Somente o acesso do Edvaldo grava.')+'</div>';
   // quadro semanal (formato da planilha): previsto por cliente; dias passados = previsto gravado × realizado (NF Aureon)
   const fmt=x=>num(Math.round(x||0));
   const porCliente=itens=>{const m=new Map();for(const i of itens){const k=curto(i.cliente);m.set(k,(m.get(k)||0)+Number(i.kg||0))}return [...m].map(([cliente,kg])=>({cliente,kg})).sort((a,b)=>b.kg-a.kg)};
   const calc=new Map(r.dias.map(x=>[x.data,x]));
-  const prevGravado=draft.previsto||{};
+  const prevGravado=D.previsto||{};
   const ign=new Set((d.materiais?.excluir_nf||[]).map(String));
   const realDe=dt=>porCliente((d.materiais?.linhas||[]).filter(n=>String(n.data||'').slice(0,10)===dt&&!ign.has(String(n.nota))&&Number(n.kg)>0));
   const off=new Set(input.feriados||[]);
@@ -146,11 +149,12 @@
    return '<div class="band">'+titulo+'<span>previsto '+fmt(accP)+' kg'+(accR?' · realizado '+fmt(accR)+' kg':'')+'</span></div><div class="board">'+cols.join('')+'</div>';
   };
   const s1=seg(hoje),s2=soma(s1,7),s3=soma(s1,14);
-  h+=semana(s1,'SEMANA '+br(s1)+' A '+br(soma(s1,4)));
-  h+='<details><summary>SEMANA '+br(s2)+' A '+br(soma(s2,4))+'<span>abrir segunda semana</span></summary><div class="in">'+semana(s2,'SEMANA '+br(s2)+' A '+br(soma(s2,4)))+'</div></details>';
-  h+='<details><summary>SEMANA '+br(s3)+' A '+br(soma(s3,4))+'<span>abrir terceira semana</span></summary><div class="in">'+semana(s3,'SEMANA '+br(s3)+' A '+br(soma(s3,4)))+'</div></details>';
+  if(!montar)h+=semana(s1,'SEMANA '+br(s1)+' A '+br(soma(s1,4)));
+  if(!montar)h+='<details><summary>SEMANA '+br(s2)+' A '+br(soma(s2,4))+'<span>abrir segunda semana</span></summary><div class="in">'+semana(s2,'SEMANA '+br(s2)+' A '+br(soma(s2,4)))+'</div></details>';
+  if(!montar)h+='<details><summary>SEMANA '+br(s3)+' A '+br(soma(s3,4))+'<span>abrir terceira semana</span></summary><div class="in">'+semana(s3,'SEMANA '+br(s3)+' A '+br(soma(s3,4)))+'</div></details>';
   h+='<div class="kpis">'+[['Previsto até '+br(ult),fmt(res.previstoKg)+' kg'],['Aguardando fechar 100%',fmt(res.aguardando100Kg)+' kg'],['Fatura depois de '+br(ult),fmt(res.depoisDoPeriodoKg)+' kg'],['Pedidos · clientes (programação)',res.pedidos+' · '+res.clientes]].map(([l,v])=>'<div class="kpi"><span>'+esc(l)+'</span><b>'+esc(v)+'</b></div>').join('')+'</div>';
   // ===== MONTAR PROGRAMAÇÃO (substitui a aba PROGRAMAÇÃO da planilha) =====
+  if(montar){
   const carteira=new Map();input.carteira.forEach(c=>{const p=String(c.pedido);if(!carteira.has(p))carteira.set(p,c.cliente)});
   const diasProg=r.dias.slice(0,Math.max(15,ultimoUtil)).filter(x=>x.data>=hoje);
   if(!diasProg.some(x=>x.data===selDia))selDia=diasProg[0]?.data;
@@ -172,37 +176,40 @@
   h+='<div class="wrap"><table><thead><tr><th>Dia</th><th>Pedido</th><th>Cliente</th><th class="n">P7</th><th class="n">P4</th><th>Acab.</th><th>Fatura</th><th>Alertas</th><th></th></tr></thead><tbody>'+r.linhas.map(l=>'<tr><td>'+esc(wd(l.data))+'</td><td>'+esc(l.pedido)+'</td><td>'+esc(l.cliente)+'</td><td class="n">'+(l.p7?kg(l.p7):'')+'</td><td class="n">'+(l.p4?kg(l.p4):'')+'</td><td>'+esc(l.acabamento.slice(0,3))+(l.pintaAte?' <small>pinta '+esc(br(l.pintaAte))+'</small>':'')+'</td><td><b>'+esc(l.faturaEm?br(l.faturaEm):l.regra)+'</b>'+(l.faturarEm?' <small>manual</small>':'')+'</td><td>'+(l.alertas.length?'<span class="al">'+l.alertas.map(esc).join(' · ')+'</span>':'<span class="ok">OK</span>')+'</td><td><button type="button" class="lnk" data-pv-del="'+l.ordem+'">remover</button></td></tr>').join('')+'</tbody></table></div></div></details>';
   // filas
   const totFila=r.filas.reduce((s,f)=>s+f.kg,0);
-  h+='<details><summary>FILAS ATUAIS (já produzido)<span>'+r.filas.length+' linhas · '+t(totFila)+' · vêm da Visão Geral</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Fila</th><th>Cliente</th><th class="n">kg</th><th>Prioridade pintura</th><th>Faturar em (manual)</th><th>Fatura</th></tr></thead><tbody>'+r.filas.map(f=>{const k=f.fila+'|'+f.cliente;return '<tr><td>'+esc(f.fila.toLowerCase())+'</td><td>'+esc(f.cliente)+'</td><td class="n">'+kg(f.kg)+'</td><td>'+(f.fila==='PINTURA'?'<input type="number" min="1" step="1" data-pv-prio="'+esc(f.cliente)+'" value="'+esc(draft.prioridadeFila[f.cliente]??'')+'" placeholder="99">':'')+'</td><td><input type="date" data-pv-fat="'+esc(k)+'" value="'+esc(draft.faturarEmFila[k]||'')+'"></td><td><b>'+esc(f.faturaEm?wd(f.faturaEm):f.regra)+'</b></td></tr>'}).join('')+'</tbody></table></div></div></details>';
+  h+='<details><summary>FILAS ATUAIS (já produzido)<span>'+r.filas.length+' linhas · '+t(totFila)+' · vêm da Visão Geral</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Fila</th><th>Cliente</th><th class="n">kg</th><th>Prioridade pintura</th><th>Faturar em (manual)</th><th>Fatura</th></tr></thead><tbody>'+r.filas.map(f=>{const k=f.fila+'|'+f.cliente;return '<tr><td>'+esc(f.fila.toLowerCase())+'</td><td>'+esc(f.cliente)+'</td><td class="n">'+kg(f.kg)+'</td><td>'+(f.fila==='PINTURA'?'<input type="number" min="1" step="1" data-pv-prio="'+esc(f.cliente)+'" value="'+esc(D.prioridadeFila[f.cliente]??'')+'" placeholder="99">':'')+'</td><td><input type="date" data-pv-fat="'+esc(k)+'" value="'+esc(D.faturarEmFila[k]||'')+'"></td><td><b>'+esc(f.faturaEm?wd(f.faturaEm):f.regra)+'</b></td></tr>'}).join('')+'</tbody></table></div></div></details>';
   // pendentes
   h+='<details><summary>PEDIDOS PENDENTES<span>'+r.pendentes.length+' pedidos com entrega até '+esc(br(ult))+' ainda sem programar · '+t(r.pendentes.reduce((s,x)=>s+x.falta,0))+'</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th class="n">P7</th><th class="n">P4</th><th class="n">Pintado</th><th class="n">Falta programar</th></tr></thead><tbody>'+r.pendentes.map(x=>'<tr><td>'+esc(x.pedido)+'</td><td>'+esc(x.cliente)+'</td><td>'+esc(br(x.entrega))+(x.atrasado?' <span class="al">atrasado</span>':'')+'</td><td class="n">'+kg(x.P7)+'</td><td class="n">'+kg(x.P4)+'</td><td class="n">'+kg(x.pintado)+'</td><td class="n"><b>'+kg(x.falta)+'</b></td></tr>').join('')+'</tbody></table></div></div></details>';
   for(const pr of ['P7','P4']){const s=r.sugestoes[pr],falta=s.reduce((a,x)=>a+x.falta,0);
    h+='<details><summary>SUGESTÕES '+pr+'<span>'+s.length+' pedidos · falta '+t(falta)+' = '+(cap[pr]?(falta/cap[pr]).toLocaleString('pt-BR',{maximumFractionDigits:1}):'—')+' dias de prensa · entrega mais antiga primeiro</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th>Acab.</th><th class="n">Saldo</th><th class="n">Programado</th><th class="n">Falta</th></tr></thead><tbody>'+s.slice(0,150).map(x=>'<tr><td>'+esc(x.pedido)+'</td><td>'+esc(x.cliente)+'</td><td>'+esc(br(x.entrega))+(x.entrega&&x.entrega<dias[0].data?' <span class="al">atrasado</span>':'')+'</td><td>'+esc(x.acabamento.slice(0,3))+'</td><td class="n">'+kg(x.saldo)+'</td><td class="n">'+kg(x.programado)+'</td><td class="n"><b>'+kg(x.falta)+'</b></td></tr>').join('')+'</tbody></table></div></div></details>'}
-  h+='<details open><summary>CONTROLES DA PRÉVIA<span>clientes agrupados, prioridade na pintura, pedidos fora da carteira, último dia</span></summary><div class="in"><form id="pv-cfg"><div class="cfg"><label>Clientes com faturamento agrupado (um por linha)<textarea name="agrupados">'+esc(draft.agrupados.join('\n'))+'</textarea></label><label>Prioridade na pintura (pedido ou cliente)<textarea name="prioridade">'+esc(draft.prioridadePintura.join('\n'))+'</textarea></label><label>Pedidos fora da carteira (pedido;cliente)<textarea name="fora">'+esc(Object.entries(draft.foraCarteira).map(([k,v])=>k+';'+v).join('\n'))+'</textarea></label><label>Último dia de faturamento<input name="ultimo" type="date" value="'+esc(draft.ultimoDiaFaturamento||ult||'')+'"><button type="submit" style="margin-top:8px">APLICAR</button></label></div></form>';
+  h+='<details open><summary>CONTROLES DA PRÉVIA<span>clientes agrupados, prioridade na pintura, pedidos fora da carteira, último dia</span></summary><div class="in"><form id="pv-cfg"><div class="cfg"><label>Clientes com faturamento agrupado (um por linha)<textarea name="agrupados">'+esc(D.agrupados.join('\n'))+'</textarea></label><label>Prioridade na pintura (pedido ou cliente)<textarea name="prioridade">'+esc(D.prioridadePintura.join('\n'))+'</textarea></label><label>Pedidos fora da carteira (pedido;cliente)<textarea name="fora">'+esc(Object.entries(D.foraCarteira).map(([k,v])=>k+';'+v).join('\n'))+'</textarea></label><label>Último dia de faturamento<input name="ultimo" type="date" value="'+esc(D.ultimoDiaFaturamento||ult||'')+'"><button type="submit" style="margin-top:8px">APLICAR</button></label></div></form>';
   h+='<div class="note">Regras: natural fatura no dia útil seguinte à produção · pintado fatura no dia seguinte ao fim da pintura (fila atual primeiro) · pedido normal só fatura com 100% programado, na última produção · clientes agrupados faturam tudo junto · data manual vence · fora da carteira = natural · calendário sem fim de semana, feriado e recesso.</div></div></details>';
-  h+='<div class="save">'+(owner?'<label>Motivo<input id="pv-obs" placeholder="Ex.: programação de 26/11" style="width:240px"></label><button id="pv-save">SALVAR E PUBLICAR PRÉVIA</button>':'')+'<button id="pv-reset" type="button" class="sec">DESCARTAR ALTERAÇÕES</button></div></div>';
+  h+='<div class="save">'+(owner?'<label>Motivo<input id="pv-obs" placeholder="Ex.: programação de 26/11" style="width:240px"></label><button id="pv-save">SALVAR E PUBLICAR PRÉVIA</button>':'')+'<button id="pv-reset" type="button" class="sec">DESCARTAR ALTERAÇÕES</button></div>';
+  }else h+='<div class="note">Consulta. A programação e os controles são montados em FATURAMENTO › MONTAR PROGRAMAÇÃO (acesso do Edvaldo).</div>';
+  h+='</div>';
   host.insertAdjacentHTML('beforeend',h);
-  const again=()=>{dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)};
+  if(!montar)return;
+  const again=()=>{dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   host.querySelector('#pv-add').onsubmit=e=>{e.preventDefault();const f=e.target.elements,p7=Number(f.p7.value||0),p4=Number(f.p4.value||0);
    if(p7<0||p4<0||p7+p4<=0){u.show('Informe o kg em P7 e/ou P4.');return}
-   draft.programacao.push({dia:f.dia.value,pedido:f.pedido.value.trim(),p7,p4,...(f.faturarEm.value?{faturarEm:f.faturarEm.value}:{})});again()};
-  host.querySelectorAll('[data-pv-tab]').forEach(b=>b.onclick=()=>{selDia=b.dataset.pvTab;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)});
+   D.programacao.push({dia:f.dia.value,pedido:f.pedido.value.trim(),p7,p4,...(f.faturarEm.value?{faturarEm:f.faturarEm.value}:{})});again()};
+  host.querySelectorAll('[data-pv-tab]').forEach(b=>b.onclick=()=>{selDia=b.dataset.pvTab;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)});
   host.querySelectorAll('[data-pv-ed]').forEach(i=>i.onchange=()=>{const [o,f]=i.dataset.pvEd.split('|'),l=manual.programacao[Number(o)];if(!l)return;
    if(f==='faturarEm'){if(i.value)l.faturarEm=i.value;else delete l.faturarEm}else l[f]=Math.max(0,Number(i.value)||0);
-   if(!(Number(l.p7)+Number(l.p4)>0))draft.programacao.splice(draft.programacao.indexOf(l),1);again()});
-  host.querySelectorAll('[data-pv-sug]').forEach(b=>b.onclick=()=>{const [pr,ped,kgv]=b.dataset.pvSug.split('|');draft.programacao.push({dia:selDia,pedido:ped,p7:pr==='P7'?Number(kgv):0,p4:pr==='P4'?Number(kgv):0});again()});
-  host.querySelectorAll('[data-pv-del]').forEach(b=>b.onclick=()=>{const l=manual.programacao[Number(b.dataset.pvDel)];draft.programacao.splice(draft.programacao.indexOf(l),1);again()});
-  host.querySelectorAll('[data-pv-prio]').forEach(i=>i.onchange=()=>{const v=Number(i.value);if(v>0)draft.prioridadeFila[i.dataset.pvPrio]=v;else delete draft.prioridadeFila[i.dataset.pvPrio];again()});
-  host.querySelectorAll('[data-pv-fat]').forEach(i=>i.onchange=()=>{if(i.value)draft.faturarEmFila[i.dataset.pvFat]=i.value;else delete draft.faturarEmFila[i.dataset.pvFat];again()});
+   if(!(Number(l.p7)+Number(l.p4)>0))D.programacao.splice(D.programacao.indexOf(l),1);again()});
+  host.querySelectorAll('[data-pv-sug]').forEach(b=>b.onclick=()=>{const [pr,ped,kgv]=b.dataset.pvSug.split('|');D.programacao.push({dia:selDia,pedido:ped,p7:pr==='P7'?Number(kgv):0,p4:pr==='P4'?Number(kgv):0});again()});
+  host.querySelectorAll('[data-pv-del]').forEach(b=>b.onclick=()=>{const l=manual.programacao[Number(b.dataset.pvDel)];D.programacao.splice(D.programacao.indexOf(l),1);again()});
+  host.querySelectorAll('[data-pv-prio]').forEach(i=>i.onchange=()=>{const v=Number(i.value);if(v>0)D.prioridadeFila[i.dataset.pvPrio]=v;else delete D.prioridadeFila[i.dataset.pvPrio];again()});
+  host.querySelectorAll('[data-pv-fat]').forEach(i=>i.onchange=()=>{if(i.value)D.faturarEmFila[i.dataset.pvFat]=i.value;else delete D.faturarEmFila[i.dataset.pvFat];again()});
   host.querySelector('#pv-cfg').onsubmit=e=>{e.preventDefault();const f=e.target.elements,lines=s=>s.split('\n').map(x=>x.trim()).filter(Boolean);
-   draft.agrupados=lines(f.agrupados.value);draft.prioridadePintura=lines(f.prioridade.value);
-   const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}draft.foraCarteira=fora;
-   if(f.ultimo.value)draft.ultimoDiaFaturamento=f.ultimo.value;again()};
+   D.agrupados=lines(f.agrupados.value);D.prioridadePintura=lines(f.prioridade.value);
+   const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}D.foraCarteira=fora;
+   if(f.ultimo.value)D.ultimoDiaFaturamento=f.ultimo.value;again()};
   host.querySelector('#pv-xlsx').onchange=async e=>{const f=e.target.files[0];if(!f)return;u.show('Lendo a planilha…',true);
-   try{const x=await importarPlanilha(f);Object.assign(draft,x.manual);draft.previsto={...(draft.previsto||{}),...x.previsto};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação e previsto de '+Object.keys(x.previsto).length+' dias. Confira e use SALVAR E PUBLICAR.',true)}
+   try{const x=await importarPlanilha(f);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação e previsto de '+Object.keys(x.previsto).length+' dias. Confira e use SALVAR E PUBLICAR.',true)}
    catch(err){u.show('Não foi possível importar: '+err.message)}};
-  host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u)};
+  host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
-   const prev={};for(const [k,v]of Object.entries(draft.previsto||{}))if(k<hoje&&k>=soma(s1,-35))prev[k]=v;
+   const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if(k<hoje&&k>=soma(s1,-35))prev[k]=v;
    for(const x of r.dias)if(x.data>=hoje&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
    const body={action:'previa',previa:{...structuredClone(draft),previsto:prev},obs};draftOf=null;save(body)};
  }
