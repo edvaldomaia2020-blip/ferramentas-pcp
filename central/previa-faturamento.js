@@ -196,8 +196,19 @@
    natural:x.pintura!==undefined?!x.pintura:up(x.cor||x.beneficiamento||'NT')==='NT'}));
   const feriados=[...new Set([...(prog.feriados||[]),...(reu.feriados||[]),...recesso(prog.recesso)])];
   const mapa={'FILA DE EMBALAGEM':'EMBALAGEM','FILA DE PINTURA':'PINTURA','EMBALADO EM ESTOQUE':'EMBALADO','FATURAMENTO PREVISTO':'FATURAMENTO HOJE'};
-  const filas=(d.quadros||[]).filter(q=>mapa[q.quadro]&&num(q.kg)>0).map(q=>({fila:mapa[q.quadro],cliente:q.cliente,kg:q.kg,
-   prioridade:manual.prioridadeFila?.[q.cliente],faturarEm:manual.faturarEmFila?.[mapa[q.quadro]+'|'+q.cliente]}));
+  const nm=x=>up(String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')).replace(/[^A-Z0-9]+/g,' ').trim();
+  const mesmo=(a,b)=>{a=nm(a);b=nm(b);return !!a&&!!b&&(a===b||a.startsWith(b+' ')||b.startsWith(a+' '))};
+  // data manual da fila: chave exata fila|cliente; a data dada ao cliente em FATURAMENTO HOJE acompanha o material se ele mudar de quadro (ex.: VEPAN foi para EMBALADO)
+  const fatEm=Object.entries(manual.faturarEmFila||{});
+  const dataExata=(fila,cliente)=>manual.faturarEmFila?.[fila+'|'+cliente];
+  const dataFatHoje=cliente=>{const v=fatEm.filter(([k])=>k.startsWith('FATURAMENTO HOJE|')&&mesmo(k.slice(17),cliente)).map(([,v])=>v).sort();return v.length?v[v.length-1]:undefined};
+  // linhas já produzidas (dias anteriores ao início) com FATURAR EM manual: o material delas está nas filas do cliente e leva a data junto
+  const cliPed=new Map(carteira.map(c=>[String(c.pedido),c.cliente]));
+  const herdada=new Map();for(const x of manual.programacaoAnterior||[]){if(!x.faturarEm)continue;const c=cliPed.get(String(x.pedido))||manual.foraCarteira?.[x.pedido];if(!c)continue;const v=String(x.faturarEm).slice(0,10);if(!herdada.has(c)||herdada.get(c)<v)herdada.set(c,v)}
+  const dataHerdada=cliente=>{let best;for(const [c,v]of herdada)if(mesmo(c,cliente)&&(!best||v>best))best=v;return best};
+  const filas=(d.quadros||[]).filter(q=>mapa[q.quadro]&&num(q.kg)>0).map(q=>{const fila=mapa[q.quadro];
+   return {fila,cliente:q.cliente,kg:q.kg,prioridade:manual.prioridadeFila?.[q.cliente],
+   faturarEm:dataExata(fila,q.cliente)||(fila!=='FATURAMENTO HOJE'?dataHerdada(q.cliente):undefined)||dataFatHoje(q.cliente)}});
   const hoje=manual.inicio||prog.inicio||new Date().toISOString().slice(0,10);
   return {parametros:{inicio:hoje,ultimoDiaFaturamento:manual.ultimoDiaFaturamento||fimDoMes(hoje),diasMin:15,dNatural:1,fator,...caps},
    carteira,feriados,filas,programacao:manual.programacao||[],agrupados:manual.agrupados||AGRUPADOS_PADRAO,

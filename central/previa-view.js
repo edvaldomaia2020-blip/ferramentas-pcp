@@ -99,7 +99,7 @@
   const faturarEmFila={},prioridadeFila={},semPar=[],hojeImp=dayNow();
   for(const f of filas){const a=nm(f.cliente);if(!a)continue;
    const qs=quadros.filter(q=>mapa[q.quadro]===f.fila&&(nm(q.cliente)===a||nm(q.cliente).startsWith(a+' ')||a.startsWith(nm(q.cliente)+' ')));
-   if(!qs.length){if(f.faturarEm&&f.faturarEm>=hojeImp)semPar.push(f.fila+' '+f.cliente);continue}
+   if(!qs.length){if(f.faturarEm&&f.faturarEm>=hojeImp){semPar.push(f.fila+' '+f.cliente);faturarEmFila[f.fila+'|'+f.cliente]=f.faturarEm}continue}
    for(const q of qs){if(f.faturarEm&&f.faturarEm>=hojeImp)faturarEmFila[f.fila+'|'+q.cliente]=f.faturarEm;if(f.fila==='PINTURA'&&Number(f.prioridade)>0){const k=q.cliente;prioridadeFila[k]=Math.min(prioridadeFila[k]||99,Number(f.prioridade))}}}
   return {manual:{programacao,agrupados:col('Y',8,15),prioridadePintura:col('AG',8,15),foraCarteira:fora,faturarEmFila,prioridadeFila,...(ult?{ultimoDiaFaturamento:ult}:{})},previsto,pedidosDia,semPar,total:r.resumo.previstoKg};
  }
@@ -113,7 +113,7 @@
   const D=montar?draft:structuredClone(d._gestao?.previa||{});
   D.programacao??=[];D.agrupados??=P.AGRUPADOS_PADRAO.slice();D.prioridadePintura??=[];D.foraCarteira??={};D.prioridadeFila??={};D.faturarEmFila??={};
   const hoje=dayNow(),ini=D.inicio&&D.inicio>hoje?D.inicio:hoje;
-  const manual={...D,inicio:ini,programacao:D.programacao.filter(x=>x.dia>=ini)};
+  const manual={...D,inicio:ini,programacao:D.programacao.filter(x=>x.dia>=ini),programacaoAnterior:D.programacao.filter(x=>x.dia<ini)};
   const passadas=D.programacao.length-manual.programacao.length;
   let input,r;
   try{input=P.daPublicacao(d,manual);r=P.calcular(input)}catch(e){host.insertAdjacentHTML('beforeend','<p class="cv-error">Não foi possível calcular a prévia: '+esc(e.message)+'</p>');return}
@@ -217,7 +217,7 @@
    const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}D.foraCarteira=fora;
    if(f.ultimo.value)D.ultimoDiaFaturamento=f.ultimo.value;again()};
   host.querySelector('#pv-xlsx').onchange=async e=>{const f=e.target.files[0];if(!f)return;u.show('Lendo a planilha…',true);
-   try{const x=await importarPlanilha(f,d);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};D.pedidosDia={...(D.pedidosDia||{}),...x.pedidosDia};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação, previsto de '+Object.keys(x.previsto).length+' dias (hoje e dias passados ficam congelados como na planilha) e '+Object.keys(x.manual.faturarEmFila).length+' datas manuais das filas.'+(x.semPar.length?' Sem fila correspondente hoje: '+x.semPar.join(', ')+'.':'')+' Confira e use SALVAR E PUBLICAR.',true)}
+   try{const x=await importarPlanilha(f,d);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};D.pedidosDia={...(D.pedidosDia||{}),...x.pedidosDia};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação, previsto de '+Object.keys(x.previsto).length+' dias (hoje e dias passados ficam congelados como na planilha) e '+Object.keys(x.manual.faturarEmFila).length+' datas manuais das filas.'+(x.semPar.length?' Guardadas pelo nome do cliente (sem fila igual hoje): '+x.semPar.join(', ')+'.':'')+' Confira e use SALVAR E PUBLICAR.',true)}
    catch(err){u.show('Não foi possível importar: '+err.message)}};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
