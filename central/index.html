@@ -8,9 +8,9 @@
 <form id="login"><h2>ENTRAR</h2><label>USUÁRIO OU E-MAIL<input id="email" autocomplete="username" required></label><label>SENHA<input id="password" type="password" autocomplete="current-password" required></label><button>ACESSAR PAINEL</button></form>
 <iframe id="panel" title="CONCILIAÇÃO DO METAL — CONSULTA" sandbox="allow-scripts allow-downloads" hidden></iframe>
 <style id="header-tools-style">header{gap:12px;padding:12px 18px}header h1{margin-right:auto}#header-tools{display:flex;flex-basis:100%;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid #ffffff30}#tools-toggle{white-space:nowrap;background:#246b78}#tools-close{background:transparent;border:1px solid #ffffff70;margin-left:auto}#header-tools[hidden]{display:none!important}@media(max-width:650px){header h1{font-size:17px}#tools-close{margin-left:0}}</style>
-<script src="./cloud-menu.js?v=8"></script>
+<script src="./cloud-menu.js?v=9"></script>
 <script src="./previa-faturamento.js?v=3"></script>
-<script src="./previa-view.js?v=9"></script>
+<script src="./previa-view.js?v=10"></script>
 <script src="./cloud-views.js?v=12"></script>
 <style>#robot-completion{position:fixed;right:20px;bottom:20px;z-index:10000;width:min(440px,calc(100vw - 40px));background:white;border:3px solid #167c55;border-radius:10px;padding:18px;box-shadow:0 8px 40px #0005;color:#19344f;font-size:16px}#robot-completion.warn{border-color:#bf8615}#robot-completion.fail{border-color:#b42318}#robot-completion h2{font-size:21px;margin:0 0 10px}#robot-completion p{white-space:pre-wrap;line-height:1.5}#robot-completion button{float:right}#robot-completion-log{max-height:180px;overflow:auto;margin-top:12px}</style>
 <section id="robot-completion" role="alert" aria-live="assertive" hidden><h2></h2><p></p><button type="button">ENTENDI</button><div style="clear:both"></div><details><summary>Avisos desta sessão</summary><div id="robot-completion-log"></div></details></section>
@@ -41,9 +41,24 @@ async function load(){const gen=++generation;el('message').textContent='CARREGAN
  if(hash!==m.sha256)throw Error('Falha na conferência do arquivo.');if(gen!==generation||!auth.currentUser)return;
  cloudHtml=new TextDecoder().decode(raw);cloudMeta=m;const parsed=new DOMParser().parseFromString(cloudHtml,'text/html');cloudSnapshot=JSON.parse(parsed.getElementById('pcp-base').textContent);window.centralCloud.context={data:cloudSnapshot,meta:cloudMeta,owner:auth.currentUser?.uid===OWNER};
  const bridge='<style>.pg-nav{display:none!important}</style><script>window.addEventListener("message",e=>{if(e.source!==parent||e.data?.type!=="central-view"||!["painel","resumo","planejamento","materiais"].includes(e.data.page))return;document.querySelectorAll(".pg-tab").forEach(b=>{if(b.dataset.pg===e.data.page)b.click()})});window.addEventListener("DOMContentLoaded",()=>parent.postMessage({type:"central-ready"},"*"));<\/script>';
- el('panel').hidden=false;el('panel').srcdoc=new TextDecoder().decode(raw).replace('</html>',bridge+'</html>');window.centralMenu?.loaded();el('panel').style.visibility='visible';
+ el('panel').hidden=false;el('panel').srcdoc=ligarPrevia(cloudHtml,cloudSnapshot).replace('</html>',bridge+'</html>');window.centralMenu?.loaded();el('panel').style.visibility='visible';
  el('message').textContent='CONSULTA · VERSÃO '+m.revision+' · PUBLICADA EM '+new Date(m.publicadoEm).toLocaleString('pt-BR')+' · Bases conforme os horários informados no painel.';
  }catch(e){if(gen===generation)el('message').textContent=e.code==='permission-denied'?'SEM ACESSO: confirme o perfil e as regras com o PCP.':e.message;}}
+// Quadro "faturamento do dia" (MATERIAIS FATURADOS) mostra o previsto do dia da PRÉVIA DE FATURAMENTO quando houver.
+// Só altera a cópia exibida; a publicação gravada não muda.
+function ligarPrevia(html,snap){try{
+ const ind=snap?.materiais?.indicador,lista=snap?._gestao?.previa?.pedidosDia?.[ind?.data];
+ if(!ind||!Array.isArray(lista)||!lista.length||!/<script[^>]*id="pcp-base"[^>]*>[\s\S]*?<\/script>/.test(html))return html;
+ const v=structuredClone(snap),vi=v.materiais.indicador,antes=new Map((vi.pedidos||[]).map(x=>[String(x.pedido),x]));
+ const kgA=(vi.pedidos||[]).reduce((s,x)=>s+Number(x.kg||0),0),valA=(vi.pedidos||[]).reduce((s,x)=>s+Number(x.valor_est||0),0),media=kgA>0?valA/kgA:0;
+ // fila sem pedido: usa os pedidos do mesmo cliente que o robô já listou para o dia (o resto fica sem pedido)
+ const nome=c=>String(c||'').trim().toUpperCase(),usados=new Set(lista.filter(x=>x.pedido).map(x=>String(x.pedido))),itens=[];
+ for(const x of lista){if(x.pedido){itens.push(x);continue}let resto=Number(x.kg);for(const o of vi.pedidos||[])if(resto>0.5&&nome(o.cliente)===nome(x.cliente)&&!usados.has(String(o.pedido))){const kg=Math.min(resto,Number(o.kg||0));if(kg>0){itens.push({...x,pedido:String(o.pedido),kg});usados.add(String(o.pedido));resto-=kg}}if(resto>0.5)itens.push({...x,kg:Math.round(resto*10)/10})}
+ vi.pedidos=itens.map(x=>{const o=x.pedido?antes.get(String(x.pedido)):null,preco=Number(o?.preco_kg)||media;return {pedido:x.pedido||'',cliente:o?.cliente||x.cliente,kg:Number(x.kg),situacao:'PREVISTO',motivo:'PRÉVIA · '+(x.origem||''),decisao:'',origem:'PRÉVIA DE FATURAMENTO',preco_origem:o?o.preco_origem:'média geral',preco_kg:preco,valor_est:Math.round(Number(x.kg)*preco*100)/100}});
+ vi.previsto_pedidos_kg=vi.pedidos.reduce((s,x)=>s+x.kg,0);vi.previsto_total_kg=vi.previsto_pedidos_kg;vi.sem_vinculo_kg=0;vi.origem_previsao='PRÉVIA DE FATURAMENTO';
+ const payload=JSON.stringify(v).replaceAll('</','<\\/');
+ return html.replace(/(<script[^>]*id="pcp-base"[^>]*>)[\s\S]*?(<\/script>)/,(_,a,b)=>a+payload+b);
+}catch(e){console.warn('prévia não ligada ao quadro',e);return html}}
 window.centralCloud={context:null,async history(){const rows=await getDocs(query(collection(db,'central_publicacoes'),orderBy('publicadoEm','desc'),limit(20)));return rows.docs.map(x=>x.data());},async save(body){
  if(saving)throw Error('Uma gravação já está em andamento.');
  if(auth.currentUser?.uid!==OWNER)throw Error('Somente Edvaldo pode salvar e publicar.');
