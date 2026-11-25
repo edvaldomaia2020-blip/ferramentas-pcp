@@ -101,14 +101,14 @@
   const filasP=filas.filter(f=>f.fila!=='FATURAMENTO HOJE');
   linhas.forEach(l=>{
    if(l.total<=0){l.faturaDia=null;return}
-   if(l.faturarEm){l.faturaDia=idx(l.faturarEm);l.regra='DATA MANUAL';return}
+   if(l.faturarEm){l.faturaDia=Math.max(1,idx(l.faturarEm));l.regra='DATA MANUAL';return}
    if(l.agrupa){l.faturaDia=Math.max(maxTec(linhas,x=>x.cliente===l.cliente),maxTec(filasP,f=>f.cliente===l.cliente));l.regra='AGRUPADO CLIENTE';return}
    const saldo=ped.get(l.pedido)?.saldo||0;
    if(l.foraCarteira||progPedido.get(l.pedido)>=saldo-1){l.faturaDia=Math.max(maxTec(linhas,x=>x.pedido===l.pedido),maxTec(filasP,f=>f.pedido===l.pedido));l.regra=l.faturaDia>l.tecnico?'FIM DO PEDIDO':'OK';return}
    l.faturaDia=null;l.regra='AGUARDA 100%';l.falta=saldo-progPedido.get(l.pedido);
   });
   filas.forEach(f=>{
-   if(f.faturarEm){f.faturaDia=idx(f.faturarEm);f.regra='DATA MANUAL';return}
+   if(f.faturarEm){f.faturaDia=Math.max(1,idx(f.faturarEm));f.regra='DATA MANUAL';return}
    if(f.fila==='FATURAMENTO HOJE'){f.faturaDia=1;f.regra='OK';return}
    if(f.agrupa){f.faturaDia=Math.max(f.tecnico,maxTec(linhas,x=>x.cliente===f.cliente),maxTec(filasP,x=>x.cliente===f.cliente));f.regra='AGRUPADO CLIENTE';return}
    if(!f.pedido){f.faturaDia=f.tecnico;f.regra='OK';return}
