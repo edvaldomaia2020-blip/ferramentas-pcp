@@ -72,11 +72,12 @@
     programação com datas, regras e o previsto que a própria planilha calculou (para os dias já passados). */
  let xlsxLib=null;
  function carregarXlsx(){if(window.XLSX)return Promise.resolve(window.XLSX);xlsxLib??=new Promise((ok,ko)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=()=>{xlsxLib=null;ko(Error('não foi possível carregar o leitor de Excel'))};document.head.append(sc)});return xlsxLib}
- async function importarPlanilha(file){
+ function porPedido(itens){const m=new Map();for(const i of itens){const key=(i.pedido||'')+'|'+i.cliente;const o=m.get(key)||{pedido:String(i.pedido||''),cliente:i.cliente,kg:0,origem:i.origem};o.kg+=Number(i.kg||0);m.set(key,o)}return [...m.values()].filter(i=>i.kg>=0.5).map(i=>({...i,kg:Math.round(i.kg*10)/10})).sort((a,b)=>b.kg-a.kg)}
+ async function importarPlanilha(file,pub){
   const X=await carregarXlsx(),wb=X.read(await file.arrayBuffer(),{cellDates:true});
   const sh=n=>{const w=wb.Sheets[n];if(!w)throw Error('aba '+n+' não encontrada');return w};
   const pr=sh('PROGRAMAÇÃO'),fi=sh('FILAS'),bc=sh('BASE_CALC');
-  const v=(w,a)=>w[a]?.v,ds=x=>x instanceof Date?new Date(Date.UTC(x.getFullYear(),x.getMonth(),x.getDate(),12)).toISOString().slice(0,10):null;
+  const v=(w,a)=>w[a]?.v,ds=x=>x instanceof Date?new Date(Date.UTC(x.getFullYear(),x.getMonth(),x.getDate(),12)).toISOString().slice(0,10):typeof x==='number'&&x>40000&&x<60000?new Date(Date.UTC(1899,11,30+Math.floor(x),12)).toISOString().slice(0,10):null;
   const ini=ds(v(pr,'C10'));if(!ini)throw Error('INÍCIO PRODUÇÃO (C10) vazio');
   const util=i=>{const t=new Date(ini+'T12:00:00Z');let n=1;while(n<i){t.setUTCDate(t.getUTCDate()+1);if(t.getUTCDay()%6)n++}return t.toISOString().slice(0,10)};
   const programacao=[];
@@ -90,7 +91,17 @@
   const r=P.calcular({parametros:{inicio:ini,ultimoDiaFaturamento:ult,diasMin:6,dNatural:Number(v(pr,'C12'))||1,capP7:Number(v(pr,'E6'))||0,capP4:Number(v(pr,'E7'))||0,capPintura:Number(v(pr,'E8'))||9000},
    carteira,feriados:[],filas,programacao:programacao.map(x=>({...x})),agrupados:col('Y',8,15),foraCarteira:fora,prioridadePintura:col('AG',8,15)});
   const previsto={};for(const d of r.dias){const m=new Map();d.faturamentoItens.forEach(i=>{const k=curto(i.cliente);m.set(k,(m.get(k)||0)+i.kg)});if(m.size)previsto[d.data]=[...m].map(([cliente,kg])=>({cliente,kg:Math.round(kg)})).sort((a,b)=>b.kg-a.kg)}
-  return {manual:{programacao,agrupados:col('Y',8,15),prioridadePintura:col('AG',8,15),foraCarteira:fora,...(ult?{ultimoDiaFaturamento:ult}:{})},previsto,total:r.resumo.previstoKg};
+  const pedidosDia={};for(const d of r.dias){const a=porPedido(d.faturamentoItens);if(a.length)pedidosDia[d.data]=a}
+  // data manual e prioridade das FILAS da planilha passam para as filas da Visão Geral (mesmo cliente)
+  const mapa={'FILA DE EMBALAGEM':'EMBALAGEM','FILA DE PINTURA':'PINTURA','EMBALADO EM ESTOQUE':'EMBALADO','FATURAMENTO PREVISTO':'FATURAMENTO HOJE'};
+  const nm=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+  const quadros=(pub?.quadros||[]).filter(q=>mapa[q.quadro]&&Number(q.kg)>0);
+  const faturarEmFila={},prioridadeFila={},semPar=[],hojeImp=dayNow();
+  for(const f of filas){const a=nm(f.cliente);if(!a)continue;
+   const qs=quadros.filter(q=>mapa[q.quadro]===f.fila&&(nm(q.cliente)===a||nm(q.cliente).startsWith(a+' ')||a.startsWith(nm(q.cliente)+' ')));
+   if(!qs.length){if(f.faturarEm&&f.faturarEm>=hojeImp)semPar.push(f.fila+' '+f.cliente);continue}
+   for(const q of qs){if(f.faturarEm&&f.faturarEm>=hojeImp)faturarEmFila[f.fila+'|'+q.cliente]=f.faturarEm;if(f.fila==='PINTURA'&&Number(f.prioridade)>0){const k=q.cliente;prioridadeFila[k]=Math.min(prioridadeFila[k]||99,Number(f.prioridade))}}}
+  return {manual:{programacao,agrupados:col('Y',8,15),prioridadePintura:col('AG',8,15),foraCarteira:fora,faturarEmFila,prioridadeFila,...(ult?{ultimoDiaFaturamento:ult}:{})},previsto,pedidosDia,semPar,total:r.resumo.previstoKg};
  }
  function render(host,ctx,u,modo){
   const montar=modo==='montar';
@@ -128,7 +139,8 @@
   const off=new Set(input.feriados||[]);
   const seg=s=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)};
   const soma=(s,n)=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
-  const prevDe=dt=>dt<hoje?porCliente(prevGravado[dt]||[]):porCliente(calc.get(dt)?.faturamentoItens||[]);
+  const congelado=dt=>dt<hoje||(dt===hoje&&Array.isArray(prevGravado[dt]));
+  const prevDe=dt=>congelado(dt)?porCliente(prevGravado[dt]||[]):porCliente(calc.get(dt)?.faturamentoItens||[]);
   const semana=(ini,titulo)=>{
    const ds=[0,1,2,3,4].map(i=>soma(ini,i));
    let accP=0,accR=0;
@@ -205,15 +217,15 @@
    const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}D.foraCarteira=fora;
    if(f.ultimo.value)D.ultimoDiaFaturamento=f.ultimo.value;again()};
   host.querySelector('#pv-xlsx').onchange=async e=>{const f=e.target.files[0];if(!f)return;u.show('Lendo a planilha…',true);
-   try{const x=await importarPlanilha(f);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação e previsto de '+Object.keys(x.previsto).length+' dias. Confira e use SALVAR E PUBLICAR.',true)}
+   try{const x=await importarPlanilha(f,d);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};D.pedidosDia={...(D.pedidosDia||{}),...x.pedidosDia};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação, previsto de '+Object.keys(x.previsto).length+' dias (hoje e dias passados ficam congelados como na planilha) e '+Object.keys(x.manual.faturarEmFila).length+' datas manuais das filas.'+(x.semPar.length?' Sem fila correspondente hoje: '+x.semPar.join(', ')+'.':'')+' Confira e use SALVAR E PUBLICAR.',true)}
    catch(err){u.show('Não foi possível importar: '+err.message)}};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
-   const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if(k<hoje&&k>=soma(s1,-35))prev[k]=v;
-   for(const x of r.dias)if(x.data>=hoje&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
+   const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if(k<=hoje&&k>=soma(s1,-35))prev[k]=v;
+   for(const x of r.dias)if((x.data>hoje||(x.data===hoje&&!prev[hoje]))&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
    // por pedido: alimenta o quadro "faturamento do dia" de MATERIAIS FATURADOS
-   const ped={};for(const [k,v]of Object.entries(D.pedidosDia||{}))if(k<hoje&&k>=soma(s1,-35))ped[k]=v;
-   for(const x of r.dias)if(x.data>=hoje&&x.data<=soma(s1,25)){const m=new Map();for(const i of x.faturamentoItens){const key=(i.pedido||'')+'|'+i.cliente;const o=m.get(key)||{pedido:String(i.pedido||''),cliente:i.cliente,kg:0,origem:i.origem};o.kg+=Number(i.kg||0);m.set(key,o)}const a=[...m.values()].filter(i=>i.kg>=0.5).map(i=>({...i,kg:Math.round(i.kg*10)/10})).sort((a,b)=>b.kg-a.kg);if(a.length)ped[x.data]=a}
+   const ped={};for(const [k,v]of Object.entries(D.pedidosDia||{}))if(k<=hoje&&k>=soma(s1,-35))ped[k]=v;
+   for(const x of r.dias)if((x.data>hoje||(x.data===hoje&&!ped[hoje]))&&x.data<=soma(s1,25)){const a=porPedido(x.faturamentoItens);if(a.length)ped[x.data]=a}
    const body={action:'previa',previa:{...structuredClone(draft),previsto:prev,pedidosDia:ped},obs};draftOf=null;save(body)};
  }
  /* Validação da gravação (usada por centralViews.action). */
