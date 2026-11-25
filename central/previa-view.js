@@ -5,6 +5,8 @@
  'use strict';
  const P=window.previaFaturamento;
  const dayNow=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+ /* Nome curto do cliente: 1º nome + 2º nome (completo até 10 letras, senão abreviado); ignora DE/DA/DO/E. */
+ const curto=n=>{if(/^NÃO ESTÁ NA CARTEIRA/i.test(String(n||'')))return 'FORA DA CARTEIRA';const w=String(n||'').replace(/[()]/g,' ').trim().toLocaleUpperCase('pt-BR').split(/\s+/).filter(x=>x&&!['DE','DA','DO','DOS','DAS','E','&','-'].includes(x));if(!w.length)return '(sem cliente)';if(w.length===1)return w[0];const b=w[1];return w[0]+' '+(b.length<=10?b:b[0]+'.')};
  const br=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
  const wd=d=>d?['dom','seg','ter','qua','qui','sex','sáb'][new Date(d+'T12:00:00Z').getUTCDay()]+' '+br(d):'';
  const css=document.createElement('style');
@@ -40,6 +42,7 @@
 .pvx .al{color:var(--bad);font-size:11px}.pvx .ok{color:var(--ok);font-size:11px}
 .pvx .cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.pvx .cfg textarea{min-height:90px;width:100%}
 .pvx .board{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:6px;overflow-x:auto}.pvx .col{background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px 7px;display:flex;flex-direction:column;gap:3px;min-width:170px}.pvx .col.hoje{border:2px solid var(--navy)}.pvx .col.passado{background:#FAFBFC}.pvx .col .ch{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:3px}.pvx .col .ch b{font-size:13px;color:var(--navy);text-transform:uppercase}.pvx .tag{font-size:9px;font-weight:700;background:var(--navy);color:#fff;padding:1px 5px;border-radius:3px}.pvx .tag.off{background:#8A94A3}.pvx .tot{display:flex;justify-content:space-between;align-items:baseline;gap:4px}.pvx .tot span{font-size:9px;color:var(--sub);font-weight:700}.pvx .tot b{font-size:16px;color:var(--ft)}.pvx .tot.real b{color:var(--ink)}.pvx .tot em{font-style:normal;font-size:10px;font-weight:700}.pvx .tot em.pos{color:var(--ok)}.pvx .tot em.neg{color:var(--bad)}.pvx .acc,.pvx .occ{font-size:10px;color:var(--sub)}.pvx .col table{font-size:11px;margin-top:3px}.pvx .col td{padding:2px 3px;border-bottom:1px solid #EEF1F5}.pvx .col td.vz{color:#8A94A3;text-align:center}.pvx .col .rl{font-size:9px;font-weight:700;color:var(--ok);margin-top:5px;border-top:1px dashed var(--line);padding-top:3px}.pvx .col table.r td{color:var(--ok)}
+.pvx .blk{border-radius:4px;padding:5px 8px;display:flex;flex-direction:column;gap:1px}.pvx .blk span{font-size:9px;font-weight:700;letter-spacing:.4px}.pvx .blk b{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}.pvx .blk b small{font-size:11px;font-weight:600}.pvx .blk.prev{background:var(--navy);color:#fff}.pvx .blk.prev span{color:#C9D4E8}.pvx .blk.real{background:#fff;border:1px solid var(--line);border-left:5px solid var(--ok);color:var(--ink)}.pvx .blk.real span{color:var(--ok)}.pvx .blk em{font-style:normal;font-size:11px;font-weight:700;align-self:flex-start;padding:1px 6px;border-radius:3px}.pvx .blk em.pos{background:var(--okbg);color:var(--ok)}.pvx .blk em.neg{background:var(--badbg);color:var(--bad)}
 .pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
  let draft=null,draftOf=null,dirty=false;
@@ -68,7 +71,7 @@
   if(dirty)h+='<div class="dirty">Alterações ainda não publicadas. '+(owner?'Use SALVAR E PUBLICAR no fim da página.':'Somente o acesso do Edvaldo grava.')+'</div>';
   // quadro semanal (formato da planilha): previsto por cliente; dias passados = previsto gravado × realizado (NF Aureon)
   const fmt=x=>num(Math.round(x||0));
-  const porCliente=itens=>{const m=new Map();for(const i of itens){const k=String(i.cliente||'').trim()||'(sem cliente)';m.set(k,(m.get(k)||0)+Number(i.kg||0))}return [...m].map(([cliente,kg])=>({cliente,kg})).sort((a,b)=>b.kg-a.kg)};
+  const porCliente=itens=>{const m=new Map();for(const i of itens){const k=curto(i.cliente);m.set(k,(m.get(k)||0)+Number(i.kg||0))}return [...m].map(([cliente,kg])=>({cliente,kg})).sort((a,b)=>b.kg-a.kg)};
   const calc=new Map(r.dias.map(x=>[x.data,x]));
   const prevGravado=draft.previsto||{};
   const ign=new Set((d.materiais?.excluir_nf||[]).map(String));
@@ -76,7 +79,7 @@
   const off=new Set(input.feriados||[]);
   const seg=s=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)};
   const soma=(s,n)=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
-  const prevDe=dt=>dt<hoje?(prevGravado[dt]||[]):porCliente(calc.get(dt)?.faturamentoItens||[]);
+  const prevDe=dt=>dt<hoje?porCliente(prevGravado[dt]||[]):porCliente(calc.get(dt)?.faturamentoItens||[]);
   const semana=(ini,titulo)=>{
    const ds=[0,1,2,3,4].map(i=>soma(ini,i));
    let accP=0,accR=0;
@@ -84,8 +87,8 @@
     const p=prevDe(dt),tp=p.reduce((s,x)=>s+x.kg,0),passou=dt<=hoje,rr=passou?realDe(dt):[],tr=rr.reduce((s,x)=>s+x.kg,0),c=calc.get(dt);
     accP+=tp;accR+=tr;
     let o='<div class="col'+(dt===hoje?' hoje':'')+(dt<hoje?' passado':'')+'"><div class="ch"><b>'+esc(wd(dt))+'</b>'+(dt===hoje?'<span class="tag">HOJE</span>':'')+(off.has(dt)?'<span class="tag off">SEM EXPEDIENTE</span>':'')+'</div>';
-    o+='<div class="tot"><span>PREVISTO</span><b>'+fmt(tp)+' kg</b></div>';
-    if(passou)o+='<div class="tot real"><span>REALIZADO</span><b>'+fmt(tr)+' kg</b>'+(dt<hoje&&(tp||tr)?'<em class="'+(tr>=tp?'pos':'neg')+'">'+(tr>=tp?'+':'')+fmt(tr-tp)+'</em>':'')+'</div>';
+    o+='<div class="blk prev"><span>PREVISTO</span><b>'+fmt(tp)+' <small>kg</small></b></div>';
+    if(passou)o+='<div class="blk real"><span>REALIZADO'+(dt===hoje?' ATÉ AGORA':'')+'</span><b>'+fmt(tr)+' <small>kg</small></b>'+(dt<hoje&&(tp||tr)?'<em class="'+(tr>=tp?'pos':'neg')+'">'+(tr>=tp?'+':'')+fmt(tr-tp)+' kg'+(tp?' · '+Math.round(100*tr/tp)+'%':'')+'</em>':'')+'</div>';
     o+='<div class="acc">acumulado: prev. '+fmt(accP)+(passou?' · real. '+fmt(accR):'')+'</div>';
     if(c&&dt>=hoje)o+='<div class="occ">P7 '+Math.round(100*c.ocupacao.P7)+'% · P4 '+Math.round(100*c.ocupacao.P4)+'% · pint. '+Math.round(100*c.ocupacao.Pintura)+'%</div>';
     if(dt<hoje&&!prevGravado[dt])o+='<div class="occ">previsto não gravado neste dia</div>';
