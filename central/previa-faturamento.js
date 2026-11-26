@@ -178,7 +178,12 @@
     saldo:c[pr],programado:prog.get(c.pedido)||0,falta:c[pr]-(prog.get(c.pedido)||0),
     acabamento:c['nat'+pr]<0.5?'PINTADO':c['nat'+pr]>=c[pr]-0.5?'NATURAL':'MISTO'})).sort((a,b)=>(a.entrega||'9')<(b.entrega||'9')?-1:(a.entrega||'9')>(b.entrega||'9')?1:0);
   }
-  return {parametros:{...cfg,cap},dias:out,linhas,filas,resumo,pendentes,sugestoes,ultimoDiaFaturamento:ultimo};
+  // saldo a programar de cada pedido por prensa (carteira menos o já lançado na programação), para a lista de pedidos da tela de montagem
+  const progPr=new Map();linhas.forEach(l=>{const o=progPr.get(l.pedido)||{p7:0,p4:0};o.p7+=l.p7;o.p4+=l.p4;progPr.set(l.pedido,o)});
+  const saldos=[...ped.values()].map(c=>{const g=progPr.get(c.pedido)||{p7:0,p4:0},f7=Math.max(0,c.P7-g.p7),f4=Math.max(0,c.P4-g.p4);
+   return {pedido:c.pedido,cliente:c.cliente,entrega:c.entrega,carteiraP7:c.P7,carteiraP4:c.P4,progP7:g.p7,progP4:g.p4,faltaP7:f7,faltaP4:f4,falta:f7+f4}}).filter(x=>x.falta>=1)
+   .sort((a,b)=>(a.entrega||'9')<(b.entrega||'9')?-1:(a.entrega||'9')>(b.entrega||'9')?1:String(a.pedido).localeCompare(String(b.pedido)));
+  return {parametros:{...cfg,cap},dias:out,linhas,filas,resumo,pendentes,sugestoes,saldos,ultimoDiaFaturamento:ultimo};
  }
 
  /* Monta a entrada a partir da publicação da Central. */
