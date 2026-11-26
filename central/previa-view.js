@@ -139,7 +139,9 @@
   const off=new Set(input.feriados||[]);
   const seg=s=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)};
   const soma=(s,n)=>{const t=new Date(s+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
-  const congelado=dt=>dt<hoje||(dt===hoje&&Array.isArray(prevGravado[dt]));
+  // dias que vieram da planilha importada ficam com o previsto da planilha (referência) até o fim do período dela
+  const daPlanilha=new Set(D.previstoPlanilha||[]);
+  const congelado=dt=>dt<hoje||(dt===hoje&&Array.isArray(prevGravado[dt]))||(daPlanilha.has(dt)&&Array.isArray(prevGravado[dt]));
   const prevDe=dt=>congelado(dt)?porCliente(prevGravado[dt]||[]):porCliente(calc.get(dt)?.faturamentoItens||[]);
   const semana=(ini,titulo)=>{
    const ds=[0,1,2,3,4].map(i=>soma(ini,i));
@@ -148,7 +150,7 @@
     const p=prevDe(dt),tp=p.reduce((s,x)=>s+x.kg,0),passou=dt<=hoje,rr=passou?realDe(dt):[],tr=rr.reduce((s,x)=>s+x.kg,0),c=calc.get(dt);
     accP+=tp;accR+=tr;
     const st=dt<hoje?(tr>=tp-1?'ok':'bad'):dt===hoje?'hoje':'fut';
-    let o='<div class="col '+st+(off.has(dt)?' feriado':'')+'"><div class="ch"><b>'+esc(wd(dt))+'</b>'+(dt===hoje?'<span class="tag">HOJE</span>':'')+(off.has(dt)?'<span class="tag off">SEM EXPEDIENTE</span>':'')+(dt<hoje&&(tp||tr)?'<span class="tag '+(tr>=tp-1?'tok':'tbad')+'">'+(tr>=tp-1?'✓ BATEU':'✕ FALTOU')+'</span>':'')+'</div>';
+    let o='<div class="col '+st+(off.has(dt)?' feriado':'')+'"><div class="ch"><b>'+esc(wd(dt))+'</b>'+(dt===hoje?'<span class="tag">HOJE</span>':'')+(daPlanilha.has(dt)&&dt>=hoje&&prevGravado[dt]?'<span class="tag" title="Previsto da planilha importada">PLANILHA</span>':'')+(off.has(dt)?'<span class="tag off">SEM EXPEDIENTE</span>':'')+(dt<hoje&&(tp||tr)?'<span class="tag '+(tr>=tp-1?'tok':'tbad')+'">'+(tr>=tp-1?'✓ BATEU':'✕ FALTOU')+'</span>':'')+'</div>';
     o+='<div class="blk prev"><span>PREVISTO</span><b>'+fmt(tp)+' <small>kg</small></b></div>';
     if(passou)o+='<div class="blk real"><span>REALIZADO'+(dt===hoje?' ATÉ AGORA':'')+'</span><b>'+fmt(tr)+' <small>kg</small></b>'+(dt<hoje&&(tp||tr)?'<em class="'+(tr>=tp?'pos':'neg')+'">'+(tr>=tp?'+':'')+fmt(tr-tp)+' kg'+(tp?' · '+Math.round(100*tr/tp)+'%':'')+'</em>':'')+'</div>';
     if(passou&&tp>0)o+='<div class="pbar'+(tr>=tp?' cheio':'')+'"><i style="width:'+Math.min(100,Math.round(100*tr/tp))+'%"></i></div>';
@@ -217,15 +219,16 @@
    const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}D.foraCarteira=fora;
    if(f.ultimo.value)D.ultimoDiaFaturamento=f.ultimo.value;again()};
   host.querySelector('#pv-xlsx').onchange=async e=>{const f=e.target.files[0];if(!f)return;u.show('Lendo a planilha…',true);
-   try{const x=await importarPlanilha(f,d);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};D.pedidosDia={...(D.pedidosDia||{}),...x.pedidosDia};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação, previsto de '+Object.keys(x.previsto).length+' dias (hoje e dias passados ficam congelados como na planilha) e '+Object.keys(x.manual.faturarEmFila).length+' datas manuais das filas.'+(x.semPar.length?' Guardadas pelo nome do cliente (sem fila igual hoje): '+x.semPar.join(', ')+'.':'')+' Confira e use SALVAR E PUBLICAR.',true)}
+   try{const x=await importarPlanilha(f,d);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};D.previstoPlanilha=Object.keys(x.previsto).filter(k=>!x.manual.ultimoDiaFaturamento||k<=x.manual.ultimoDiaFaturamento).sort();D.pedidosDia={...(D.pedidosDia||{}),...x.pedidosDia};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação, previsto de '+Object.keys(x.previsto).length+' dias (hoje e dias passados ficam congelados como na planilha) e '+Object.keys(x.manual.faturarEmFila).length+' datas manuais das filas.'+(x.semPar.length?' Guardadas pelo nome do cliente (sem fila igual hoje): '+x.semPar.join(', ')+'.':'')+' Confira e use SALVAR E PUBLICAR.',true)}
    catch(err){u.show('Não foi possível importar: '+err.message)}};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
-   const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if(k<=hoje&&k>=soma(s1,-35))prev[k]=v;
-   for(const x of r.dias)if((x.data>hoje||(x.data===hoje&&!prev[hoje]))&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
+   const fixo=new Set(D.previstoPlanilha||[]);
+   const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if((k<=hoje||fixo.has(k))&&k>=soma(s1,-35))prev[k]=v;
+   for(const x of r.dias)if(!fixo.has(x.data)&&(x.data>hoje||(x.data===hoje&&!prev[hoje]))&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
    // por pedido: alimenta o quadro "faturamento do dia" de MATERIAIS FATURADOS
-   const ped={};for(const [k,v]of Object.entries(D.pedidosDia||{}))if(k<=hoje&&k>=soma(s1,-35))ped[k]=v;
-   for(const x of r.dias)if((x.data>hoje||(x.data===hoje&&!ped[hoje]))&&x.data<=soma(s1,25)){const a=porPedido(x.faturamentoItens);if(a.length)ped[x.data]=a}
+   const ped={};for(const [k,v]of Object.entries(D.pedidosDia||{}))if((k<=hoje||fixo.has(k))&&k>=soma(s1,-35))ped[k]=v;
+   for(const x of r.dias)if(!fixo.has(x.data)&&(x.data>hoje||(x.data===hoje&&!ped[hoje]))&&x.data<=soma(s1,25)){const a=porPedido(x.faturamentoItens);if(a.length)ped[x.data]=a}
    const body={action:'previa',previa:{...structuredClone(draft),previsto:prev,pedidosDia:ped},obs};draftOf=null;save(body)};
  }
  /* Validação da gravação (usada por centralViews.action). */
@@ -245,7 +248,8 @@
   if(p.ultimoDiaFaturamento&&!okDate(p.ultimoDiaFaturamento))throw Error('Último dia de faturamento inválido.');
   const previsto={};for(const [k,v]of Object.entries(p.previsto||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))previsto[k]=v.slice(0,200).map(x=>({cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0})).filter(x=>x.kg>0);
   const pedidosDia={};for(const [k,v]of Object.entries(p.pedidosDia||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))pedidosDia[k]=v.slice(0,300).map(x=>({pedido:/^\d+$/.test(String(x.pedido||''))?String(x.pedido):'',cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0,origem:String(x.origem||'').slice(0,40)})).filter(x=>x.kg>0);
-  return {previsto,pedidosDia,programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
+  const previstoPlanilha=(Array.isArray(p.previstoPlanilha)?p.previstoPlanilha:[]).filter(okDate).slice(0,60);
+  return {previsto,pedidosDia,previstoPlanilha,programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
  }
  window.previaView={render,validar};
 })();
