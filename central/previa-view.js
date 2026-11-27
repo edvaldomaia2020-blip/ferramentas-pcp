@@ -239,6 +239,8 @@
    catch(err){u.show('Não foi possível importar: '+err.message)}};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
+   {const pub0=(d._gestao?.previa?.programacao||[]).filter(x=>x.dia>=hoje),novas=D.programacao.filter(x=>x.dia>=hoje),perdidas=pub0.length-novas.length;
+    if(perdidas>0&&!confirm('Atenção: esta gravação remove '+perdidas+' linha(s) de programação de hoje em diante ('+pub0.length+' publicadas, '+novas.length+' agora). Deseja gravar mesmo assim?'))return}
    const fixo=new Set(D.previstoPlanilha||[]);
    const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if((k<=hoje||fixo.has(k))&&k>=soma(s1,-35))prev[k]=v;
    for(const x of r.dias)if(!fixo.has(x.data)&&(x.data>hoje||(x.data===hoje&&!prev[hoje]))&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
