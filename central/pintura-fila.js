@@ -22,12 +22,12 @@
  function distribuir(rows,dias,cap,manual,parada){
   const N=dias.length,par=parada||PARADA_PADRAO;
   const capDia=dias.map(d=>par.some(([a,b])=>d>=a&&d<=b)?0:cap);
-  rows=rows.map(r=>({...r,lotes:r.lotes.map(l=>({...l,resta:l.kg,fim:null})).sort((a,b)=>a.libera-b.libera),aloc:new Array(N).fill(0),man:new Array(N).fill(false),acima:new Array(N).fill(false)}));
+  rows=rows.map(r=>({...r,lotes:r.lotes.map(l=>({...l,resta:l.kg,fim:null})).sort((a,b)=>a.libera-b.libera),aloc:new Array(N).fill(0),aprog:new Array(N).fill(0),man:new Array(N).fill(false),acima:new Array(N).fill(false)}));
   const ordem=rows.slice().sort((a,b)=>a.prio-b.prio||String(a.entrega||'9').localeCompare(String(b.entrega||'9'))||a.cliente.localeCompare(b.cliente)||a.cor.localeCompare(b.cor));
   const liberado=(r,j)=>r.lotes.filter(l=>l.libera<=j).reduce((s,l)=>s+l.resta,0);
-  const tira=(r,j,kg)=>{let f=kg;for(const l of r.lotes){if(f<=1e-6)break;if(l.resta<=1e-6)continue;const x=Math.min(l.resta,f);l.resta-=x;f-=x;if(l.resta<=1e-6){l.resta=0;l.fim=j}}return kg-f};
-  const usado=new Array(N).fill(0),entrada=new Array(N).fill(0);
-  rows.forEach(r=>r.lotes.forEach(l=>{if(l.libera>=1&&l.libera<=N)entrada[l.libera-1]+=l.kg}));
+  const tira=(r,j,kg)=>{let f=kg;for(const l of r.lotes){if(f<=1e-6)break;if(l.resta<=1e-6)continue;const x=Math.min(l.resta,f);l.resta-=x;f-=x;if(l.origem==='PROGRAMAÇÃO')r.aprog[j-1]+=x;if(l.resta<=1e-6){l.resta=0;l.fim=j}}return kg-f};
+  const usado=new Array(N).fill(0),entrada=new Array(N).fill(0),entradaProg=new Array(N).fill(0);
+  rows.forEach(r=>r.lotes.forEach(l=>{if(l.libera>=1&&l.libera<=N){entrada[l.libera-1]+=l.kg;if(l.origem==='PROGRAMAÇÃO')entradaProg[l.libera-1]+=l.kg}}));
   // kg digitado em dias seguintes fica reservado: a sugestão de hoje não usa o material que o Edvaldo mandou pintar depois
   const mval=(r,i)=>{const m=manual?.[r.key],v=m?m[dias[i]]:undefined;return v===undefined||v===null||v===''?null:Math.max(0,num(v))};
   const reserva=(r,j)=>{let t=0;for(let i=j;i<N;i++){const v=mval(r,i);if(v!==null)t+=v}return t};
@@ -44,7 +44,7 @@
   }
   rows.forEach(r=>{r.total=r.lotes.reduce((s,l)=>s+l.kg,0);r.depois=r.lotes.reduce((s,l)=>s+l.resta,0);
    const u=r.aloc.reduce((m,v,i)=>v>0.5?i+1:m,0);r.ultimo=u||null;r.fim=r.depois>0.5?null:r.ultimo});
-  return {rows:ordem.map(o=>rows.find(r=>r.key===o.key)),dias,capDia,usado,entrada,
+  return {rows:ordem.map(o=>rows.find(r=>r.key===o.key)),dias,capDia,usado,entrada,entradaProg,
    sobra:capDia.map((c,i)=>c-usado[i]),
    // dia (índice) em que termina cada lote: fila/embalagem por cliente, programação por linha (ordem)
    fim:(()=>{const f={fila:{},embalagem:{},linha:{}},depois=N+1;
@@ -53,8 +53,8 @@
      else if(l.origem==='EMBALAGEM')f.embalagem[r.cliente]=Math.max(f.embalagem[r.cliente]||0,v);
      else f.linha[l.ref]=Math.max(f.linha[l.ref]||0,v)}));return f})(),
    porDia:(()=>{const fila=new Array(N).fill(0),novo=new Array(N).fill(0);
-    // pintado de cada dia separado em "fila atual" (fila + embalagem) e "novo" (programação), na proporção da linha no dia
-    rows.forEach(r=>{const tot=r.total||1,fl=r.lotes.filter(l=>l.origem!=='PROGRAMAÇÃO').reduce((s,l)=>s+l.kg,0)/tot;r.aloc.forEach((v,i)=>{fila[i]+=v*fl;novo[i]+=v*(1-fl)})});
+    // pintado de cada dia separado em "já produzido" (fila + embalagem) e "novo" (programação da extrusão)
+    rows.forEach(r=>r.aloc.forEach((v,i)=>{fila[i]+=v-r.aprog[i];novo[i]+=r.aprog[i]}));
     return {fila,novo}})()};
  }
 
@@ -94,10 +94,17 @@
   rows.forEach(o=>{const e=entregaCor(o.cliente,o.cor);if(e&&(!o.entrega||e<o.entrega))o.entrega=e;
    const pf=num(manual.prioridadeFila?.[o.cliente])||0,lst=prio.some(x=>[...o.pedidos].includes(x)||up(o.cliente).includes(up(x)));
    o.prio=lst?0:pf>0?pf:99;o.pedidos=[...o.pedidos]});
+  // linhas removidas pelo Edvaldo (ex.: cliente que não existe mais): sai o material já produzido (fila + embalagem);
+  // o que estiver programado na extrusão continua (tirar na programação). O kg tirado volta para a prévia, que deixa de contar.
+  const remSet=new Set(manual.pinturaRemovidas||[]),removidas=[],tirar={fila:{},embalagem:{}};
+  for(const o of rows){if(!remSet.has(o.key))continue;const kgF=o.lotes.filter(l=>l.origem==='FILA').reduce((s,l)=>s+l.kg,0),kgE=o.lotes.filter(l=>l.origem==='EMBALAGEM').reduce((s,l)=>s+l.kg,0);
+   if(kgF)tirar.fila[o.cliente]=(tirar.fila[o.cliente]||0)+kgF;if(kgE)tirar.embalagem[o.cliente]=(tirar.embalagem[o.cliente]||0)+kgE;
+   removidas.push({key:o.key,cliente:o.cliente,cor:o.cor,kg:kgF+kgE});o.lotes=o.lotes.filter(l=>l.origem==='PROGRAMAÇÃO')}
+  for(const k of remSet)if(!removidas.some(x=>x.key===k)){const c=k.lastIndexOf('|');removidas.push({key:k,cliente:k.slice(0,c),cor:k.slice(c+1),kg:0})}
   if(semCor)aviso.push('A publicação ainda não traz a fila de pintura por cor: a cor de '+semCor+' cliente(s) foi estimada pelos itens pintados da carteira.');
   if(semEmb)aviso.push('A publicação ainda não traz o perfil pintado da fila de embalagem: ele entra na pintura só quando chegar à fila de pintura.');
   const res=distribuir(rows.filter(o=>o.lotes.some(l=>l.kg>=0.5)),dias,num(r.parametros?.cap?.Pintura)||9000,manual.pinturaManual||{},manual.pinturaParada);
-  res.aviso=aviso;return res;
+  res.aviso=aviso;res.removidas=removidas;res.tirar=tirar;return res;
  }
 
  const api={montar,distribuir,PARADA_PADRAO,SEM_COR};
