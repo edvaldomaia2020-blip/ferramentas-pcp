@@ -4,7 +4,7 @@
    - Só pinta o que está liberado: FILA DE PINTURA (já passou pelo apontamento de embalagem da extrusão) libera no 1º dia;
      perfil pintado na FILA DE EMBALAGEM libera no dia útil seguinte; a parte pintada da programação P7/P4 do dia D libera em D+1.
    - Cada dia: primeiro entram as células digitadas (ajuste manual, ficam travadas); o resto da capacidade vai, nesta ordem, para
-     prioridade (lista "prioridade na pintura" / prioridade da fila) > entrega mais antiga > cliente > cor, só com o que já está liberado.
+     ordem manual da fila (pinturaOrdem, linhas movidas pelo Edvaldo) > prioridade (lista "prioridade na pintura" / prioridade da fila) > entrega mais antiga > cliente > cor, só com o que já está liberado.
    - Dentro da linha o material sai na ordem em que foi liberado; o dia em que cada lote termina de pintar vai para a prévia de faturamento.
    - Pintura parada no recesso (2026: pinta até 16/12, volta em 04/01/2027).
    Funções puras: `montar` lê a publicação + o resultado da prévia; `distribuir` faz a conta. */
@@ -19,11 +19,13 @@
 
  /* rows: [{key,cliente,cor,entrega,prio,lotes:[{kg,libera(índice do dia, 1 = primeiro),origem,ref}]}]
     dias: ['AAAA-MM-DD',...]; manual: {key:{data:kg}} */
- function distribuir(rows,dias,cap,manual,parada){
+ function distribuir(rows,dias,cap,manual,parada,ordemManual){
   const N=dias.length,par=parada||PARADA_PADRAO;
   const capDia=dias.map(d=>par.some(([a,b])=>d>=a&&d<=b)?0:cap);
   rows=rows.map(r=>({...r,lotes:r.lotes.map(l=>({...l,resta:l.kg,fim:null})).sort((a,b)=>a.libera-b.libera),aloc:new Array(N).fill(0),aprog:new Array(N).fill(0),man:new Array(N).fill(false),acima:new Array(N).fill(false)}));
-  const ordem=rows.slice().sort((a,b)=>a.prio-b.prio||String(a.entrega||'9').localeCompare(String(b.entrega||'9'))||a.cliente.localeCompare(b.cliente)||a.cor.localeCompare(b.cor));
+  // ordem manual: linhas listadas vêm primeiro, na sequência escolhida; as demais (novas) depois, pela regra automática
+  const pos=new Map((ordemManual||[]).map((k,i)=>[k,i])),po=r=>pos.has(r.key)?pos.get(r.key):1e9;
+  const ordem=rows.slice().sort((a,b)=>po(a)-po(b)||a.prio-b.prio||String(a.entrega||'9').localeCompare(String(b.entrega||'9'))||a.cliente.localeCompare(b.cliente)||a.cor.localeCompare(b.cor));
   const liberado=(r,j)=>r.lotes.filter(l=>l.libera<=j).reduce((s,l)=>s+l.resta,0);
   const tira=(r,j,kg)=>{let f=kg;for(const l of r.lotes){if(f<=1e-6)break;if(l.resta<=1e-6)continue;const x=Math.min(l.resta,f);l.resta-=x;f-=x;if(l.origem==='PROGRAMAÇÃO')r.aprog[j-1]+=x;if(l.resta<=1e-6){l.resta=0;l.fim=j}}return kg-f};
   const usado=new Array(N).fill(0),entrada=new Array(N).fill(0),entradaProg=new Array(N).fill(0);
@@ -103,8 +105,8 @@
   for(const k of remSet)if(!removidas.some(x=>x.key===k)){const c=k.lastIndexOf('|');removidas.push({key:k,cliente:k.slice(0,c),cor:k.slice(c+1),kg:0})}
   if(semCor)aviso.push('A publicação ainda não traz a fila de pintura por cor: a cor de '+semCor+' cliente(s) foi estimada pelos itens pintados da carteira.');
   if(semEmb)aviso.push('A publicação ainda não traz o perfil pintado da fila de embalagem: ele entra na pintura só quando chegar à fila de pintura.');
-  const res=distribuir(rows.filter(o=>o.lotes.some(l=>l.kg>=0.5)),dias,num(r.parametros?.cap?.Pintura)||9000,manual.pinturaManual||{},manual.pinturaParada);
-  res.aviso=aviso;res.removidas=removidas;res.tirar=tirar;return res;
+  const res=distribuir(rows.filter(o=>o.lotes.some(l=>l.kg>=0.5)),dias,num(r.parametros?.cap?.Pintura)||9000,manual.pinturaManual||{},manual.pinturaParada,manual.pinturaOrdem);
+  res.ordemManual=(manual.pinturaOrdem||[]).length>0;res.aviso=aviso;res.removidas=removidas;res.tirar=tirar;return res;
  }
 
  const api={montar,distribuir,PARADA_PADRAO,SEM_COR};
