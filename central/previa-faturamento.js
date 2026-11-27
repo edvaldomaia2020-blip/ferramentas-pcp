@@ -68,7 +68,7 @@
    const fr=pr=>{if(!c)return 1;if(c[pr]>0)return c['nat'+pr]/c[pr];return c.saldo>0?c.nat/c.saldo:1};
    const natural=p7*fr('P7')+p4*fr('P4');
    const dia=typeof x.dia==='number'?x.dia:idx(x.dia);
-   return {ordem,dia,data:dataDe(dia),pedido,cliente,entrega:c?.entrega||null,carteiraP7:c?c.P7:0,carteiraP4:c?c.P4:0,
+   return {ordem,dia,data:dataDe(dia),turno:x.turno==='Dia'||x.turno==='Noite'?x.turno:null,pedido,cliente,entrega:c?.entrega||null,carteiraP7:c?c.P7:0,carteiraP4:c?c.P4:0,
     p7,p4,total,naturalKg:natural,pintadoKg:total-natural,faturarEm:x.faturarEm?String(x.faturarEm).slice(0,10):null,
     naCarteira:!!c,foraCarteira:!c,agrupa:contains(cliente,agrupados)};
   });
