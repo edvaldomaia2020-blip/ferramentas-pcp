@@ -135,6 +135,7 @@
    if(l.naCarteira&&l.p4>0&&l.carteiraP4===0)a.push('FERRAMENTA SEM CADASTRO NA P4');
    if(l.regra==='AGUARDA 100%')a.push('AGUARDA FECHAR 100% (falta '+Math.round(l.falta)+' kg)');
    if(l.faturaDia&&l.tecnico&&l.faturaDia>l.tecnico&&!l.faturarEm)a.push('FATURA JUNTO EM '+ddmm(l.faturaEm)+(l.agrupa?' (AGRUPADO CLIENTE)':' (FIM DO PEDIDO)'));
+   if(l.faturarEm&&l.faturarEm<dias[0])a.push('DATA MANUAL NO PASSADO ('+ddmm(l.faturarEm)+'): FATURA NO 1º DIA');
    if(l.faturaEm&&ultimo&&l.faturaEm>ultimo)a.push('FATURA DEPOIS DE '+ddmm(ultimo));
    if(l.faturaEm&&l.entrega&&l.faturaEm>l.entrega)a.push('ATRASA ENTREGA');
    l.alertas=a;

@@ -67,6 +67,7 @@
 .pvx .sugs{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:8px}.pvx .sug{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:4px}.pvx .sug .sh{font-weight:700;font-size:11px;color:var(--c);padding:5px 8px;background:#F6F8FB;display:flex;justify-content:space-between}.pvx .sug .sh span{color:var(--sub);font-weight:400}.pvx .sug td{padding:3px 6px;font-size:11px}.pvx button.plus{background:#fff;color:var(--ok);border-color:#9CD3AA;padding:1px 7px;font-size:10px}
 .pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
+ const anoOk=v=>/^20[2-9]\d-\d{2}-\d{2}$/.test(String(v||''));
  let draft=null,draftOf=null,dirty=false,selDia=null,abertoOrig=false;
 
  /* Importa a planilha "PRÉVIA DE FATURAMENTO" (abas PROGRAMAÇÃO, FILAS, BASE_CALC) para o rascunho:
@@ -230,17 +231,19 @@
    f.pedido.addEventListener('input',mostrar);f.pedido.addEventListener('change',mostrar)}
   host.querySelector('#pv-add').onsubmit=e=>{e.preventDefault();const f=e.target.elements,p7=Number(f.p7.value||0),p4=Number(f.p4.value||0);
    if(p7<0||p4<0||p7+p4<=0){u.show('Informe o kg em P7 e/ou P4.');return}
+   if(f.faturarEm.value&&!anoOk(f.faturarEm.value)){u.show('Ano da data "Faturar em" inválido ('+f.faturarEm.value.slice(0,4)+'). Digite o ano completo, ex.: 2026.');return}
    D.programacao.push({dia:f.dia.value,pedido:f.pedido.value.trim(),p7,p4,turno:f.turno.value,...(f.faturarEm.value?{faturarEm:f.faturarEm.value}:{})});again()};
   host.querySelectorAll('[data-pv-ret]').forEach(b=>b.onclick=()=>{const c=b.dataset.pvRet;if(!D.retirados.includes(c))D.retirados.push(c);again()});
   host.querySelectorAll('[data-pv-volta]').forEach(b=>b.onclick=()=>{D.retirados=D.retirados.filter(x=>x!==b.dataset.pvVolta);again()});
   host.querySelectorAll('[data-pv-tab]').forEach(b=>b.onclick=()=>{selDia=b.dataset.pvTab;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)});
   host.querySelectorAll('[data-pv-ed]').forEach(i=>i.onchange=()=>{const [o,f]=i.dataset.pvEd.split('|'),l=manual.programacao[Number(o)];if(!l)return;
+   if(f==='faturarEm'&&i.value&&!anoOk(i.value)){u.show('Ano da data inválido ('+i.value.slice(0,4)+'). Digite o ano completo, ex.: 2026.');return}
    if(f==='turno'){l.turno=i.value}else if(f==='faturarEm'){if(i.value)l.faturarEm=i.value;else delete l.faturarEm}else l[f]=Math.max(0,Number(i.value)||0);
    if(!(Number(l.p7)+Number(l.p4)>0))D.programacao.splice(D.programacao.indexOf(l),1);again()});
   host.querySelectorAll('[data-pv-sug]').forEach(b=>b.onclick=()=>{const [pr,ped,kgv,tur]=b.dataset.pvSug.split('|');D.programacao.push({dia:selDia,turno:tur||'Dia',pedido:ped,p7:pr==='P7'?Number(kgv):0,p4:pr==='P4'?Number(kgv):0});again()});
   host.querySelectorAll('[data-pv-del]').forEach(b=>b.onclick=()=>{const l=manual.programacao[Number(b.dataset.pvDel)];D.programacao.splice(D.programacao.indexOf(l),1);again()});
   host.querySelectorAll('[data-pv-prio]').forEach(i=>i.onchange=()=>{const v=Number(i.value);if(v>0)D.prioridadeFila[i.dataset.pvPrio]=v;else delete D.prioridadeFila[i.dataset.pvPrio];again()});
-  host.querySelectorAll('[data-pv-fat]').forEach(i=>i.onchange=()=>{if(i.value)D.faturarEmFila[i.dataset.pvFat]=i.value;else delete D.faturarEmFila[i.dataset.pvFat];again()});
+  host.querySelectorAll('[data-pv-fat]').forEach(i=>i.onchange=()=>{if(i.value&&!anoOk(i.value)){u.show('Ano da data inválido ('+i.value.slice(0,4)+'). Digite o ano completo, ex.: 2026.');return}if(i.value)D.faturarEmFila[i.dataset.pvFat]=i.value;else delete D.faturarEmFila[i.dataset.pvFat];again()});
   host.querySelector('#pv-cfg').onsubmit=e=>{e.preventDefault();const f=e.target.elements,lines=s=>s.split('\n').map(x=>x.trim()).filter(Boolean);
    D.agrupados=lines(f.agrupados.value);D.prioridadePintura=lines(f.prioridade.value);
    const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}D.foraCarteira=fora;
@@ -263,13 +266,13 @@
  /* Validação da gravação (usada por centralViews.action). */
  function validar(p){
   if(!p||typeof p!=='object')throw Error('Prévia inválida.');
-  const okDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T00:00:00Z'));
+  const okDate=s=>/^20[2-9]\d-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s+'T00:00:00Z'));
   if(!Array.isArray(p.programacao)||p.programacao.length>2000)throw Error('Programação inválida.');
   const prog=p.programacao.map(x=>{
    const p7=Number(x.p7||0),p4=Number(x.p4||0);
-   if(!okDate(x.dia)||!/^\d+$/.test(String(x.pedido))||!(p7>=0)||!(p4>=0)||p7+p4<=0||(x.faturarEm&&!okDate(x.faturarEm)))throw Error('Linha da programação inválida (pedido '+x.pedido+').');
+   if(!okDate(x.dia)||!/^\d+$/.test(String(x.pedido))||!(p7>=0)||!(p4>=0)||p7+p4<=0)throw Error('Linha da programação inválida (pedido '+x.pedido+').');
    const w=new Date(x.dia+'T12:00:00Z').getUTCDay();if(w===0||w===6)throw Error('Programação em fim de semana (pedido '+x.pedido+').');
-   return {dia:x.dia,pedido:String(x.pedido),p7,p4,...(x.turno==='Dia'||x.turno==='Noite'?{turno:x.turno}:{}),...(x.faturarEm?{faturarEm:x.faturarEm}:{})}});
+   return {dia:x.dia,pedido:String(x.pedido),p7,p4,...(x.turno==='Dia'||x.turno==='Noite'?{turno:x.turno}:{}),...(x.faturarEm&&okDate(x.faturarEm)?{faturarEm:x.faturarEm}:{})}});
   const list=a=>(Array.isArray(a)?a:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,100);
   const fora={};for(const [k,v]of Object.entries(p.foraCarteira||{}))if(/^\d+$/.test(k)&&String(v).trim())fora[k]=String(v).trim();
   const prio={};for(const [k,v]of Object.entries(p.prioridadeFila||{}))if(Number.isInteger(Number(v))&&Number(v)>0)prio[k]=Number(v);
