@@ -38,6 +38,7 @@
   const capPint=num(cfg.capPintura);if(capPint<=0)throw Error('Capacidade da pintura não informada.');
   const cap={P7:num(cfg.capP7),P4:num(cfg.capP4),Pintura:capPint};
   const agrupados=(input.agrupados||[]).filter(x=>up(x));
+  const retirados=(input.retirados||[]).filter(x=>up(x));const retirado=c=>retirados.length>0&&contains(c,retirados);
   const prioridade=(input.prioridadePintura||[]).map(x=>String(x).trim()).filter(Boolean);
   const fora=new Map(Object.entries(input.foraCarteira||{}).map(([k,v])=>[String(k).trim(),v]));
   // carteira por pedido
@@ -147,26 +148,27 @@
    const p7=doDia.reduce((s,l)=>s+l.p7,0),p4=doDia.reduce((s,l)=>s+l.p4,0);
    const pintFila=filas.filter(f=>f.fimPint!==undefined).reduce((s,f)=>s+fatia(f.iniPint,f.fimPint,j),0);
    const pintNovo=linhas.filter(l=>l.fimPint!==undefined).reduce((s,l)=>s+fatia(l.iniPint,l.fimPint,j),0);
-   const fat=[...linhas.filter(l=>l.faturaDia===j).map(l=>({pedido:l.pedido,cliente:l.cliente,kg:l.total,origem:'PROGRAMAÇÃO',regra:l.regra||''})),
+   const fatTodos=[...linhas.filter(l=>l.faturaDia===j).map(l=>({pedido:l.pedido,cliente:l.cliente,kg:l.total,origem:'PROGRAMAÇÃO',regra:l.regra||''})),
     ...filas.filter(f=>f.faturaDia===j).map(f=>({pedido:f.pedido,cliente:f.cliente,kg:f.kg,origem:f.fila,regra:f.regra||''}))];
+   const fat=fatTodos.filter(x=>!retirado(x.cliente)),excluidos=fatTodos.filter(x=>retirado(x.cliente));
    const ocup={P7:cap.P7?p7/cap.P7:0,P4:cap.P4?p4/cap.P4:0,Pintura:(pintFila+pintNovo)/capPint};
    const situacao=Math.max(ocup.P7,ocup.P4,ocup.Pintura)>1?'ESTOUROU':Math.min(ocup.P7,ocup.P4)>=0.98?'DIA FECHADO':Math.max(ocup.P7,ocup.P4)>=0.9?'QUASE CHEIO':'ABERTO';
    out.push({dia:j,data:dataDe(j),p7,p4,pinturaFila:pintFila,pinturaNovo:pintNovo,pintura:pintFila+pintNovo,
-    faturamento:fat.reduce((s,x)=>s+x.kg,0),faturamentoItens:fat,ocupacao:ocup,situacao,
+    faturamento:fat.reduce((s,x)=>s+x.kg,0),faturamentoItens:fat,excluidos,ocupacao:ocup,situacao,
     sobraP7:cap.P7-p7,sobraP4:cap.P4-p4,sobraPintura:capPint-pintFila-pintNovo});
   }
   let acum=0;out.forEach(d=>{acum+=d.faturamento;d.acumulado=acum});
   const noPeriodo=d=>!ultimo||d.data<=ultimo;
   const periodo=out.filter(noPeriodo);
-  const fatLinhas=linhas.filter(l=>l.faturaEm&&(!ultimo||l.faturaEm<=ultimo));
+  const fatLinhas=linhas.filter(l=>!retirado(l.cliente)&&l.faturaEm&&(!ultimo||l.faturaEm<=ultimo));
   const resumo={
    previstoKg:periodo.reduce((s,d)=>s+d.faturamento,0),
    pedidos:new Set(fatLinhas.map(l=>l.pedido)).size,
    clientes:new Set(fatLinhas.map(l=>l.cliente)).size,
    maiorDia:periodo.reduce((m,d)=>d.faturamento>(m?.faturamento??-1)?d:m,null),
-   aguardando100Kg:linhas.filter(l=>l.regra==='AGUARDA 100%').reduce((s,l)=>s+l.total,0)+filas.filter(f=>f.regra==='AGUARDA 100%').reduce((s,f)=>s+f.kg,0),
+   aguardando100Kg:linhas.filter(l=>!retirado(l.cliente)&&l.regra==='AGUARDA 100%').reduce((s,l)=>s+l.total,0)+filas.filter(f=>!retirado(f.cliente)&&f.regra==='AGUARDA 100%').reduce((s,f)=>s+f.kg,0),
    depoisDoPeriodoKg:ultimo?out.filter(d=>d.data>ultimo).reduce((s,d)=>s+d.faturamento,0):0,
-   jaProduzidoKg:filas.filter(f=>f.faturaEm&&(!ultimo||f.faturaEm<=ultimo)).reduce((s,f)=>s+f.kg,0),
+   jaProduzidoKg:filas.filter(f=>!retirado(f.cliente)&&f.faturaEm&&(!ultimo||f.faturaEm<=ultimo)).reduce((s,f)=>s+f.kg,0),
    fimFilaPinturaDias:fimFila
   };
   // pendentes: entrega até o último dia com saldo não programado
@@ -226,7 +228,7 @@
    faturarEm:dataExata(fila,q.cliente)||(fila!=='FATURAMENTO HOJE'?dataHerdada(q.cliente):undefined)||dataFatHoje(q.cliente)}});
   const hoje=manual.inicio||prog.inicio||new Date().toISOString().slice(0,10);
   return {parametros:{inicio:hoje,ultimoDiaFaturamento:manual.ultimoDiaFaturamento||fimDoMes(hoje),diasMin:15,dNatural:1,fator,...caps},
-   carteira,feriados,filas,programacao:manual.programacao||[],agrupados:manual.agrupados||AGRUPADOS_PADRAO,
+   carteira,feriados,filas,programacao:manual.programacao||[],agrupados:manual.agrupados||AGRUPADOS_PADRAO,retirados:manual.retirados||[],
    foraCarteira:manual.foraCarteira||{},prioridadePintura:manual.prioridadePintura||[],
    jaProgramado:carteiraEm?(manual.programacaoAnterior||[]).filter(x=>String(x.dia)>=carteiraEm):[],
    carteiraInfo:{fonte:fonteItens,em:carteiraEm,texto:origem.carteira_em||null,rotulo:origem.fonte||null,itens:itens.length}};

@@ -67,7 +67,7 @@
 .pvx .sugs{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:8px}.pvx .sug{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:4px}.pvx .sug .sh{font-weight:700;font-size:11px;color:var(--c);padding:5px 8px;background:#F6F8FB;display:flex;justify-content:space-between}.pvx .sug .sh span{color:var(--sub);font-weight:400}.pvx .sug td{padding:3px 6px;font-size:11px}.pvx button.plus{background:#fff;color:var(--ok);border-color:#9CD3AA;padding:1px 7px;font-size:10px}
 .pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
- let draft=null,draftOf=null,dirty=false,selDia=null;
+ let draft=null,draftOf=null,dirty=false,selDia=null,abertoOrig=false;
 
  /* Importa a planilha "PRÉVIA DE FATURAMENTO" (abas PROGRAMAÇÃO, FILAS, BASE_CALC) para o rascunho:
     programação com datas, regras e o previsto que a própria planilha calculou (para os dias já passados). */
@@ -112,7 +112,7 @@
   if(montar&&!owner){host.insertAdjacentHTML('beforeend','<h2>MONTAR PROGRAMAÇÃO</h2><p class="cv-note">Somente o acesso pessoal de Edvaldo monta a programação. A consulta fica em FATURAMENTO › PRÉVIA DE FATURAMENTO.</p>');return}
   if(draftOf!==pub||!draft){draft=structuredClone(d._gestao?.previa||{});draftOf=pub;dirty=false}
   const D=montar?draft:structuredClone(d._gestao?.previa||{});
-  D.programacao??=[];D.agrupados??=P.AGRUPADOS_PADRAO.slice();D.prioridadePintura??=[];D.foraCarteira??={};D.prioridadeFila??={};D.faturarEmFila??={};
+  D.programacao??=[];D.retirados??=[];D.agrupados??=P.AGRUPADOS_PADRAO.slice();D.prioridadePintura??=[];D.foraCarteira??={};D.prioridadeFila??={};D.faturarEmFila??={};
   const hoje=dayNow(),ini=D.inicio&&D.inicio>hoje?D.inicio:hoje;
   const manual={...D,inicio:ini,programacao:D.programacao.filter(x=>x.dia>=ini),programacaoAnterior:D.programacao.filter(x=>x.dia<ini)};
   const passadas=D.programacao.length-manual.programacao.length;
@@ -173,8 +173,9 @@
   {const itens=[];for(const x of r.dias)if(!ult||x.data<=ult)for(const it of x.faturamentoItens)itens.push({data:x.data,...it});
    const tot=new Map();itens.forEach(it=>tot.set(it.origem,(tot.get(it.origem)||0)+it.kg));
    const exp={'PROGRAMAÇÃO':'ainda vai ser produzido: linhas lançadas na programação','FATURAMENTO HOJE':'já pronto, quadro faturamento previsto','EMBALADO':'já embalado em estoque','EMBALAGEM':'já extrudado, falta embalar','PINTURA':'na fila de pintura'};
-   const total=itens.reduce((s,x)=>s+x.kg,0);
-   h+='<details><summary>DE ONDE VEM O PREVISTO<span>'+fmt(total)+' kg até '+esc(br(ult))+' · '+itens.length+' itens · abra para conferir item a item</span></summary><div class="in"><div class="chips">'+[...tot].sort((a,b)=>b[1]-a[1]).map(([o,v])=>'<span><b>'+esc(o)+'</b> '+fmt(v)+' kg <em>('+esc(exp[o]||'fila')+')</em></span>').join('')+'</div><div class="wrap"><table><thead><tr><th>Fatura em</th><th>Origem</th><th>Pedido</th><th>Cliente</th><th class="n">kg</th><th>Regra</th></tr></thead><tbody>'+itens.sort((a,b)=>a.data.localeCompare(b.data)||a.origem.localeCompare(b.origem)||b.kg-a.kg).map(it=>'<tr><td>'+esc(wd(it.data))+'</td><td>'+esc(it.origem)+'</td><td>'+esc(it.pedido||'—')+'</td><td>'+esc(curto(it.cliente))+'</td><td class="n">'+fmt(it.kg)+'</td><td>'+esc(it.regra||'—')+'</td></tr>').join('')+'</tbody></table></div></div></details>'}
+   const total=itens.reduce((s,x)=>s+x.kg,0),ret=new Map();for(const x of r.dias)if(!ult||x.data<=ult)for(const it of x.excluidos||[])ret.set(it.cliente,(ret.get(it.cliente)||0)+it.kg);
+   for(const c of D.retirados)if(!ret.has(c)&&![...ret.keys()].some(k=>k.toUpperCase().includes(c.toUpperCase())))ret.set(c,0);
+   h+='<details id="pv-orig"'+(abertoOrig?' open':'')+'><summary>DE ONDE VEM O PREVISTO<span>'+fmt(total)+' kg até '+esc(br(ult))+' · '+itens.length+' itens · abra para conferir item a item</span></summary><div class="in"><div class="chips">'+[...tot].sort((a,b)=>b[1]-a[1]).map(([o,v])=>'<span><b>'+esc(o)+'</b> '+fmt(v)+' kg <em>('+esc(exp[o]||'fila')+')</em></span>').join('')+'</div>'+(D.retirados.length?'<div class="warn">RETIRADOS DO PREVISTO (não contam nos números acima): '+D.retirados.map(c=>{const kgR=[...ret].filter(([k])=>k.toUpperCase().includes(c.toUpperCase())).reduce((s,[,v])=>s+v,0);return '<b>'+esc(c)+'</b> '+fmt(kgR)+' kg'+(montar?' <button type="button" class="lnk" data-pv-volta="'+esc(c)+'">voltar</button>':'')}).join(' · ')+'</div>':'')+'<div class="wrap"><table><thead><tr><th>Fatura em</th><th>Origem</th><th>Pedido</th><th>Cliente</th><th class="n">kg</th><th>Regra</th>'+(montar?'<th></th>':'')+'</tr></thead><tbody>'+itens.sort((a,b)=>a.data.localeCompare(b.data)||a.origem.localeCompare(b.origem)||b.kg-a.kg).map(it=>'<tr><td>'+esc(wd(it.data))+'</td><td>'+esc(it.origem)+'</td><td>'+esc(it.pedido||'—')+'</td><td>'+esc(curto(it.cliente))+'</td><td class="n">'+fmt(it.kg)+'</td><td>'+esc(it.regra||'—')+'</td>'+(montar?'<td><button type="button" class="lnk" data-pv-ret="'+esc(it.cliente)+'" title="Tira este cliente do previsto">tirar do previsto</button></td>':'')+'</tr>').join('')+'</tbody></table></div></div></details>'}
   // ===== MONTAR PROGRAMAÇÃO (substitui a aba PROGRAMAÇÃO da planilha) =====
   if(montar){
   const carteira=new Map();input.carteira.forEach(c=>{const p=String(c.pedido);if(!carteira.has(p))carteira.set(p,c.cliente)});
@@ -215,6 +216,7 @@
   }else h+='<div class="note">Consulta. A programação e os controles são montados em FATURAMENTO › MONTAR PROGRAMAÇÃO (acesso do Edvaldo).</div>';
   h+='</div>';
   host.insertAdjacentHTML('beforeend',h);
+  host.querySelector('#pv-orig')?.addEventListener('toggle',e=>{abertoOrig=e.target.open});
   if(!montar)return;
   const again=()=>{dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   {const f=host.querySelector('#pv-add').elements,hint=host.querySelector('#pv-hint'),o7=host.querySelector('#pv-f7'),o4=host.querySelector('#pv-f4'),mapa=new Map(r.saldos.map(x=>[String(x.pedido),x]));
@@ -227,6 +229,8 @@
   host.querySelector('#pv-add').onsubmit=e=>{e.preventDefault();const f=e.target.elements,p7=Number(f.p7.value||0),p4=Number(f.p4.value||0);
    if(p7<0||p4<0||p7+p4<=0){u.show('Informe o kg em P7 e/ou P4.');return}
    D.programacao.push({dia:f.dia.value,pedido:f.pedido.value.trim(),p7,p4,turno:f.turno.value,...(f.faturarEm.value?{faturarEm:f.faturarEm.value}:{})});again()};
+  host.querySelectorAll('[data-pv-ret]').forEach(b=>b.onclick=()=>{const c=b.dataset.pvRet;if(!D.retirados.includes(c))D.retirados.push(c);again()});
+  host.querySelectorAll('[data-pv-volta]').forEach(b=>b.onclick=()=>{D.retirados=D.retirados.filter(x=>x!==b.dataset.pvVolta);again()});
   host.querySelectorAll('[data-pv-tab]').forEach(b=>b.onclick=()=>{selDia=b.dataset.pvTab;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)});
   host.querySelectorAll('[data-pv-ed]').forEach(i=>i.onchange=()=>{const [o,f]=i.dataset.pvEd.split('|'),l=manual.programacao[Number(o)];if(!l)return;
    if(f==='turno'){l.turno=i.value}else if(f==='faturarEm'){if(i.value)l.faturarEm=i.value;else delete l.faturarEm}else l[f]=Math.max(0,Number(i.value)||0);
@@ -272,7 +276,7 @@
   const previsto={};for(const [k,v]of Object.entries(p.previsto||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))previsto[k]=v.slice(0,200).map(x=>({cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0})).filter(x=>x.kg>0);
   const pedidosDia={};for(const [k,v]of Object.entries(p.pedidosDia||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))pedidosDia[k]=v.slice(0,300).map(x=>({pedido:/^\d+$/.test(String(x.pedido||''))?String(x.pedido):'',cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0,origem:String(x.origem||'').slice(0,40)})).filter(x=>x.kg>0);
   const previstoPlanilha=(Array.isArray(p.previstoPlanilha)?p.previstoPlanilha:[]).filter(okDate).slice(0,60);
-  return {previsto,pedidosDia,previstoPlanilha,programacao:prog,agrupados:list(p.agrupados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
+  return {previsto,pedidosDia,previstoPlanilha,programacao:prog,agrupados:list(p.agrupados),retirados:list(p.retirados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
  }
  window.previaView={render,validar};
 })();
