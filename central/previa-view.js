@@ -31,7 +31,7 @@
 .pvx .pill{display:inline-block;font-weight:700;font-size:10px;padding:2px 6px;border-radius:3px;white-space:nowrap}
 .pvx .pill.ESTOUROU{background:var(--badbg);color:var(--bad)}.pvx .pill.QUASE{background:var(--warnbg);color:var(--warn)}.pvx .pill.FECHADO{background:var(--okbg);color:var(--ok)}.pvx .pill.ABERTO{background:#E8EDF6;color:var(--navy)}
 .pvx .ft{font-weight:700}.pvx .chips{display:flex;flex-wrap:wrap;gap:4px 10px}.pvx .chips span{white-space:nowrap}.pvx .chips b{color:var(--ink)}
-.pvx .cv-note{margin:0;padding:3px 8px;font-size:11px;line-height:1.3;border-radius:3px}.pvx .warn{padding:3px 8px!important;font-size:11px!important}.pvx .hd{padding-bottom:3px}.pvx .hd h2{font-size:16px}.pvx .note{font-size:10px;color:var(--sub);background:var(--bg);border-radius:4px;padding:5px 8px}
+.pvx .cv-note{margin:0;padding:3px 8px;font-size:11px;line-height:1.3;border-radius:3px}.pvx .warn{padding:3px 8px!important;font-size:11px!important}.pvx .hd{padding-bottom:3px}.pvx .hd h2{font-size:16px}.pvx .svbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:4px;padding:4px 8px;box-shadow:0 1px 3px rgba(20,40,80,.12)}.pvx .svbar.sujo{border-left-color:#C98A00;background:#FFF4E0}.pvx .svbar .svst{font-weight:700;font-size:12px;color:var(--sub)}.pvx .svbar.sujo .svst{color:var(--warn)}.pvx .svbar button{background:var(--ok);border-color:var(--ok);font-size:12px;padding:6px 14px}.pvx .svbar.sujo button{background:#C98A00;border-color:#C98A00}.pvx .note{font-size:10px;color:var(--sub);background:var(--bg);border-radius:4px;padding:5px 8px}
 .pvx .warn{font-size:12px;font-weight:600;color:var(--bad);background:var(--badbg);border-left:4px solid var(--bad);padding:6px 10px;border-radius:4px}
 .pvx .dirty{font-size:12px;font-weight:600;color:var(--warn);background:var(--warnbg);border-left:4px solid #B28629;padding:6px 10px;border-radius:4px}
 .pvx details{background:#fff;border:1px solid var(--line);border-radius:4px}.pvx details>summary{cursor:pointer;padding:7px 10px;font-weight:700;color:var(--navy);font-size:12px}.pvx details>summary span{font-weight:400;color:var(--sub);font-size:11px;margin-left:6px}.pvx details[open]>summary{border-bottom:1px solid var(--line)}
@@ -84,7 +84,12 @@
 .pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
  const anoOk=v=>/^20[2-9]\d-\d{2}-\d{2}$/.test(String(v||''));
- let draft=null,draftOf=null,dirty=false,selDia=null,abertoOrig=false,abertoPint=false;
+ let draft=null,draftOf=null,dirty=false,savedAt=null,novaPubAviso=false,recuperadoEm=null,selDia=null,abertoOrig=false,abertoPint=false;
+ const LS_KEY='pcp.pvdraft.v1';
+ const guardar=()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({draft,dirty:true,at:Date.now()}))}catch(e){}};
+ const limparGuardado=()=>{try{localStorage.removeItem(LS_KEY)}catch(e){}};
+ const lerGuardado=()=>{try{const x=JSON.parse(localStorage.getItem(LS_KEY)||'null');return x&&x.draft&&x.dirty?x:null}catch(e){return null}};
+ const hhmm=t=>new Date(t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
  /* Importa a planilha "PRÉVIA DE FATURAMENTO" (abas PROGRAMAÇÃO, FILAS, BASE_CALC) para o rascunho:
     programação com datas, regras e o previsto que a própria planilha calculou (para os dias já passados). */
@@ -127,7 +132,9 @@
   if(!P){host.insertAdjacentHTML('beforeend','<p class="cv-error">Motor da prévia não carregou. Recarregue a página.</p>');return}
   const pub=ctx.meta?.publicacao||'';
   if(montar&&!owner){host.insertAdjacentHTML('beforeend','<h2>MONTAR PROGRAMAÇÃO</h2><p class="cv-note">Somente o acesso pessoal de Edvaldo monta a programação. A consulta fica em FATURAMENTO › PRÉVIA DE FATURAMENTO.</p>');return}
-  if(draftOf!==pub||!draft){draft=structuredClone(d._gestao?.previa||{});draftOf=pub;dirty=false}
+  if(montar&&owner&&!draft){const g=lerGuardado();if(g){draft=g.draft;dirty=true;draftOf=pub;recuperadoEm=g.at}}
+  if(!draft||(draftOf!==pub&&!dirty)){draft=structuredClone(d._gestao?.previa||{});draftOf=pub;dirty=false}
+  else if(draftOf!==pub){draftOf=pub;novaPubAviso=true}
   const D=montar?draft:structuredClone(d._gestao?.previa||{});
   D.programacao??=[];D.retirados??=[];D.pinturaManual??={};D.pinturaRemovidas??=[];D.pinturaOrdem??=[];D.agrupados??=P.AGRUPADOS_PADRAO.slice();D.prioridadePintura??=[];D.foraCarteira??={};D.prioridadeFila??={};D.faturarEmFila??={};
   const hoje=dayNow(),ini=D.inicio&&D.inicio>hoje?D.inicio:hoje;
@@ -149,6 +156,9 @@
   const ultimoUtil=Math.max(15,...r.dias.map((x,i)=>x.faturamento>0||x.p7||x.p4||x.pintura?i+1:0));
   const dias=r.dias.slice(0,ultimoUtil);
   let h='<div class="pvx">';
+  if(montar&&owner)h+='<div class="svbar'+(dirty?' sujo':'')+'"><span class="svst">'+(dirty?'● ALTERAÇÕES NÃO SALVAS':(savedAt?'✔ salvo às '+hhmm(savedAt):'sem alterações'))+'</span><button type="button" id="pv-save-top">SALVAR ALTERAÇÕES</button></div>';
+  if(montar&&novaPubAviso){h+='<div class="warn">Chegou uma publicação nova (atualização do robô). Suas alterações ainda não salvas foram mantidas; clique em SALVAR ALTERAÇÕES.</div>';novaPubAviso=false}
+  if(montar&&recuperadoEm){h+='<div class="warn">Alterações não salvas de '+hhmm(recuperadoEm)+' recuperadas deste navegador. Clique em SALVAR ALTERAÇÕES para gravar.</div>';recuperadoEm=null}
   h+=montar?'<div class="hd"><div><h2>MONTAR PROGRAMAÇÃO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><div class="imp"><label class="btnf">carga inicial: importar planilha antiga<input type="file" id="pv-xlsx" accept=".xlsx,.xlsm" hidden></label><span>Período até <b>'+esc(br(ult))+'</b></span></div></div>':'<div class="hd"><div><h2>PRÉVIA DE FATURAMENTO</h2><p>Filas atuais da Visão Geral + programação P7/P4 · capacidade P7 '+t(cap.P7)+'/dia · P4 '+t(cap.P4)+'/dia (bruta × 85%) · pintura '+t(cap.Pintura)+'/dia</p></div><div class="imp"><span>Período até <b>'+esc(br(ult))+'</b></span></div></div>';
   if(!montar&&!D.programacao.length&&!Object.keys(D.previsto||{}).length)h+='<div class="dirty">Ainda não há programação gravada no site. A programação ainda não foi montada. Ela é lançada em FATURAMENTO › MONTAR PROGRAMAÇÃO.</div>';
   if(ci.fonte==='carteira_atual')h+='<div class="warn">A publicação não traz a carteira a produzir atualizada. A lista de pedidos usa a carteira antiga ('+esc(d.resumo_diario?.carteira_atual?.atualizado_em||'sem data')+') e pode mostrar pedidos já programados ou faturados.</div>';
@@ -287,14 +297,14 @@
    h+='<details><summary>SUGESTÕES '+pr+'<span>'+s.length+' pedidos · falta '+t(falta)+' = '+(cap[pr]?(falta/cap[pr]).toLocaleString('pt-BR',{maximumFractionDigits:1}):'—')+' dias de prensa · entrega mais antiga primeiro</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th>Acab.</th><th class="n">Saldo</th><th class="n">Programado</th><th class="n">Falta</th></tr></thead><tbody>'+s.slice(0,150).map(x=>'<tr><td>'+esc(x.pedido)+'</td><td>'+esc(x.cliente)+'</td><td>'+esc(br(x.entrega))+(x.entrega&&x.entrega<dias[0].data?' <span class="al">atrasado</span>':'')+'</td><td>'+esc(x.acabamento.slice(0,3))+'</td><td class="n">'+kg(x.saldo)+'</td><td class="n">'+kg(x.programado)+'</td><td class="n"><b>'+kg(x.falta)+'</b></td></tr>').join('')+'</tbody></table></div></div></details>'}
   h+='<details open><summary>CONTROLES DA PRÉVIA<span>clientes agrupados, prioridade na pintura, pedidos fora da carteira, último dia</span></summary><div class="in"><form id="pv-cfg"><div class="cfg"><label>Clientes com faturamento agrupado (um por linha)<textarea name="agrupados">'+esc(D.agrupados.join('\n'))+'</textarea></label><label>Prioridade na pintura (pedido ou cliente)<textarea name="prioridade">'+esc(D.prioridadePintura.join('\n'))+'</textarea></label><label>Pedidos fora da carteira (pedido;cliente)<textarea name="fora">'+esc(Object.entries(D.foraCarteira).map(([k,v])=>k+';'+v).join('\n'))+'</textarea></label><label>Último dia de faturamento<input name="ultimo" type="date" value="'+esc(D.ultimoDiaFaturamento||ult||'')+'"><button type="submit" style="margin-top:8px">APLICAR</button></label></div></form>';
   h+='<div class="note">Regras: natural fatura no dia útil seguinte à produção · pintado fatura no dia seguinte ao fim da pintura (painel FILA DA PINTURA, com os ajustes manuais) · pedido normal só fatura com 100% programado, na última produção · clientes agrupados faturam tudo junto · data manual vence · fora da carteira = natural · calendário sem fim de semana, feriado e recesso.</div></div></details>';
-  h+='<div class="save">'+(owner?'<label>Motivo<input id="pv-obs" placeholder="Ex.: programação de 26/11" style="width:240px"></label><button id="pv-save">SALVAR E PUBLICAR PRÉVIA</button>':'')+'<button id="pv-reset" type="button" class="sec">DESCARTAR ALTERAÇÕES</button></div>';
+  h+='<div class="save">'+(owner?'<label>Motivo (opcional)<input id="pv-obs" placeholder="opcional" style="width:240px"></label><button id="pv-save">SALVAR ALTERAÇÕES</button>':'')+'<button id="pv-reset" type="button" class="sec">DESCARTAR ALTERAÇÕES</button></div>';
   }else h+='<div class="note">Consulta. A programação e os controles são montados em FATURAMENTO › MONTAR PROGRAMAÇÃO (acesso do Edvaldo).</div>';
   h+='</div>';
   host.insertAdjacentHTML('beforeend',h);
   host.querySelector('#pv-orig')?.addEventListener('toggle',e=>{abertoOrig=e.target.open});
   host.querySelector('#pv-pint')?.addEventListener('toggle',e=>{abertoPint=e.target.open});
   if(!montar)return;
-  const again=()=>{dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
+  const again=()=>{dirty=true;guardar();host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   {const f=host.querySelector('#pv-add').elements,hint=host.querySelector('#pv-hint'),o7=host.querySelector('#pv-f7'),o4=host.querySelector('#pv-f4'),mapa=new Map(r.saldos.map(x=>[String(x.pedido),x]));
    const mostrar=()=>{const x=mapa.get(f.pedido.value.trim());
     if(!f.pedido.value.trim()){hint.textContent='Digite ou escolha o pedido: o que falta programar aparece nos quadros A PROGRAMAR P7 e P4.';f.p7.placeholder='';f.p4.placeholder='';o7.textContent='—';o4.textContent='—';o7.className=o4.className='sal';return}
@@ -322,9 +332,11 @@
   host.querySelectorAll('[data-pv-g]').forEach(i=>i.onchange=()=>{const g=gruposOrig[Number(i.dataset.pvG)];if(!g||!i.value)return;
    if(!anoOk(i.value)){u.show('Ano da data inválido ('+i.value.slice(0,4)+'). Digite o ano completo, ex.: 2026.');return}
    for(const it of g.itens){if(it.chave!==undefined)D.faturarEmFila[it.chave]=i.value;else{const l=manual.programacao[it.ordem];if(l)l.faturarEm=i.value}}
+   D.faturarEmFila['*|'+g.cliente]=i.value;
    abertoOrig=true;again()});
   host.querySelectorAll('[data-pv-gundo]').forEach(b=>b.onclick=()=>{const g=gruposOrig[Number(b.dataset.pvGundo)];if(!g)return;
    for(const it of g.itens){if(it.chave!==undefined)delete D.faturarEmFila[it.chave];else{const l=manual.programacao[it.ordem];if(l)delete l.faturarEm}}
+   delete D.faturarEmFila['*|'+g.cliente];
    abertoOrig=true;again()});
   host.querySelectorAll('[data-pv-ret]').forEach(b=>b.onclick=()=>{const c=b.dataset.pvRet;if(!D.retirados.includes(c))D.retirados.push(c);again()});
   host.querySelectorAll('[data-pv-volta]').forEach(b=>b.onclick=()=>{D.retirados=D.retirados.filter(x=>x!==b.dataset.pvVolta);again()});
@@ -342,19 +354,20 @@
    const fora={};for(const l of lines(f.fora.value)){const [p,...c]=l.split(';');if(/^\d+$/.test(p.trim())&&c.join(';').trim())fora[p.trim()]=c.join(';').trim()}D.foraCarteira=fora;
    if(f.ultimo.value)D.ultimoDiaFaturamento=f.ultimo.value;again()};
   host.querySelector('#pv-xlsx').onchange=async e=>{const f=e.target.files[0];if(!f)return;u.show('Lendo a planilha…',true);
-   try{const x=await importarPlanilha(f,d);Object.assign(draft,x.manual);D.previsto={...(D.previsto||{}),...x.previsto};D.previstoPlanilha=Object.keys(x.previsto).filter(k=>!x.manual.ultimoDiaFaturamento||k<=x.manual.ultimoDiaFaturamento).sort();D.pedidosDia={...(D.pedidosDia||{}),...x.pedidosDia};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação, previsto de '+Object.keys(x.previsto).length+' dias (hoje e dias passados ficam congelados como na planilha) e '+Object.keys(x.manual.faturarEmFila).length+' datas manuais das filas.'+(x.semPar.length?' Guardadas pelo nome do cliente (sem fila igual hoje): '+x.semPar.join(', ')+'.':'')+' Confira e use SALVAR E PUBLICAR.',true)}
+   try{const x=await importarPlanilha(f,d);Object.assign(draft,x.manual);dirty=true;guardar();D.previsto={...(D.previsto||{}),...x.previsto};D.previstoPlanilha=Object.keys(x.previsto).filter(k=>!x.manual.ultimoDiaFaturamento||k<=x.manual.ultimoDiaFaturamento).sort();D.pedidosDia={...(D.pedidosDia||{}),...x.pedidosDia};dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo);u.show('Planilha importada: '+x.manual.programacao.length+' linhas de programação, previsto de '+Object.keys(x.previsto).length+' dias (hoje e dias passados ficam congelados como na planilha) e '+Object.keys(x.manual.faturarEmFila).length+' datas manuais das filas.'+(x.semPar.length?' Guardadas pelo nome do cliente (sem fila igual hoje): '+x.semPar.join(', ')+'.':'')+' Confira e use SALVAR E PUBLICAR.',true)}
    catch(err){u.show('Não foi possível importar: '+err.message)}};
-  host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
-  if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
+  host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;limparGuardado();host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
+  const salvar=async()=>{const obs=(host.querySelector('#pv-obs')?.value||'').trim()||('Edição no site às '+hhmm(Date.now()));
    {const pub0=(d._gestao?.previa?.programacao||[]).filter(x=>x.dia>=hoje),novas=D.programacao.filter(x=>x.dia>=hoje),perdidas=pub0.length-novas.length;
-    if(perdidas>0&&!confirm('Atenção: esta gravação remove '+perdidas+' linha(s) de programação de hoje em diante ('+pub0.length+' publicadas, '+novas.length+' agora). Deseja gravar mesmo assim?'))return}
+    if(perdidas>=5&&!confirm('Atenção: esta gravação remove '+perdidas+' linha(s) de programação de hoje em diante ('+pub0.length+' publicadas, '+novas.length+' agora). Deseja gravar mesmo assim?'))return}
    const fixo=new Set(D.previstoPlanilha||[]);
    const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if((k<=hoje||fixo.has(k))&&k>=soma(s1,-35))prev[k]=v;
    for(const x of r.dias)if(!fixo.has(x.data)&&(x.data>hoje||(x.data===hoje&&!prev[hoje]))&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
    // por pedido: alimenta o quadro "faturamento do dia" de MATERIAIS FATURADOS
    const ped={};for(const [k,v]of Object.entries(D.pedidosDia||{}))if((k<=hoje||fixo.has(k))&&k>=soma(s1,-35))ped[k]=v;
    for(const x of r.dias)if(!fixo.has(x.data)&&(x.data>hoje||(x.data===hoje&&!ped[hoje]))&&x.data<=soma(s1,25)){const a=porPedido(x.faturamentoItens);if(a.length)ped[x.data]=a}
-   const body={action:'previa',previa:{...structuredClone(draft),previsto:prev,pedidosDia:ped},obs};draftOf=null;save(body)};
+   const body={action:'previa',previa:{...structuredClone(draft),previsto:prev,pedidosDia:ped},obs};const ok=await save(body);if(ok){draft=null;draftOf=null;dirty=false;savedAt=Date.now();limparGuardado();novaPubAviso=false;if(window.centralMenu?.loaded)window.centralMenu.loaded();else{host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)}}};
+  if(owner){host.querySelector('#pv-save').onclick=salvar;host.querySelector('#pv-save-top').onclick=salvar}
  }
  /* Validação da gravação (usada por centralViews.action). */
  function validar(p){

@@ -82,7 +82,7 @@
  }
  let active='',host=null,context=null,filter='',press='',day=dayNow();
  function show(text,ok=false){const e=host.querySelector('#cv-status');if(e){e.textContent=text;e.className=ok?'cv-ok':'cv-error'}}
- async function save(body){host.querySelectorAll('button').forEach(b=>b.disabled=true);try{show('Salvando e publicando…',true);await window.centralCloud.save(body);show('SALVO E PUBLICADO. Todos consultam a mesma versão.',true)}catch(e){show(e.message)}finally{host.querySelectorAll('button').forEach(b=>b.disabled=false)}}
+ async function save(body){host.querySelectorAll('button').forEach(b=>b.disabled=true);try{show('Salvando e publicando…',true);await window.centralCloud.save(body);show('SALVO E PUBLICADO. Todos consultam a mesma versão.',true);return true}catch(e){show(e.message);return false}finally{host.querySelectorAll('button').forEach(b=>b.disabled=false)}}
  async function render(key,target,ctx){active=key;host=target;context=ctx;const d=ctx.data||{};if(!d.resumo_diario){host.innerHTML='<p class="cv-note">Aguarde o carregamento da posição publicada.</p>';return}
   const owner=ctx.owner;host.innerHTML='<p id="cv-status" role="status"></p>';
   const append=s=>host.insertAdjacentHTML('beforeend',s);
