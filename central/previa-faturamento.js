@@ -149,8 +149,8 @@
    const p7=doDia.reduce((s,l)=>s+l.p7,0),p4=doDia.reduce((s,l)=>s+l.p4,0);
    const pintFila=filas.filter(f=>f.fimPint!==undefined).reduce((s,f)=>s+fatia(f.iniPint,f.fimPint,j),0);
    const pintNovo=linhas.filter(l=>l.fimPint!==undefined).reduce((s,l)=>s+fatia(l.iniPint,l.fimPint,j),0);
-   const fatTodos=[...linhas.filter(l=>l.faturaDia===j).map(l=>({pedido:l.pedido,cliente:l.cliente,kg:l.total,origem:'PROGRAMAÇÃO',regra:l.regra||''})),
-    ...filas.filter(f=>f.faturaDia===j).map(f=>({pedido:f.pedido,cliente:f.cliente,kg:f.kg,origem:f.fila,regra:f.regra||''}))];
+   const fatTodos=[...linhas.filter(l=>l.faturaDia===j).map(l=>({pedido:l.pedido,cliente:l.cliente,kg:l.total,origem:'PROGRAMAÇÃO',regra:l.regra||'',ordem:l.ordem})),
+    ...filas.filter(f=>f.faturaDia===j).map(f=>({pedido:f.pedido,cliente:f.cliente,kg:f.kg,origem:f.fila,regra:f.regra||'',chave:f.fila+'|'+f.cliente}))];
    const fat=fatTodos.filter(x=>!retirado(x.cliente)),excluidos=fatTodos.filter(x=>retirado(x.cliente));
    const ocup={P7:cap.P7?p7/cap.P7:0,P4:cap.P4?p4/cap.P4:0,Pintura:(pintFila+pintNovo)/capPint};
    const situacao=Math.max(ocup.P7,ocup.P4,ocup.Pintura)>1?'ESTOUROU':Math.min(ocup.P7,ocup.P4)>=0.98?'DIA FECHADO':Math.max(ocup.P7,ocup.P4)>=0.9?'QUASE CHEIO':'ABERTO';
