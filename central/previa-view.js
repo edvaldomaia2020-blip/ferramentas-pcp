@@ -11,7 +11,7 @@
  const wd=d=>d?['dom','seg','ter','qua','qui','sex','sáb'][new Date(d+'T12:00:00Z').getUTCDay()]+' '+br(d):'';
  const css=document.createElement('style');
  css.textContent=`.pvx{--ink:#1B2430;--sub:#4A5565;--line:#D5DBE3;--bg:#F4F6F9;--navy:#1F3864;--ok:#1E7B34;--okbg:#E7F4EA;--bad:#B42318;--badbg:#FDECEA;--warn:#9A5B00;--warnbg:#FFF4E0;--p7:#1F3864;--p4:#2E6B5E;--pt:#8A4B08;--ft:#16786b;
- color:var(--ink);font-family:"Segoe UI",Calibri,Arial,sans-serif;font-size:12px;line-height:1.3;display:flex;flex-direction:column;gap:10px;width:100%;max-width:none;overflow-x:hidden}
+ color:var(--ink);font-family:"Segoe UI",Calibri,Arial,sans-serif;font-size:12px;line-height:1.3;display:flex;flex-direction:column;gap:6px;width:100%;max-width:none;overflow-x:hidden}
 .pvx *{box-sizing:border-box}
 .pvx .hd{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:4px 13px;border-bottom:2px solid var(--navy);padding-bottom:5px}
 .pvx .hd h2{margin:0;font-size:19px;color:var(--navy)}.pvx .hd p{margin:2px 0 0;color:var(--sub);font-size:11px}
@@ -31,7 +31,7 @@
 .pvx .pill{display:inline-block;font-weight:700;font-size:10px;padding:2px 6px;border-radius:3px;white-space:nowrap}
 .pvx .pill.ESTOUROU{background:var(--badbg);color:var(--bad)}.pvx .pill.QUASE{background:var(--warnbg);color:var(--warn)}.pvx .pill.FECHADO{background:var(--okbg);color:var(--ok)}.pvx .pill.ABERTO{background:#E8EDF6;color:var(--navy)}
 .pvx .ft{font-weight:700}.pvx .chips{display:flex;flex-wrap:wrap;gap:4px 10px}.pvx .chips span{white-space:nowrap}.pvx .chips b{color:var(--ink)}
-.pvx .note{font-size:10px;color:var(--sub);background:var(--bg);border-radius:4px;padding:5px 8px}
+.pvx .cv-note{margin:0;padding:3px 8px;font-size:11px;line-height:1.3;border-radius:3px}.pvx .warn{padding:3px 8px!important;font-size:11px!important}.pvx .hd{padding-bottom:3px}.pvx .hd h2{font-size:16px}.pvx .note{font-size:10px;color:var(--sub);background:var(--bg);border-radius:4px;padding:5px 8px}
 .pvx .warn{font-size:12px;font-weight:600;color:var(--bad);background:var(--badbg);border-left:4px solid var(--bad);padding:6px 10px;border-radius:4px}
 .pvx .dirty{font-size:12px;font-weight:600;color:var(--warn);background:var(--warnbg);border-left:4px solid #B28629;padding:6px 10px;border-radius:4px}
 .pvx details{background:#fff;border:1px solid var(--line);border-radius:4px}.pvx details>summary{cursor:pointer;padding:7px 10px;font-weight:700;color:var(--navy);font-size:12px}.pvx details>summary span{font-weight:400;color:var(--sub);font-size:11px;margin-left:6px}.pvx details[open]>summary{border-bottom:1px solid var(--line)}
@@ -170,6 +170,11 @@
   if(!montar)h+='<details><summary>SEMANA '+br(s2)+' A '+br(soma(s2,4))+'<span>abrir segunda semana</span></summary><div class="in">'+semana(s2,'SEMANA '+br(s2)+' A '+br(soma(s2,4)))+'</div></details>';
   if(!montar)h+='<details><summary>SEMANA '+br(s3)+' A '+br(soma(s3,4))+'<span>abrir terceira semana</span></summary><div class="in">'+semana(s3,'SEMANA '+br(s3)+' A '+br(soma(s3,4)))+'</div></details>';
   h+='<div class="kpis">'+[['Previsto até '+br(ult),fmt(res.previstoKg)+' kg'],['Aguardando fechar 100%',fmt(res.aguardando100Kg)+' kg'],['Fatura depois de '+br(ult),fmt(res.depoisDoPeriodoKg)+' kg'],['Pedidos · clientes (programação)',res.pedidos+' · '+res.clientes]].map(([l,v])=>'<div class="kpi"><span>'+esc(l)+'</span><b>'+esc(v)+'</b></div>').join('')+'</div>';
+  {const itens=[];for(const x of r.dias)if(!ult||x.data<=ult)for(const it of x.faturamentoItens)itens.push({data:x.data,...it});
+   const tot=new Map();itens.forEach(it=>tot.set(it.origem,(tot.get(it.origem)||0)+it.kg));
+   const exp={'PROGRAMAÇÃO':'ainda vai ser produzido: linhas lançadas na programação','FATURAMENTO HOJE':'já pronto, quadro faturamento previsto','EMBALADO':'já embalado em estoque','EMBALAGEM':'já extrudado, falta embalar','PINTURA':'na fila de pintura'};
+   const total=itens.reduce((s,x)=>s+x.kg,0);
+   h+='<details><summary>DE ONDE VEM O PREVISTO<span>'+fmt(total)+' kg até '+esc(br(ult))+' · '+itens.length+' itens · abra para conferir item a item</span></summary><div class="in"><div class="chips">'+[...tot].sort((a,b)=>b[1]-a[1]).map(([o,v])=>'<span><b>'+esc(o)+'</b> '+fmt(v)+' kg <em>('+esc(exp[o]||'fila')+')</em></span>').join('')+'</div><div class="wrap"><table><thead><tr><th>Fatura em</th><th>Origem</th><th>Pedido</th><th>Cliente</th><th class="n">kg</th><th>Regra</th></tr></thead><tbody>'+itens.sort((a,b)=>a.data.localeCompare(b.data)||a.origem.localeCompare(b.origem)||b.kg-a.kg).map(it=>'<tr><td>'+esc(wd(it.data))+'</td><td>'+esc(it.origem)+'</td><td>'+esc(it.pedido||'—')+'</td><td>'+esc(curto(it.cliente))+'</td><td class="n">'+fmt(it.kg)+'</td><td>'+esc(it.regra||'—')+'</td></tr>').join('')+'</tbody></table></div></div></details>'}
   // ===== MONTAR PROGRAMAÇÃO (substitui a aba PROGRAMAÇÃO da planilha) =====
   if(montar){
   const carteira=new Map();input.carteira.forEach(c=>{const p=String(c.pedido);if(!carteira.has(p))carteira.set(p,c.cliente)});
@@ -239,6 +244,8 @@
    catch(err){u.show('Não foi possível importar: '+err.message)}};
   host.querySelector('#pv-reset').onclick=()=>{draft=null;dirty=false;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   if(owner)host.querySelector('#pv-save').onclick=()=>{const obs=host.querySelector('#pv-obs').value.trim();if(!obs){u.show('Informe o motivo.');return}
+   {const pub0=(d._gestao?.previa?.programacao||[]).filter(x=>x.dia>=hoje),novas=D.programacao.filter(x=>x.dia>=hoje),perdidas=pub0.length-novas.length;
+    if(perdidas>0&&!confirm('Atenção: esta gravação remove '+perdidas+' linha(s) de programação de hoje em diante ('+pub0.length+' publicadas, '+novas.length+' agora). Deseja gravar mesmo assim?'))return}
    const fixo=new Set(D.previstoPlanilha||[]);
    const prev={};for(const [k,v]of Object.entries(D.previsto||{}))if((k<=hoje||fixo.has(k))&&k>=soma(s1,-35))prev[k]=v;
    for(const x of r.dias)if(!fixo.has(x.data)&&(x.data>hoje||(x.data===hoje&&!prev[hoje]))&&x.data<=soma(s1,25))prev[x.data]=porCliente(x.faturamentoItens).map(i=>({cliente:i.cliente,kg:Math.round(i.kg)}));
