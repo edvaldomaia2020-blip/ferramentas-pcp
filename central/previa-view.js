@@ -129,7 +129,7 @@
   const hoje=dayNow(),ini=D.inicio&&D.inicio>hoje?D.inicio:hoje;
   const manual={...D,inicio:ini,programacao:D.programacao.filter(x=>x.dia>=ini),programacaoAnterior:D.programacao.filter(x=>x.dia<ini)};
   const passadas=D.programacao.length-manual.programacao.length;
-  let input,r;
+  let input,r,gruposOrig=[];
   try{input=P.daPublicacao(d,manual);r=P.calcular(input)}catch(e){host.insertAdjacentHTML('beforeend','<p class="cv-error">Não foi possível calcular a prévia: '+esc(e.message)+'</p>');return}
   // FILA DA PINTURA (27/11/2026): distribui a pintura dia a dia (com os ajustes manuais) e recalcula a prévia com o fim real da pintura
   let pf=null;
@@ -191,9 +191,10 @@
    const exp={'PROGRAMAÇÃO':'ainda vai ser produzido: linhas lançadas na programação','FATURAMENTO HOJE':'já pronto, quadro faturamento previsto','EMBALADO':'já embalado em estoque','EMBALAGEM':'já extrudado, falta embalar','PINTURA':'na fila de pintura'};
    const total=itens.reduce((s,x)=>s+x.kg,0),ret=new Map();for(const x of r.dias)if(!ult||x.data<=ult)for(const it of x.excluidos||[])ret.set(it.cliente,(ret.get(it.cliente)||0)+it.kg);
    for(const c of D.retirados)if(!ret.has(c)&&![...ret.keys()].some(k=>k.toUpperCase().includes(c.toUpperCase())))ret.set(c,0);
-   const gm=new Map();for(const it of itens){const k=it.data+'|'+it.cliente,o=gm.get(k)||{data:it.data,cliente:it.cliente,kg:0,o:new Set(),p:new Set(),r:new Set()};o.kg+=it.kg;o.o.add(it.origem);if(it.pedido)o.p.add(it.pedido);if(it.regra)o.r.add(it.regra);gm.set(k,o)}
-   const grupos=[...gm.values()].map(o=>({data:o.data,cliente:o.cliente,kg:o.kg,origem:[...o.o].join(' + '),pedido:[...o.p].join(', '),regra:[...o.r].join(' · ')})).sort((a,b)=>a.data.localeCompare(b.data)||b.kg-a.kg);
-   h+='<details id="pv-orig"'+(abertoOrig?' open':'')+'><summary>DE ONDE VEM O PREVISTO<span>'+fmt(total)+' kg até '+esc(br(ult))+' · '+itens.length+' itens · '+grupos.length+' linhas por cliente/dia · abra para conferir</span></summary><div class="in"><div class="chips">'+[...tot].sort((a,b)=>b[1]-a[1]).map(([o,v])=>'<span><b>'+esc(o)+'</b> '+fmt(v)+' kg <em>('+esc(exp[o]||'fila')+')</em></span>').join('')+'</div>'+(D.retirados.length?'<div class="warn">RETIRADOS DO PREVISTO (não contam nos números acima): '+D.retirados.map(c=>{const kgR=[...ret].filter(([k])=>k.toUpperCase().includes(c.toUpperCase())).reduce((s,[,v])=>s+v,0);return '<b>'+esc(c)+'</b> '+fmt(kgR)+' kg'+(montar?' <button type="button" class="lnk" data-pv-volta="'+esc(c)+'">voltar</button>':'')}).join(' · ')+'</div>':'')+'<div class="wrap"><table><thead><tr><th>Fatura em</th><th>Origem</th><th>Pedido</th><th>Cliente</th><th class="n">kg</th><th>Regra</th>'+(montar?'<th></th>':'')+'</tr></thead><tbody>'+grupos.map(it=>'<tr><td>'+esc(wd(it.data))+'</td><td>'+esc(it.origem)+'</td><td>'+esc(it.pedido||'—')+'</td><td>'+esc(curto(it.cliente))+'</td><td class="n">'+fmt(it.kg)+'</td><td>'+esc(it.regra||'—')+'</td>'+(montar?'<td><button type="button" class="lnk" data-pv-ret="'+esc(it.cliente)+'" title="Tira este cliente do previsto">tirar do previsto</button></td>':'')+'</tr>').join('')+'</tbody></table></div></div></details>'}
+   const gm=new Map();for(const it of itens){const k=it.data+'|'+it.cliente,o=gm.get(k)||{data:it.data,cliente:it.cliente,kg:0,o:new Set(),p:new Set(),r:new Set(),itens:[]};o.itens.push(it);o.kg+=it.kg;o.o.add(it.origem);if(it.pedido)o.p.add(it.pedido);if(it.regra)o.r.add(it.regra);gm.set(k,o)}
+   const grupos=[...gm.values()].map(o=>({data:o.data,cliente:o.cliente,kg:o.kg,origem:[...o.o].join(' + '),pedido:[...o.p].join(', '),regra:[...o.r].join(' · '),itens:o.itens,editada:o.itens.some(x=>x.regra==='DATA MANUAL')})).sort((a,b)=>a.data.localeCompare(b.data)||b.kg-a.kg);
+   gruposOrig=grupos;
+   h+='<details id="pv-orig"'+(abertoOrig?' open':'')+'><summary>DE ONDE VEM O PREVISTO<span>'+fmt(total)+' kg até '+esc(br(ult))+' · '+itens.length+' itens · '+grupos.length+' linhas por cliente/dia · abra para conferir</span></summary><div class="in"><div class="chips">'+[...tot].sort((a,b)=>b[1]-a[1]).map(([o,v])=>'<span><b>'+esc(o)+'</b> '+fmt(v)+' kg <em>('+esc(exp[o]||'fila')+')</em></span>').join('')+'</div>'+(D.retirados.length?'<div class="warn">RETIRADOS DO PREVISTO (não contam nos números acima): '+D.retirados.map(c=>{const kgR=[...ret].filter(([k])=>k.toUpperCase().includes(c.toUpperCase())).reduce((s,[,v])=>s+v,0);return '<b>'+esc(c)+'</b> '+fmt(kgR)+' kg'+(montar?' <button type="button" class="lnk" data-pv-volta="'+esc(c)+'">voltar</button>':'')}).join(' · ')+'</div>':'')+'<div class="wrap"><table><thead><tr><th>Fatura em</th><th>Origem</th><th>Pedido</th><th>Cliente</th><th class="n">kg</th><th>Regra</th>'+(montar?'<th>Mudar data de faturamento</th><th></th>':'')+'</tr></thead><tbody>'+grupos.map((it,gi)=>'<tr><td>'+esc(wd(it.data))+'</td><td>'+esc(it.origem)+'</td><td>'+esc(it.pedido||'—')+'</td><td>'+esc(curto(it.cliente))+'</td><td class="n">'+fmt(it.kg)+'</td><td>'+esc(it.regra||'—')+(it.editada?' <span class="ac MISTO">editada</span>':'')+'</td>'+(montar?'<td><input class="yl" type="date" data-pv-g="'+gi+'" value="'+esc(it.data)+'" title="Muda a data em que este cliente fatura (vale como data manual)">'+(it.editada?' <button type="button" class="lnk" data-pv-gundo="'+gi+'">desfazer</button>':'')+'</td><td><button type="button" class="lnk" data-pv-ret="'+esc(it.cliente)+'" title="Tira este cliente do previsto">tirar do previsto</button></td>':'')+'</tr>').join('')+'</tbody></table></div></div></details>'}
   // ===== FILA DA PINTURA — DIA A DIA (cliente + cor × dias úteis) =====
   if(montar&&pf){
    if(pf.erro)h+='<div class="warn">Fila da pintura não calculada: '+esc(pf.erro)+'</div>';
@@ -297,6 +298,13 @@
    else{const n=Number(v);if(!(n>=0)||n>100000){delete i.dataset.feito;u.show('Informe um kg entre 0 e 100.000.');return}(D.pinturaManual[key]??={})[dt]=Math.round(n)}
    abertoPint=true;again()});
   host.querySelector('#pv-pint-reset')?.addEventListener('click',()=>{D.pinturaManual={};abertoPint=true;again()});
+  host.querySelectorAll('[data-pv-g]').forEach(i=>i.onchange=()=>{const g=gruposOrig[Number(i.dataset.pvG)];if(!g||!i.value)return;
+   if(!anoOk(i.value)){u.show('Ano da data inválido ('+i.value.slice(0,4)+'). Digite o ano completo, ex.: 2026.');return}
+   for(const it of g.itens){if(it.chave!==undefined)D.faturarEmFila[it.chave]=i.value;else{const l=manual.programacao[it.ordem];if(l)l.faturarEm=i.value}}
+   abertoOrig=true;again()});
+  host.querySelectorAll('[data-pv-gundo]').forEach(b=>b.onclick=()=>{const g=gruposOrig[Number(b.dataset.pvGundo)];if(!g)return;
+   for(const it of g.itens){if(it.chave!==undefined)delete D.faturarEmFila[it.chave];else{const l=manual.programacao[it.ordem];if(l)delete l.faturarEm}}
+   abertoOrig=true;again()});
   host.querySelectorAll('[data-pv-ret]').forEach(b=>b.onclick=()=>{const c=b.dataset.pvRet;if(!D.retirados.includes(c))D.retirados.push(c);again()});
   host.querySelectorAll('[data-pv-volta]').forEach(b=>b.onclick=()=>{D.retirados=D.retirados.filter(x=>x!==b.dataset.pvVolta);again()});
   host.querySelectorAll('[data-pv-tab]').forEach(b=>b.onclick=()=>{selDia=b.dataset.pvTab;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)});
