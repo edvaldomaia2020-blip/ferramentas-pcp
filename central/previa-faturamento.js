@@ -223,7 +223,7 @@
   const mesmo=(a,b)=>{a=nm(a);b=nm(b);return !!a&&!!b&&(a===b||a.startsWith(b+' ')||b.startsWith(a+' '))};
   // data manual da fila: chave exata fila|cliente; a data dada ao cliente em FATURAMENTO HOJE acompanha o material se ele mudar de quadro (ex.: VEPAN foi para EMBALADO)
   const fatEm=Object.entries(manual.faturarEmFila||{});
-  const dataExata=(fila,cliente)=>manual.faturarEmFila?.[fila+'|'+cliente];
+  const dataExata=(fila,cliente)=>manual.faturarEmFila?.[fila+'|'+cliente]||manual.faturarEmFila?.['*|'+cliente];
   const dataFatHoje=cliente=>{const v=fatEm.filter(([k])=>k.startsWith('FATURAMENTO HOJE|')&&mesmo(k.slice(17),cliente)).map(([,v])=>v).sort();return v.length?v[v.length-1]:undefined};
   // linhas já produzidas (dias anteriores ao início) com FATURAR EM manual: o material delas está nas filas do cliente e leva a data junto
   const cliPed=new Map(carteira.map(c=>[String(c.pedido),c.cliente]));
