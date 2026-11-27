@@ -75,16 +75,18 @@
   });
   // filas atuais
   const filas=(input.filas||[]).filter(f=>f.fila&&num(f.kg)>0).map((f,ordem)=>({ordem,fila:up(f.fila),cliente:f.cliente||'',
-   pedido:f.pedido?String(f.pedido).trim():'',kg:num(f.kg),prioridade:num(f.prioridade)||99,faturarEm:f.faturarEm?String(f.faturarEm).slice(0,10):null}));
+   pedido:f.pedido?String(f.pedido).trim():'',kg:num(f.kg),prioridade:num(f.prioridade)||99,faturarEm:f.faturarEm?String(f.faturarEm).slice(0,10):null,pintado:!!f.pintado}));
   filas.forEach(f=>f.agrupa=contains(f.cliente,agrupados));
   // fila de pintura atual
+  // input.pintura (painel FILA DA PINTURA, 27/11/2026): dia em que cada lote termina de pintar, com ajuste manual; sem ele, ordem de chegada
+  const PG=input.pintura&&input.pintura.fim?input.pintura:null;
   let acc=0;
   filas.filter(f=>f.fila==='PINTURA').sort((a,b)=>a.prioridade-b.prioridade||a.ordem-b.ordem).forEach(f=>{f.iniPint=acc;acc+=f.kg/capPint;f.fimPint=acc});
   const fimFila=acc;
   filas.forEach(f=>{
    if(f.fila==='FATURAMENTO HOJE'||f.fila==='EMBALADO')f.tecnico=1;
-   else if(f.fila==='EMBALAGEM')f.tecnico=1+cfg.dNatural;
-   else if(f.fila==='PINTURA')f.tecnico=Math.ceil(f.fimPint-1e-9)+1;
+   else if(f.fila==='EMBALAGEM'){f.tecnico=1+cfg.dNatural;const v=PG&&f.pintado?PG.fim.embalagem?.[f.cliente]:undefined;if(v){f.tecnico=Math.max(f.tecnico,v+1);f.pintaEm=v}}
+   else if(f.fila==='PINTURA'){const v=PG?PG.fim.fila?.[f.cliente]:undefined;if(v){f.tecnico=v+1;f.pintaEm=v}else f.tecnico=Math.ceil(f.fimPint-1e-9)+1}
    else f.tecnico=1;
   });
   // pintura das linhas programadas
@@ -94,6 +96,8 @@
    .forEach(l=>{fim=Math.max(fim,l.dia)+l.pintadoKg/capPint;l.fimPint=fim;l.iniPint=fim-l.pintadoKg/capPint});
   linhas.forEach(l=>{
    if(l.total<=0)return;
+   const v=PG&&l.pintadoKg>=0.5?PG.fim.linha?.[l.ordem]:undefined;
+   if(v){l.tecnico=v+1;l.pintaEm=v;return}
    l.tecnico=l.pintadoKg>=0.5?Math.ceil(l.fimPint-1e-9)+1:l.dia+cfg.dNatural;
    if(l.pintadoKg>=0.5)l.pintaEm=Math.ceil(l.fimPint-1e-9);
   });
@@ -140,15 +144,16 @@
    if(l.faturaEm&&l.entrega&&l.faturaEm>l.entrega)a.push('ATRASA ENTREGA');
    l.alertas=a;
   });
-  filas.forEach(f=>{f.faturaEm=f.faturaDia?dataDe(f.faturaDia):null;f.pintaAte=f.fimPint!==undefined?dataDe(Math.max(1,Math.ceil(f.fimPint-1e-9))):null});
+  filas.forEach(f=>{f.faturaEm=f.faturaDia?dataDe(f.faturaDia):null;f.pintaAte=f.pintaEm?dataDe(f.pintaEm):f.fimPint!==undefined?dataDe(Math.max(1,Math.ceil(f.fimPint-1e-9))):null});
   // pintura por dia (fração do intervalo [ini,fim] que cai no dia)
   const fatia=(ini,fimP,j)=>Math.max(0,Math.min(fimP,j)-Math.max(ini,j-1))*capPint;
   const out=[];
   for(let j=1;j<=maxDia;j++){
    const doDia=linhas.filter(l=>l.dia===j);
    const p7=doDia.reduce((s,l)=>s+l.p7,0),p4=doDia.reduce((s,l)=>s+l.p4,0);
-   const pintFila=filas.filter(f=>f.fimPint!==undefined).reduce((s,f)=>s+fatia(f.iniPint,f.fimPint,j),0);
-   const pintNovo=linhas.filter(l=>l.fimPint!==undefined).reduce((s,l)=>s+fatia(l.iniPint,l.fimPint,j),0);
+   const pdia=PG&&PG.porDia;
+   const pintFila=pdia?num(pdia.fila[j-1]):filas.filter(f=>f.fimPint!==undefined).reduce((s,f)=>s+fatia(f.iniPint,f.fimPint,j),0);
+   const pintNovo=pdia?num(pdia.novo[j-1]):linhas.filter(l=>l.fimPint!==undefined).reduce((s,l)=>s+fatia(l.iniPint,l.fimPint,j),0);
    const fatTodos=[...linhas.filter(l=>l.faturaDia===j).map(l=>({pedido:l.pedido,cliente:l.cliente,kg:l.total,origem:'PROGRAMAÇÃO',regra:l.regra||'',ordem:l.ordem})),
     ...filas.filter(f=>f.faturaDia===j).map(f=>({pedido:f.pedido,cliente:f.cliente,kg:f.kg,origem:f.fila,regra:f.regra||'',chave:f.fila+'|'+f.cliente}))];
    const fat=fatTodos.filter(x=>!retirado(x.cliente)),excluidos=fatTodos.filter(x=>retirado(x.cliente));
@@ -170,7 +175,7 @@
    aguardando100Kg:linhas.filter(l=>!retirado(l.cliente)&&l.regra==='AGUARDA 100%').reduce((s,l)=>s+l.total,0)+filas.filter(f=>!retirado(f.cliente)&&f.regra==='AGUARDA 100%').reduce((s,f)=>s+f.kg,0),
    depoisDoPeriodoKg:ultimo?out.filter(d=>d.data>ultimo).reduce((s,d)=>s+d.faturamento,0):0,
    jaProduzidoKg:filas.filter(f=>!retirado(f.cliente)&&f.faturaEm&&(!ultimo||f.faturaEm<=ultimo)).reduce((s,f)=>s+f.kg,0),
-   fimFilaPinturaDias:fimFila
+   fimFilaPinturaDias:PG?Math.max(0,...Object.values(PG.fim.fila||{})):fimFila
   };
   // pendentes: entrega até o último dia com saldo não programado
   const pendentes=[...ped.values()].filter(c=>c.entrega&&(!ultimo||c.entrega<=ultimo)).map(c=>({pedido:c.pedido,cliente:c.cliente,entrega:c.entrega,
@@ -210,7 +215,7 @@
   const itens=fonteItens==='programacao_origem'?origem.itens:fonteItens==='programacao'?prog.itens:(d.resumo_diario?.carteira_atual?.itens||[]);
   const dataIso=t=>{t=String(t||'');let m=t.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];m=t.match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?m[3]+'-'+m[2]+'-'+m[1]:null};
   const carteiraEm=dataIso(origem.carteira_em||prog.carteira_em||(fonteItens==='carteira_atual'?d.resumo_diario?.carteira_atual?.atualizado_em:null));
-  const carteira=itens.map(x=>({pedido:x.pedido,cliente:x.cliente,kg:x.kg,prensa:x.prensa,entrega:x.entrega,
+  const carteira=itens.map(x=>({pedido:x.pedido,cliente:x.cliente,kg:x.kg,prensa:x.prensa,entrega:x.entrega,cor:up(x.cor||x.beneficiamento||'NT')||'NT',
    natural:x.pintura!==undefined?!x.pintura:up(x.cor||x.beneficiamento||'NT')==='NT'}));
   const feriados=[...new Set([...(prog.feriados||[]),...(reu.feriados||[]),...recesso(prog.recesso)])];
   const mapa={'FILA DE EMBALAGEM':'EMBALAGEM','FILA DE PINTURA':'PINTURA','EMBALADO EM ESTOQUE':'EMBALADO','FATURAMENTO PREVISTO':'FATURAMENTO HOJE'};
@@ -224,9 +229,13 @@
   const cliPed=new Map(carteira.map(c=>[String(c.pedido),c.cliente]));
   const herdada=new Map();for(const x of manual.programacaoAnterior||[]){if(!x.faturarEm)continue;const c=cliPed.get(String(x.pedido))||manual.foraCarteira?.[x.pedido];if(!c)continue;const v=String(x.faturarEm).slice(0,10);if(!herdada.has(c)||herdada.get(c)<v)herdada.set(c,v)}
   const dataHerdada=cliente=>{let best;for(const [c,v]of herdada)if(mesmo(c,cliente)&&(!best||v>best))best=v;return best};
-  const filas=(d.quadros||[]).filter(q=>mapa[q.quadro]&&num(q.kg)>0).map(q=>{const fila=mapa[q.quadro];
-   return {fila,cliente:q.cliente,kg:q.kg,prioridade:manual.prioridadeFila?.[q.cliente],
-   faturarEm:dataExata(fila,q.cliente)||(fila!=='FATURAMENTO HOJE'?dataHerdada(q.cliente):undefined)||dataFatHoje(q.cliente)}});
+  const filas=[];
+  for(const q of d.quadros||[]){if(!mapa[q.quadro]||!(num(q.kg)>0))continue;const fila=mapa[q.quadro];
+   const base={fila,cliente:q.cliente,kg:num(q.kg),prioridade:manual.prioridadeFila?.[q.cliente],
+    faturarEm:dataExata(fila,q.cliente)||(fila!=='FATURAMENTO HOJE'?dataHerdada(q.cliente):undefined)||dataFatHoje(q.cliente)};
+   // 27/11/2026: perfil pintado da fila de embalagem (quando o robô publica cores_pintura) vira linha própria: fatura depois da pintura
+   const pint=fila==='EMBALAGEM'&&q.cores_pintura&&typeof q.cores_pintura==='object'?Math.min(base.kg,Object.values(q.cores_pintura).reduce((s,v)=>s+Math.max(0,num(v)),0)):0;
+   if(pint>=1){if(base.kg-pint>=1)filas.push({...base,kg:base.kg-pint});filas.push({...base,kg:pint,pintado:true})}else filas.push(base)}
   const hoje=manual.inicio||prog.inicio||new Date().toISOString().slice(0,10);
   return {parametros:{inicio:hoje,ultimoDiaFaturamento:manual.ultimoDiaFaturamento||fimDoMes(hoje),diasMin:15,dNatural:1,fator,...caps},
    carteira,feriados,filas,programacao:manual.programacao||[],agrupados:manual.agrupados||AGRUPADOS_PADRAO,retirados:manual.retirados||[],

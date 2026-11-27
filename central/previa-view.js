@@ -65,10 +65,22 @@
 .pvx .gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}.pvx .gauge{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:4px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;background:#FBFCFE}.pvx .gauge .gh{display:flex;justify-content:space-between;align-items:baseline}.pvx .gauge .gh b{color:var(--c);font-size:13px}.pvx .gauge .gh span{font-size:11px;color:var(--sub)}.pvx .gauge .bar{height:9px;background:#E6EAF0;border-radius:4px;overflow:hidden}.pvx .gauge .bar i{display:block;height:100%;background:var(--c)}.pvx .gauge .bar.over i{background:var(--bad)}.pvx .gauge .gf{display:flex;justify-content:space-between;align-items:center;font-size:11px}.pvx .gauge em{font-style:normal;font-weight:700;font-size:11px;padding:1px 6px;border-radius:3px}.pvx .gauge em.okk{background:var(--okbg);color:var(--ok)}.pvx .gauge em.warn{background:var(--warnbg);color:var(--warn)}.pvx .gauge em.over{background:var(--bad);color:#fff}.pvx .gauge b.neg{color:var(--bad)}.pvx .gauge .gx{font-size:10px;color:var(--sub)}.pvx .gauge.fat{--c:var(--ft)}.pvx .gauge .fv{font-size:22px;font-weight:700;color:var(--ft)}.pvx .gauge .fv small{font-size:11px}
 .pvx table.prog{table-layout:auto}.pvx table.prog th{white-space:normal;font-size:9.5px;padding:4px 4px}.pvx table.prog td{white-space:nowrap;padding:3px 4px;font-size:11px}.pvx table.prog td:nth-child(12){white-space:normal;min-width:110px}.pvx table.prog td input{width:66px;padding:3px 4px;font-size:11px}.pvx table.prog td input[type=date]{width:112px}.pvx table.prog td select{font-size:11px;padding:2px}.pvx .turno{display:flex;flex-direction:column;gap:6px}.pvx .turno>.th{font-weight:700;font-size:12px;color:#fff;padding:4px 8px;border-radius:3px;background:#2F5597}.pvx .turno.noite>.th{background:#3B3F7A}@media(max-width:1000px){.pvx table.prog th:nth-child(1),.pvx table.prog td:nth-child(1),.pvx table.prog th:nth-child(9),.pvx table.prog td:nth-child(9){display:none}}.pvx input.yl{background:#FFF8D6;border-color:#D9C46A}.pvx tr.novo td{background:#FFFDF0}.pvx .ac{font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;background:#E8EDF6;color:var(--navy)}.pvx .ac.PINTADO{background:#FBF0E3;color:var(--pt)}.pvx .ac.MISTO{background:var(--warnbg);color:var(--warn)}
 .pvx .sugs{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:8px}.pvx .sug{border:1px solid var(--line);border-top:4px solid var(--c);border-radius:4px}.pvx .sug .sh{font-weight:700;font-size:11px;color:var(--c);padding:5px 8px;background:#F6F8FB;display:flex;justify-content:space-between}.pvx .sug .sh span{color:var(--sub);font-weight:400}.pvx .sug td{padding:3px 6px;font-size:11px}.pvx button.plus{background:#fff;color:var(--ok);border-color:#9CD3AA;padding:1px 7px;font-size:10px}
+.pvx details.pint>summary{color:var(--pt)}.pvx details.pint{border-top:4px solid var(--pt)}
+.pvx .ptools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px;color:var(--sub)}
+.pvx table.pg{width:auto;min-width:100%}.pvx table.pg th,.pvx table.pg td{padding:3px 5px;white-space:nowrap}.pvx table.pg th.d{text-align:center;border-left:1px solid #E8ECF1;font-size:10px;line-height:1.15}.pvx table.pg th.d.par{color:#9AA3B0}
+.pvx table.pg td.pc{border-left:1px solid #EEF1F5;padding:2px;text-align:center}.pvx table.pg td.pc input{width:60px;padding:3px 4px;font-size:11px;text-align:right;border:1px solid transparent;background:transparent;font-variant-numeric:tabular-nums}
+.pvx table.pg td.pc input:hover,.pvx table.pg td.pc input:focus{border-color:#B8C4D3;background:#fff}.pvx table.pg td.pc input::placeholder{color:#9AA3B0;font-style:italic;font-size:10px}
+.pvx table.pg td.sug{background:#F6ECE0}.pvx table.pg td.sug input{color:#5D3208;font-weight:600}
+.pvx table.pg td.man{background:#FFF1B8;position:relative}.pvx table.pg td.man input{color:#6B5200;font-weight:700;border-color:#E0C34D;padding-left:13px}.pvx table.pg td.man::before{content:"🔒";position:absolute;left:2px;top:50%;transform:translateY(-50%);font-size:9px}
+.pvx table.pg td.acima{background:var(--badbg)}.pvx table.pg td.acima input{color:var(--bad)}.pvx table.pg td.par{background:#F1F3F6}
+.pvx table.pg .cor{display:inline-block;background:#F6EFE7;color:var(--pt);font-weight:700;font-size:10px;padding:1px 6px;border-radius:3px}
+.pvx table.pg .ch2{font-size:10px;color:var(--navy);line-height:1.2}.pvx table.pg .ch2 small{color:var(--sub)}
+.pvx table.pg tfoot td{background:var(--bg);font-size:11px;text-align:center;border-left:1px solid #E8ECF1}.pvx table.pg tfoot td.lb{text-align:right;font-weight:700;color:var(--sub);border-left:0}
+.pvx table.pg tfoot .okp{color:var(--ok);font-weight:700}.pvx table.pg tfoot .mdp{color:var(--warn);font-weight:700}.pvx table.pg tfoot .bdp{color:var(--bad);font-weight:700}
 .pvx .save{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:flex-end}`;
  document.head.append(css);
  const anoOk=v=>/^20[2-9]\d-\d{2}-\d{2}$/.test(String(v||''));
- let draft=null,draftOf=null,dirty=false,selDia=null,abertoOrig=false;
+ let draft=null,draftOf=null,dirty=false,selDia=null,abertoOrig=false,abertoPint=false;
 
  /* Importa a planilha "PRÉVIA DE FATURAMENTO" (abas PROGRAMAÇÃO, FILAS, BASE_CALC) para o rascunho:
     programação com datas, regras e o previsto que a própria planilha calculou (para os dias já passados). */
@@ -113,12 +125,15 @@
   if(montar&&!owner){host.insertAdjacentHTML('beforeend','<h2>MONTAR PROGRAMAÇÃO</h2><p class="cv-note">Somente o acesso pessoal de Edvaldo monta a programação. A consulta fica em FATURAMENTO › PRÉVIA DE FATURAMENTO.</p>');return}
   if(draftOf!==pub||!draft){draft=structuredClone(d._gestao?.previa||{});draftOf=pub;dirty=false}
   const D=montar?draft:structuredClone(d._gestao?.previa||{});
-  D.programacao??=[];D.retirados??=[];D.agrupados??=P.AGRUPADOS_PADRAO.slice();D.prioridadePintura??=[];D.foraCarteira??={};D.prioridadeFila??={};D.faturarEmFila??={};
+  D.programacao??=[];D.retirados??=[];D.pinturaManual??={};D.agrupados??=P.AGRUPADOS_PADRAO.slice();D.prioridadePintura??=[];D.foraCarteira??={};D.prioridadeFila??={};D.faturarEmFila??={};
   const hoje=dayNow(),ini=D.inicio&&D.inicio>hoje?D.inicio:hoje;
   const manual={...D,inicio:ini,programacao:D.programacao.filter(x=>x.dia>=ini),programacaoAnterior:D.programacao.filter(x=>x.dia<ini)};
   const passadas=D.programacao.length-manual.programacao.length;
   let input,r,gruposOrig=[];
   try{input=P.daPublicacao(d,manual);r=P.calcular(input)}catch(e){host.insertAdjacentHTML('beforeend','<p class="cv-error">Não foi possível calcular a prévia: '+esc(e.message)+'</p>');return}
+  // FILA DA PINTURA (27/11/2026): distribui a pintura dia a dia (com os ajustes manuais) e recalcula a prévia com o fim real da pintura
+  let pf=null;
+  if(window.pinturaFila){try{pf=window.pinturaFila.montar(d,input,r,manual);input.pintura={fim:pf.fim,porDia:pf.porDia};r=P.calcular(input)}catch(e){pf={erro:e.message}}}
   const ci=input.carteiraInfo||{};const semAcab=input.carteira.length&&ci.fonte==='carteira_atual'&&!(d.resumo_diario?.carteira_atual?.itens||[]).some(x=>x.pintura!==undefined||x.cor||x.beneficiamento);
   const cap=r.parametros.cap,ult=r.ultimoDiaFaturamento,res=r.resumo;
   const t=kg=>(Math.round((kg||0)/100)/10).toLocaleString('pt-BR',{minimumFractionDigits:1})+' t',kg=x=>num(Math.round(x||0));
@@ -180,6 +195,49 @@
    const grupos=[...gm.values()].map(o=>({data:o.data,cliente:o.cliente,kg:o.kg,origem:[...o.o].join(' + '),pedido:[...o.p].join(', '),regra:[...o.r].join(' · '),itens:o.itens,editada:o.itens.some(x=>x.regra==='DATA MANUAL')})).sort((a,b)=>a.data.localeCompare(b.data)||b.kg-a.kg);
    gruposOrig=grupos;
    h+='<details id="pv-orig"'+(abertoOrig?' open':'')+'><summary>DE ONDE VEM O PREVISTO<span>'+fmt(total)+' kg até '+esc(br(ult))+' · '+itens.length+' itens · '+grupos.length+' linhas por cliente/dia · abra para conferir</span></summary><div class="in"><div class="chips">'+[...tot].sort((a,b)=>b[1]-a[1]).map(([o,v])=>'<span><b>'+esc(o)+'</b> '+fmt(v)+' kg <em>('+esc(exp[o]||'fila')+')</em></span>').join('')+'</div>'+(D.retirados.length?'<div class="warn">RETIRADOS DO PREVISTO (não contam nos números acima): '+D.retirados.map(c=>{const kgR=[...ret].filter(([k])=>k.toUpperCase().includes(c.toUpperCase())).reduce((s,[,v])=>s+v,0);return '<b>'+esc(c)+'</b> '+fmt(kgR)+' kg'+(montar?' <button type="button" class="lnk" data-pv-volta="'+esc(c)+'">voltar</button>':'')}).join(' · ')+'</div>':'')+'<div class="wrap"><table><thead><tr><th>Fatura em</th><th>Origem</th><th>Pedido</th><th>Cliente</th><th class="n">kg</th><th>Regra</th>'+(montar?'<th>Mudar data de faturamento</th><th></th>':'')+'</tr></thead><tbody>'+grupos.map((it,gi)=>'<tr><td>'+esc(wd(it.data))+'</td><td>'+esc(it.origem)+'</td><td>'+esc(it.pedido||'—')+'</td><td>'+esc(curto(it.cliente))+'</td><td class="n">'+fmt(it.kg)+'</td><td>'+esc(it.regra||'—')+(it.editada?' <span class="ac MISTO">editada</span>':'')+'</td>'+(montar?'<td><input class="yl" type="date" data-pv-g="'+gi+'" value="'+esc(it.data)+'" title="Muda a data em que este cliente fatura (vale como data manual)">'+(it.editada?' <button type="button" class="lnk" data-pv-gundo="'+gi+'">desfazer</button>':'')+'</td><td><button type="button" class="lnk" data-pv-ret="'+esc(it.cliente)+'" title="Tira este cliente do previsto">tirar do previsto</button></td>':'')+'</tr>').join('')+'</tbody></table></div></div></details>'}
+  // ===== FILA DA PINTURA — DIA A DIA (cliente + cor × dias úteis) =====
+  if(montar&&pf){
+   if(pf.erro)h+='<div class="warn">Fila da pintura não calculada: '+esc(pf.erro)+'</div>';
+   else{
+    const N=pf.dias.length,capP=cap.Pintura;
+    const ultAloc=pf.rows.reduce((m,x)=>Math.max(m,x.ultimo||0),0);
+    const nd=Math.min(N,Math.max(10,ultAloc+2,15));
+    const ds=pf.dias.slice(0,nd);
+    const lin=pf.rows.reduce((s,x)=>s+x.lotes.filter(l=>l.origem==='FILA').reduce((a,l)=>a+l.kg,0),0);
+    const chg=pf.rows.reduce((s,x)=>s+x.lotes.filter(l=>l.origem!=='FILA').reduce((a,l)=>a+l.kg,0),0);
+    const parados=ds.map((dt,i)=>({dt,i})).filter(o=>pf.capDia[o.i]>0&&pf.sobra[o.i]>0.05*capP);
+    const nMan=Object.values(D.pinturaManual).reduce((s,o)=>s+Object.keys(o||{}).length,0);
+    const fatRow=x=>{let best=null,aguarda=false;
+     for(const l of x.lotes){let fe=null,reg='';
+      if(l.origem==='PROGRAMAÇÃO'){const ln=r.linhas.find(k=>k.ordem===l.ref);fe=ln?.faturaEm;reg=ln?.regra}
+      else{const f=r.filas.find(k=>k.cliente===x.cliente&&(l.origem==='FILA'?k.fila==='PINTURA':k.fila==='EMBALAGEM'&&k.pintado));fe=f?.faturaEm;reg=f?.regra}
+      if(!fe&&reg==='AGUARDA 100%')aguarda=true;if(fe&&(!best||fe>best))best=fe}
+     return best?wd(best)+(aguarda?' *':''):aguarda?'aguarda 100%':'—'};
+    h+='<details class="pint" id="pv-pint"'+(abertoPint?' open':'')+'><summary>FILA DA PINTURA — DIA A DIA<span>'+fmt(lin)+' kg liberado na fila · '+fmt(chg)+' kg chegando (embalagem + extrusão) · capacidade '+fmt(capP)+' kg/dia'+(parados.length?' · <b style="color:var(--bad)">pintura com sobra em '+parados.length+' dia(s)</b>':'')+(nMan?' · '+nMan+' ajuste(s) manual(is)':'')+'</span></summary><div class="in">';
+    for(const a of pf.aviso||[])h+='<div class="cv-note">'+esc(a)+'</div>';
+    h+='<div class="ptools">'+(nMan?'<button type="button" class="sec" id="pv-pint-reset">VOLTAR TUDO PARA SUGESTÃO</button>':'')+'<span>Digite o kg na célula para travar o dia (🔒). Apagar a célula devolve para a sugestão. A sugestão recalcula a cada mudança na programação da extrusão, sempre em volta das células travadas.</span></div>';
+    h+='<div class="wrap"><table class="pg"><thead><tr><th>Cliente</th><th>Cor</th><th>Entrega</th><th class="n">Na fila</th><th>Chegando</th><th class="n">Total</th>'+ds.map((dt,i)=>'<th class="d'+(pf.capDia[i]?'':' par')+'">'+esc(wd(dt)).replace(' ','<br>')+(pf.capDia[i]?'':'<br>parada')+'</th>').join('')+'<th class="n">Depois</th><th>Fatura</th></tr></thead><tbody>';
+    for(const x of pf.rows){
+     const fila=x.lotes.filter(l=>l.origem==='FILA').reduce((s,l)=>s+l.kg,0);
+     const cheg=new Map();x.lotes.filter(l=>l.origem!=='FILA').forEach(l=>{const k=Math.min(l.libera,N);cheg.set(k,(cheg.get(k)||0)+l.kg)});
+     const chTxt=[...cheg].sort((a,b)=>a[0]-b[0]).map(([k,v])=>'+'+fmt(v)+' <small>'+esc(br(pf.dias[k-1]||''))+'</small>').join('<br>');
+     const cells=ds.map((dt,i)=>{const v=x.aloc[i],cls=x.acima[i]?'pc man acima':x.man[i]?'pc man':v>0.5?'pc sug':pf.capDia[i]?'pc':'pc par';
+      const chega=x.lotes.some(l=>l.origem!=='FILA'&&l.libera===i+1);
+      return '<td class="'+cls+'"'+(x.acima[i]?' title="Mais do que o liberado até este dia"':'')+'><input type="number" min="0" step="1" data-pv-pint="'+esc(x.key+'|'+dt)+'" value="'+(x.man[i]||v>0.5?Math.round(v):'')+'"'+(chega&&!(v>0.5)?' placeholder="chega"':'')+'></td>'}).join('');
+     const depois=x.total-x.aloc.slice(0,nd).reduce((s,v)=>s+v,0);
+     h+='<tr><td><b>'+esc(curto(x.cliente))+'</b></td><td><span class="cor">'+esc(x.cor)+'</span></td><td>'+esc(br(x.entrega))+(x.entrega&&x.entrega<hoje?' <span class="al">atras.</span>':'')+(x.prio<99?' <span class="ac PINTADO" title="Prioridade na pintura">P'+(x.prio||'!')+'</span>':'')+'</td><td class="n">'+(fila>=0.5?fmt(fila):'')+'</td><td class="ch2">'+chTxt+'</td><td class="n"><b>'+fmt(x.total)+'</b></td>'+cells+'<td class="n">'+(depois>=0.5?'<b class="al">'+fmt(depois)+'</b>':'')+'</td><td><b>'+esc(fatRow(x))+'</b></td></tr>';
+    }
+    if(!pf.rows.length)h+='<tr><td colspan="'+(8+nd)+'" class="vz">Nada na fila de pintura nem pintado na programação.</td></tr>';
+    const pc=i=>{const c=pf.capDia[i];if(!c)return '';const p=pf.usado[i]/c;return p>=0.98?'okp':p>=0.6?'mdp':'bdp'};
+    h+='</tbody><tfoot><tr><td class="lb" colspan="6">Liberado entrando no dia</td>'+ds.map((dt,i)=>'<td>'+(pf.entrada[i]>=0.5?fmt(pf.entrada[i]):'')+'</td>').join('')+'<td></td><td></td></tr>';
+    h+='<tr><td class="lb" colspan="6">Pintando no dia / '+fmt(capP)+'</td>'+ds.map((dt,i)=>'<td class="'+pc(i)+'">'+fmt(pf.usado[i])+(pf.capDia[i]?'<br><small>'+Math.round(100*pf.usado[i]/pf.capDia[i])+'%</small>':'')+'</td>').join('')+'<td></td><td></td></tr>';
+    h+='<tr><td class="lb" colspan="6">Sobra (pintura parada)</td>'+ds.map((dt,i)=>'<td class="'+(pf.capDia[i]&&pf.sobra[i]>0.05*capP?'bdp':'')+'">'+(pf.capDia[i]?(pf.sobra[i]>=1?fmt(pf.sobra[i]):'—'):'')+'</td>').join('')+'<td></td><td></td></tr></tfoot></table></div>';
+    if(parados.length){const sug=[...r.sugestoes.P7.map(x=>({...x,pr:'P7'})),...r.sugestoes.P4.map(x=>({...x,pr:'P4'}))].filter(x=>x.acabamento!=='NATURAL').sort((a,b)=>(a.entrega||'9').localeCompare(b.entrega||'9')).slice(0,5);
+     h+='<div class="warn">Pintura com capacidade sobrando em '+parados.slice(0,6).map(o=>esc(wd(o.dt))+' ('+fmt(pf.sobra[o.i])+' kg)').join(', ')+(parados.length>6?' e mais '+(parados.length-6)+' dia(s)':'')+'. Para ocupar, programe perfil pintado na extrusão do dia útil anterior'+(sug.length?': '+sug.map(x=>esc(x.pedido)+' '+esc(curto(x.cliente))+' '+x.pr+' '+fmt(x.falta)+' kg').join(' · '):'')+'.</div>'}
+    h+='<div class="note">Cada linha é cliente + cor. Na fila = já liberado (passou pelo apontamento de embalagem da extrusão). Chegando = perfil pintado na fila de embalagem (libera no dia útil seguinte) e parte pintada da programação P7/P4 do dia D (libera em D+1). Por dia, primeiro entram as células travadas 🔒; o resto da capacidade vai por prioridade › entrega mais antiga, só com o que já está liberado. Fatura = data da prévia de faturamento, que usa o dia em que a pintura termina nesta grade (* = parte aguarda o pedido fechar 100%). Pintura parada no recesso (até 16/12; volta 04/01).</div>';
+    h+='</div></details>';
+   }
+  }
   // ===== MONTAR PROGRAMAÇÃO (substitui a aba PROGRAMAÇÃO da planilha) =====
   if(montar){
   const carteira=new Map();input.carteira.forEach(c=>{const p=String(c.pedido);if(!carteira.has(p))carteira.set(p,c.cliente)});
@@ -215,12 +273,13 @@
   for(const pr of ['P7','P4']){const s=r.sugestoes[pr],falta=s.reduce((a,x)=>a+x.falta,0);
    h+='<details><summary>SUGESTÕES '+pr+'<span>'+s.length+' pedidos · falta '+t(falta)+' = '+(cap[pr]?(falta/cap[pr]).toLocaleString('pt-BR',{maximumFractionDigits:1}):'—')+' dias de prensa · entrega mais antiga primeiro</span></summary><div class="in"><div class="wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th>Acab.</th><th class="n">Saldo</th><th class="n">Programado</th><th class="n">Falta</th></tr></thead><tbody>'+s.slice(0,150).map(x=>'<tr><td>'+esc(x.pedido)+'</td><td>'+esc(x.cliente)+'</td><td>'+esc(br(x.entrega))+(x.entrega&&x.entrega<dias[0].data?' <span class="al">atrasado</span>':'')+'</td><td>'+esc(x.acabamento.slice(0,3))+'</td><td class="n">'+kg(x.saldo)+'</td><td class="n">'+kg(x.programado)+'</td><td class="n"><b>'+kg(x.falta)+'</b></td></tr>').join('')+'</tbody></table></div></div></details>'}
   h+='<details open><summary>CONTROLES DA PRÉVIA<span>clientes agrupados, prioridade na pintura, pedidos fora da carteira, último dia</span></summary><div class="in"><form id="pv-cfg"><div class="cfg"><label>Clientes com faturamento agrupado (um por linha)<textarea name="agrupados">'+esc(D.agrupados.join('\n'))+'</textarea></label><label>Prioridade na pintura (pedido ou cliente)<textarea name="prioridade">'+esc(D.prioridadePintura.join('\n'))+'</textarea></label><label>Pedidos fora da carteira (pedido;cliente)<textarea name="fora">'+esc(Object.entries(D.foraCarteira).map(([k,v])=>k+';'+v).join('\n'))+'</textarea></label><label>Último dia de faturamento<input name="ultimo" type="date" value="'+esc(D.ultimoDiaFaturamento||ult||'')+'"><button type="submit" style="margin-top:8px">APLICAR</button></label></div></form>';
-  h+='<div class="note">Regras: natural fatura no dia útil seguinte à produção · pintado fatura no dia seguinte ao fim da pintura (fila atual primeiro) · pedido normal só fatura com 100% programado, na última produção · clientes agrupados faturam tudo junto · data manual vence · fora da carteira = natural · calendário sem fim de semana, feriado e recesso.</div></div></details>';
+  h+='<div class="note">Regras: natural fatura no dia útil seguinte à produção · pintado fatura no dia seguinte ao fim da pintura (painel FILA DA PINTURA, com os ajustes manuais) · pedido normal só fatura com 100% programado, na última produção · clientes agrupados faturam tudo junto · data manual vence · fora da carteira = natural · calendário sem fim de semana, feriado e recesso.</div></div></details>';
   h+='<div class="save">'+(owner?'<label>Motivo<input id="pv-obs" placeholder="Ex.: programação de 26/11" style="width:240px"></label><button id="pv-save">SALVAR E PUBLICAR PRÉVIA</button>':'')+'<button id="pv-reset" type="button" class="sec">DESCARTAR ALTERAÇÕES</button></div>';
   }else h+='<div class="note">Consulta. A programação e os controles são montados em FATURAMENTO › MONTAR PROGRAMAÇÃO (acesso do Edvaldo).</div>';
   h+='</div>';
   host.insertAdjacentHTML('beforeend',h);
   host.querySelector('#pv-orig')?.addEventListener('toggle',e=>{abertoOrig=e.target.open});
+  host.querySelector('#pv-pint')?.addEventListener('toggle',e=>{abertoPint=e.target.open});
   if(!montar)return;
   const again=()=>{dirty=true;host.innerHTML='<p id="cv-status" role="status"></p>';render(host,ctx,u,modo)};
   {const f=host.querySelector('#pv-add').elements,hint=host.querySelector('#pv-hint'),o7=host.querySelector('#pv-f7'),o4=host.querySelector('#pv-f4'),mapa=new Map(r.saldos.map(x=>[String(x.pedido),x]));
@@ -234,6 +293,11 @@
    if(p7<0||p4<0||p7+p4<=0){u.show('Informe o kg em P7 e/ou P4.');return}
    if(f.faturarEm.value&&!anoOk(f.faturarEm.value)){u.show('Ano da data "Faturar em" inválido ('+f.faturarEm.value.slice(0,4)+'). Digite o ano completo, ex.: 2026.');return}
    D.programacao.push({dia:f.dia.value,pedido:f.pedido.value.trim(),p7,p4,turno:f.turno.value,...(f.faturarEm.value?{faturarEm:f.faturarEm.value}:{})});again()};
+  host.querySelectorAll('[data-pv-pint]').forEach(i=>i.onchange=()=>{if(i.dataset.feito)return;i.dataset.feito='1';const v=i.value.trim(),k=i.dataset.pvPint,c=k.lastIndexOf('|'),key=k.slice(0,c),dt=k.slice(c+1);
+   if(v===''){if(D.pinturaManual[key]){delete D.pinturaManual[key][dt];if(!Object.keys(D.pinturaManual[key]).length)delete D.pinturaManual[key]}}
+   else{const n=Number(v);if(!(n>=0)||n>100000){delete i.dataset.feito;u.show('Informe um kg entre 0 e 100.000.');return}(D.pinturaManual[key]??={})[dt]=Math.round(n)}
+   abertoPint=true;again()});
+  host.querySelector('#pv-pint-reset')?.addEventListener('click',()=>{D.pinturaManual={};abertoPint=true;again()});
   host.querySelectorAll('[data-pv-g]').forEach(i=>i.onchange=()=>{const g=gruposOrig[Number(i.dataset.pvG)];if(!g||!i.value)return;
    if(!anoOk(i.value)){u.show('Ano da data inválido ('+i.value.slice(0,4)+'). Digite o ano completo, ex.: 2026.');return}
    for(const it of g.itens){if(it.chave!==undefined)D.faturarEmFila[it.chave]=i.value;else{const l=manual.programacao[it.ordem];if(l)l.faturarEm=i.value}}
@@ -289,7 +353,12 @@
   const previsto={};for(const [k,v]of Object.entries(p.previsto||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))previsto[k]=v.slice(0,200).map(x=>({cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0})).filter(x=>x.kg>0);
   const pedidosDia={};for(const [k,v]of Object.entries(p.pedidosDia||{}).slice(0,80))if(okDate(k)&&Array.isArray(v))pedidosDia[k]=v.slice(0,300).map(x=>({pedido:/^\d+$/.test(String(x.pedido||''))?String(x.pedido):'',cliente:String(x.cliente||'').slice(0,120),kg:Number(x.kg)||0,origem:String(x.origem||'').slice(0,40)})).filter(x=>x.kg>0);
   const previstoPlanilha=(Array.isArray(p.previstoPlanilha)?p.previstoPlanilha:[]).filter(okDate).slice(0,60);
-  return {previsto,pedidosDia,previstoPlanilha,programacao:prog,agrupados:list(p.agrupados),retirados:list(p.retirados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
+  // 27/11/2026: ajustes manuais da FILA DA PINTURA ({'CLIENTE|COR':{'AAAA-MM-DD':kg}})
+  const pinturaManual={};let nPm=0;
+  for(const [k,v]of Object.entries(p.pinturaManual||{})){if(nPm>=400)break;const key=String(k).slice(0,160);if(!key.includes('|')||!v||typeof v!=='object')continue;
+   const o={};for(const [dt,kg]of Object.entries(v).slice(0,80)){const n=Number(kg);if(okDate(dt)&&n>=0&&n<=100000)o[dt]=Math.round(n)}
+   if(Object.keys(o).length){pinturaManual[key]=o;nPm++}}
+  return {pinturaManual,previsto,pedidosDia,previstoPlanilha,programacao:prog,agrupados:list(p.agrupados),retirados:list(p.retirados),prioridadePintura:list(p.prioridadePintura),foraCarteira:fora,prioridadeFila:prio,faturarEmFila:fat,...(p.ultimoDiaFaturamento?{ultimoDiaFaturamento:p.ultimoDiaFaturamento}:{})};
  }
  window.previaView={render,validar};
 })();
