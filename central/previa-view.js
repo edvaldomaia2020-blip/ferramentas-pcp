@@ -97,7 +97,14 @@
 .pvx .dayp{border:1px solid var(--line);border-radius:6px;background:var(--bg)}.pvx .gauge{border-color:var(--line);border-radius:6px;background:#fff}
 .pvx .col{border-top-width:3px;border-radius:6px;box-shadow:none}.pvx .sug{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:6px}.pvx .sug .sh{background:var(--soft)}
 .pvx button.lnk{background:transparent;border-color:transparent;color:var(--sub)}.pvx button.lnk:hover{color:var(--bad);background:var(--badbg)}.pvx button.plus{color:var(--navy2);border-color:#9DB8E8}.pvx button.sec{border-color:#9DB8E8}
-.pvx .warn{border-radius:6px;border-left-width:3px}.pvx .dirty{border-radius:6px;border-left-width:3px}.pvx .note{background:var(--bg);border:1px solid var(--line)}`;
+.pvx .warn{border-radius:6px;border-left-width:3px}.pvx .dirty{border-radius:6px;border-left-width:3px}.pvx .note{background:var(--bg);border:1px solid var(--line)}
+/* turnos com cor própria: DIA = azul, NOITE = índigo (27/11/2026) */
+.pvx .turno{--tc:#1D63C4;--tt:#E6F0FC;--tl:#BBD3F3}.pvx .turno.noite{--tc:#4A2FA0;--tt:#EEE9FB;--tl:#CBBFEF}
+.pvx .turno>.th{background:var(--tc);font-size:12px;padding:6px 12px;border-radius:6px 6px 0 0}
+.pvx .turno>.th::before{content:"\\2600";margin-right:8px}.pvx .turno.noite>.th::before{content:"\\263E"}.pvx .turno.noite>.th{background:var(--tc)}
+.pvx .turno .wrap{border:2px solid var(--tc);border-top:0;border-radius:0 0 6px 6px;background:#fff}.pvx .turno th{background:var(--tt);color:var(--tc);border-bottom:1px solid var(--tl)}.pvx .turno td{border-bottom-color:var(--tl)}.pvx .turno tbody tr:hover td{background:var(--tt)}
+.pvx .turno td select{background:var(--tt);color:var(--tc);border-color:var(--tc);font-weight:700}.pvx .turno input.yl{border-color:var(--tc)}.pvx .turno td:first-child{border-left:4px solid var(--tc);color:var(--tc);font-weight:700}
+.pvx .gauge.gdia{--tc:#1D63C4}.pvx .gauge.gnoite{--tc:#4A2FA0}.pvx .gauge.gdia,.pvx .gauge.gnoite{border-left-color:var(--tc);background:#fff}.pvx .gauge.gdia .gh b,.pvx .gauge.gnoite .gh b{color:var(--tc)}.pvx .gauge.gdia .bar i,.pvx .gauge.gnoite .bar i{background:var(--tc)}.pvx .gauge.gdia .bar.over i,.pvx .gauge.gnoite .bar.over i{background:var(--bad)}`;
  document.head.append(css);
  const anoOk=v=>/^20[2-9]\d-\d{2}-\d{2}$/.test(String(v||''));
  let draft=null,draftOf=null,dirty=false,savedAt=null,novaPubAviso=false,recuperadoEm=null,selDia=null,abertoOrig=false,abertoPint=false;
@@ -286,7 +293,7 @@
   h+='<div class="band">MONTAR PROGRAMAÇÃO — DIA A DIA<span>escolha o dia, lance pedido e kg na P7/P4; a prévia recalcula na hora'+(passadas?' · '+passadas+' linha(s) de dias passados ficam fora da conta (já estão nas filas)':'')+'</span></div>';
   h+='<div class="tabs">'+diasProg.map(x=>{const n=r.linhas.filter(l=>l.data===x.data).length;return '<button type="button" class="tab '+x.situacao.split(' ').pop()+(x.data===selDia?' sel':'')+'" data-pv-tab="'+x.data+'"><b>'+esc(wd(x.data))+'</b><span>P7 '+Math.round(100*x.ocupacao.P7)+'% · P4 '+Math.round(100*x.ocupacao.P4)+'%</span><span>P7 '+fmt(x.p7)+' kg · P4 '+fmt(x.p4)+' kg</span><small>'+n+' pedido'+(n===1?'':'s')+'</small></button>'}).join('')+'</div>';
   if(dSel){
-   const gauge=(nome,cor,usado,capd,extra)=>{const o=capd?usado/capd:0,p=Math.round(100*o);return '<div class="gauge" style="--c:'+cor+'"><div class="gh"><b>'+nome+'</b><span>'+fmt(usado)+' / '+fmt(capd)+' kg</span></div><div class="bar'+(o>1?' over':'')+'"><i style="width:'+Math.min(100,p)+'%"></i></div><div class="gf"><em class="'+(o>1?'over':o>=0.9?'warn':'okk')+'">'+p+'%</em><span>'+(capd-usado>=0?'sobra <b>'+fmt(capd-usado)+'</b> kg':'<b class="neg">estourou '+fmt(usado-capd)+' kg</b>')+'</span></div>'+(extra||'')+'</div>'};
+   const gauge=(nome,cor,usado,capd,extra)=>{const o=capd?usado/capd:0,p=Math.round(100*o);return '<div class="gauge'+(/DIA\b/.test(nome)?' gdia':/NOITE/.test(nome)?' gnoite':'')+'" style="--c:'+cor+'"><div class="gh"><b>'+nome+'</b><span>'+fmt(usado)+' / '+fmt(capd)+' kg</span></div><div class="bar'+(o>1?' over':'')+'"><i style="width:'+Math.min(100,p)+'%"></i></div><div class="gf"><em class="'+(o>1?'over':o>=0.9?'warn':'okk')+'">'+p+'%</em><span>'+(capd-usado>=0?'sobra <b>'+fmt(capd-usado)+'</b> kg':'<b class="neg">estourou '+fmt(usado-capd)+' kg</b>')+'</span></div>'+(extra||'')+'</div>'};
    const capT={P7:cap.P7/2,P4:cap.P4/2},usoT={Dia:{p7:0,p4:0},Noite:{p7:0,p4:0}};
    const doDia=r.linhas.filter(l=>l.data===dSel.data);
    doDia.forEach(l=>{if(l.turno==='Dia'||l.turno==='Noite'){usoT[l.turno].p7+=l.p7;usoT[l.turno].p4+=l.p4}});
