@@ -96,7 +96,10 @@
    l.tecnico=l.pintadoKg>=0.5?Math.ceil(l.fimPint-1e-9)+1:l.dia+cfg.dNatural;
    if(l.pintadoKg>=0.5)l.pintaEm=Math.ceil(l.fimPint-1e-9);
   });
+  // lançado depois da coleta da carteira, em dias que já passaram: a carteira ainda não desconta essa produção, então abate o saldo (não entra no cálculo de faturamento)
+  const extra=new Map();for(const x of input.jaProgramado||[]){const k=String(x.pedido).trim(),o=extra.get(k)||{p7:0,p4:0};o.p7+=num(x.p7);o.p4+=num(x.p4);extra.set(k,o)}
   const progPedido=new Map();linhas.forEach(l=>progPedido.set(l.pedido,(progPedido.get(l.pedido)||0)+l.total));
+  extra.forEach((o,k)=>progPedido.set(k,(progPedido.get(k)||0)+o.p7+o.p4));
   const maxTec=(arr,f)=>arr.filter(f).reduce((m,x)=>Math.max(m,x.tecnico||0),0);
   const filasP=filas.filter(f=>f.fila!=='FATURAMENTO HOJE');
   linhas.forEach(l=>{
@@ -173,13 +176,14 @@
   // sugestões por prensa (entrega mais antiga primeiro)
   const sugestoes={};
   for(const pr of ['P7','P4']){
-   const prog=new Map();linhas.forEach(l=>prog.set(l.pedido,(prog.get(l.pedido)||0)+l[pr.toLowerCase()]));
+   const prog=new Map();linhas.forEach(l=>prog.set(l.pedido,(prog.get(l.pedido)||0)+l[pr.toLowerCase()]));extra.forEach((o,k)=>prog.set(k,(prog.get(k)||0)+o[pr.toLowerCase()]));
    sugestoes[pr]=[...ped.values()].filter(c=>c[pr]-(prog.get(c.pedido)||0)>1).map(c=>({pedido:c.pedido,cliente:c.cliente,entrega:c.entrega,
     saldo:c[pr],programado:prog.get(c.pedido)||0,falta:c[pr]-(prog.get(c.pedido)||0),
     acabamento:c['nat'+pr]<0.5?'PINTADO':c['nat'+pr]>=c[pr]-0.5?'NATURAL':'MISTO'})).sort((a,b)=>(a.entrega||'9')<(b.entrega||'9')?-1:(a.entrega||'9')>(b.entrega||'9')?1:0);
   }
   // saldo a programar de cada pedido por prensa (carteira menos o já lançado na programação), para a lista de pedidos da tela de montagem
   const progPr=new Map();linhas.forEach(l=>{const o=progPr.get(l.pedido)||{p7:0,p4:0};o.p7+=l.p7;o.p4+=l.p4;progPr.set(l.pedido,o)});
+  extra.forEach((x,k)=>{const o=progPr.get(k)||{p7:0,p4:0};o.p7+=x.p7;o.p4+=x.p4;progPr.set(k,o)});
   const saldos=[...ped.values()].map(c=>{const g=progPr.get(c.pedido)||{p7:0,p4:0},f7=Math.max(0,c.P7-g.p7),f4=Math.max(0,c.P4-g.p4);
    return {pedido:c.pedido,cliente:c.cliente,entrega:c.entrega,carteiraP7:c.P7,carteiraP4:c.P4,progP7:g.p7,progP4:g.p4,faltaP7:f7,faltaP4:f4,falta:f7+f4}}).filter(x=>x.falta>=1)
    .sort((a,b)=>(a.entrega||'9')<(b.entrega||'9')?-1:(a.entrega||'9')>(b.entrega||'9')?1:String(a.pedido).localeCompare(String(b.pedido)));
@@ -196,7 +200,13 @@
   const prog=d.programacao||{},reu=d.resumo_diario?.reuniao||{};
   const fator=1; // Edvaldo 25/11: na prévia de faturamento NÃO aplicar os 90% (pedidos saem com até 10% de excedente); a Carga vs Capacidade segue com 90%
   const caps=capacidades(prog.linhas||{P7:{kgh:950,aprov:0.85,horas:20},P4:{kgh:440,aprov:0.85,horas:20},Pintura:{kgh:450,aprov:1,horas:20}},fator);
-  const itens=(prog.itens&&prog.itens.length?prog.itens:(d.resumo_diario?.carteira_atual?.itens||[]));
+  // Carteira a produzir da ÚLTIMA atualização: programacao_origem (aba B1 da P.P.C.P., saldo já sem o produzido). A carteira_atual do resumo diário pode ficar congelada
+  // em uma data antiga (o robô repassa a anterior quando não envia uma nova), por isso só entra como último recurso.
+  const origem=d.programacao_origem||{},lst=x=>Array.isArray(x)&&x.length?x:null;
+  const fonteItens=lst(origem.itens)?'programacao_origem':lst(prog.itens)?'programacao':'carteira_atual';
+  const itens=fonteItens==='programacao_origem'?origem.itens:fonteItens==='programacao'?prog.itens:(d.resumo_diario?.carteira_atual?.itens||[]);
+  const dataIso=t=>{t=String(t||'');let m=t.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];m=t.match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?m[3]+'-'+m[2]+'-'+m[1]:null};
+  const carteiraEm=dataIso(origem.carteira_em||prog.carteira_em||(fonteItens==='carteira_atual'?d.resumo_diario?.carteira_atual?.atualizado_em:null));
   const carteira=itens.map(x=>({pedido:x.pedido,cliente:x.cliente,kg:x.kg,prensa:x.prensa,entrega:x.entrega,
    natural:x.pintura!==undefined?!x.pintura:up(x.cor||x.beneficiamento||'NT')==='NT'}));
   const feriados=[...new Set([...(prog.feriados||[]),...(reu.feriados||[]),...recesso(prog.recesso)])];
@@ -217,7 +227,9 @@
   const hoje=manual.inicio||prog.inicio||new Date().toISOString().slice(0,10);
   return {parametros:{inicio:hoje,ultimoDiaFaturamento:manual.ultimoDiaFaturamento||fimDoMes(hoje),diasMin:15,dNatural:1,fator,...caps},
    carteira,feriados,filas,programacao:manual.programacao||[],agrupados:manual.agrupados||AGRUPADOS_PADRAO,
-   foraCarteira:manual.foraCarteira||{},prioridadePintura:manual.prioridadePintura||[]};
+   foraCarteira:manual.foraCarteira||{},prioridadePintura:manual.prioridadePintura||[],
+   jaProgramado:carteiraEm?(manual.programacaoAnterior||[]).filter(x=>String(x.dia)>=carteiraEm):[],
+   carteiraInfo:{fonte:fonteItens,em:carteiraEm,texto:origem.carteira_em||null,rotulo:origem.fonte||null,itens:itens.length}};
  }
  function recesso(r){if(!r||r.length<2)return[];const out=[];for(let t=parse(r[0]);t<=parse(r[1]);t+=DAY)out.push(iso(t));return out}
  function fimDoMes(d){const t=new Date(parse(d));return iso(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0))}
