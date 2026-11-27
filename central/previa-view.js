@@ -104,7 +104,20 @@
 .pvx .turno>.th::before{content:"\\2600";margin-right:8px}.pvx .turno.noite>.th::before{content:"\\263E"}.pvx .turno.noite>.th{background:var(--tc)}
 .pvx .turno .wrap{border:2px solid var(--tc);border-top:0;border-radius:0 0 6px 6px;background:#fff}.pvx .turno th{background:var(--tt);color:var(--tc);border-bottom:1px solid var(--tl)}.pvx .turno td{border-bottom-color:var(--tl)}.pvx .turno tbody tr:hover td{background:var(--tt)}
 .pvx .turno td select{background:var(--tt);color:var(--tc);border-color:var(--tc);font-weight:700}.pvx .turno input.yl{border-color:var(--tc)}.pvx .turno td:first-child{border-left:4px solid var(--tc);color:var(--tc);font-weight:700}
-.pvx .gauge.gdia{--tc:#1D63C4}.pvx .gauge.gnoite{--tc:#4A2FA0}.pvx .gauge.gdia,.pvx .gauge.gnoite{border-left-color:var(--tc);background:#fff}.pvx .gauge.gdia .gh b,.pvx .gauge.gnoite .gh b{color:var(--tc)}.pvx .gauge.gdia .bar i,.pvx .gauge.gnoite .bar i{background:var(--tc)}.pvx .gauge.gdia .bar.over i,.pvx .gauge.gnoite .bar.over i{background:var(--bad)}`;
+.pvx .gauge.gdia{--tc:#1D63C4}.pvx .gauge.gnoite{--tc:#4A2FA0}.pvx .gauge.gdia,.pvx .gauge.gnoite{border-left-color:var(--tc);background:#fff}.pvx .gauge.gdia .gh b,.pvx .gauge.gnoite .gh b{color:var(--tc)}.pvx .gauge.gdia .bar i,.pvx .gauge.gnoite .bar i{background:var(--tc)}.pvx .gauge.gdia .bar.over i,.pvx .gauge.gnoite .bar.over i{background:var(--bad)}
+/* v3 contraste forte: Dia = laranja-sol, Noite = índigo; cabeçalhos sólidos, zebra tingida */
+.pvx .turno{--tc:#E8710A;--td:#B85600;--tt:#FFF1E0;--tl:#F6C58F}.pvx .turno.noite{--tc:#3730A3;--td:#262072;--tt:#E9E8FB;--tl:#B9B5EE}
+.pvx .turno>.th,.pvx .turno.noite>.th{background:var(--tc);font-size:14px;font-weight:800;padding:9px 14px;letter-spacing:.5px;color:#fff}.pvx .turno>.th::before{font-size:17px;margin-right:10px}
+.pvx .turno .wrap{border:3px solid var(--tc);border-top:0}.pvx .turno th{background:var(--td);color:#fff;border-bottom:0;font-size:10px}
+.pvx .turno tbody tr:nth-child(odd) td{background:var(--tt)}.pvx .turno tbody tr:nth-child(even) td{background:#fff}.pvx .turno tbody tr:hover td{background:var(--tl)}.pvx .turno td{border-bottom-color:var(--tl)}
+.pvx .turno td:first-child{border-left:7px solid var(--tc);font-size:14px;font-weight:800;color:var(--td)}.pvx .turno td select{background:var(--tc);color:#fff;border-color:var(--td);font-weight:800}.pvx .turno input.yl{border:2px solid var(--tc);font-weight:700}
+.pvx .gauge.gdia{--tc:#E8710A;--tt:#FFF1E0}.pvx .gauge.gnoite{--tc:#3730A3;--tt:#E9E8FB}.pvx .gauge.gdia,.pvx .gauge.gnoite{border:1px solid var(--tc);border-left:7px solid var(--tc);background:var(--tt)}.pvx .gauge.gdia .gh b,.pvx .gauge.gnoite .gh b{font-size:15px;font-weight:800}.pvx .gauge .bar{height:12px}.pvx .gauge .gf em{font-size:17px;font-weight:800;padding:1px 8px}.pvx .gauge .gf b{font-size:15px}.pvx .gauge .gh span{font-weight:700;color:var(--ink)}
+.pvx .gauge:not(.gdia):not(.gnoite):not(.fat){border-left:7px solid var(--c)}
+.pvx .kpi{background:var(--soft);border-left-width:7px}.pvx .kpi b{font-size:28px;font-weight:800}.pvx .kpi span{font-weight:700;color:var(--navy)}
+.pvx details>summary,.pvx details.pint>summary{background:var(--navy2);color:#fff;font-size:12px;font-weight:800;padding:9px 14px}.pvx details>summary span{color:#D5E0F5}.pvx details[open]>summary{background:var(--navy);color:#fff}.pvx details.pint>summary{background:#8A4B08}.pvx details.pint[open]>summary{background:#6B3905}.pvx details.pint>summary span{color:#FBE3C6}.pvx details{border:2px solid var(--navy2)}.pvx details.pint{border:2px solid #8A4B08}
+.pvx .sug .sh{background:var(--c);color:#fff;font-size:12px;padding:7px 10px}.pvx .sug .sh span{color:#fff;opacity:.9}.pvx .sug{border-left-width:1px}
+.pvx .band{background:var(--navy);font-size:12px;font-weight:800;padding:8px 14px}.pvx .tab{border-top-width:5px}.pvx .tab b{font-size:13px}
+.pvx tr.novo td{background:#DCE7F8;border-top:3px solid var(--navy2)}`;
  document.head.append(css);
  const anoOk=v=>/^20[2-9]\d-\d{2}-\d{2}$/.test(String(v||''));
  let draft=null,draftOf=null,dirty=false,savedAt=null,novaPubAviso=false,recuperadoEm=null,selDia=null,abertoOrig=false,abertoPint=false;
